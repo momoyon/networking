@@ -75,6 +75,21 @@ int main(void) {
                 if (IsKeyPressed(KEY_E)) {
                     selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
                 }
+                // Moving selected entities
+                if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+                    for (size_t i = 0; i < entities.count; ++i) {
+                        Entity *e = &entities.items[i];
+                        e->offset = Vector2Subtract(e->pos, m);
+                    }
+                }
+                if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+                    for (size_t i = 0; i < entities.count; ++i) {
+                        Entity *e = &entities.items[i];
+                        if (e->selected) {
+                            e->pos = Vector2Add(m, e->offset);
+                        }
+                    }
+                }
             } break;
             case MODE_COUNT:
             default: ASSERT(false, "UNREACHABLE!");

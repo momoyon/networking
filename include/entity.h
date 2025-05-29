@@ -14,6 +14,7 @@ const char *entity_kind_as_str(const Entity_kind k);
 extern int entity_id_counter;
 
 typedef struct {
+    Vector2 offset; // We use this to move with offset
     Vector2 pos;
     float radius;
     Entity_kind kind;
