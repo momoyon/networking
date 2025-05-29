@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <limits.h>
 
-#if defined(_WIN32) && defined (_MSC_VER)
+#if defined(_WIN32) && defined(_MSC_VER)
 // NOTE: Don't include unwanted files to speed up compilation
 #define WIN32_LEAN_AND_MEAN
 #define NOCOMM
@@ -266,7 +266,8 @@ void* c_arena_alloc(c_Arena* a, size_t size);
 void c_arena_reset(c_Arena* a);
 void c_arena_free(c_Arena* a);
 
-#define c_arena_alloc_str(a, fmt, ...)    c_arena_alloc(&(a), sizeof(char)*stbsp_snprintf((a).ptr, (int)((a).buff_size - ((uint8*)(a).ptr - (uint8*)(a).buff)), (fmt), __VA_ARGS__)+1)
+// TODO: Do we embed stb_snprintf to use stbsp_snprintf?
+#define c_arena_alloc_str(a, fmt, ...)    c_arena_alloc(&(a), sizeof(char)*snprintf((a).ptr, (int)((a).buff_size - ((uint8*)(a).ptr - (uint8*)(a).buff)), (fmt), __VA_ARGS__)+1)
 #define c_arena_alloc_wstr(a, fmt, ...) c_arena_alloc(&a, sizeof(char)*wprintf(a.ptr, a.buff_size - ((uint8*)a.ptr - (uint8*)a.buff), (fmt), __VA_ARGS__)+1)
 
 //

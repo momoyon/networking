@@ -7,24 +7,6 @@
 #include <raylib.h>
 #include <raymath.h>
 
-#define TEMP_BUFF_CAP (1024*4)
-typedef struct {
-	char data[TEMP_BUFF_CAP];
-	size_t count;
-} Buffer;
-
-extern Buffer temp_buff;
-
-#define tprintf(fmt, ...) ({\
-		if (temp_buff.count >= TEMP_BUFF_CAP) {\
-			temp_buff.count = 0;\
-		}\
-		char *ptr = temp_buff.data + temp_buff.count;\
-		snprintf(ptr, TEMP_BUFF_CAP-temp_buff.count, fmt, ##__VA_ARGS__);\
-		temp_buff.count += strlen(ptr);\
-		ptr;\
-	})
-
 // Vector helpers
 Vector2 v2xx(float v);
 Vector2 v2(float x, float y);
