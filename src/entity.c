@@ -30,6 +30,11 @@ Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Ar
         } break;
         case EK_NETWORK_DEVICE: {
             e.network_device = (Network_device *)arena_alloc(arena, sizeof(Network_device));
+            e.network_device->subnet_mask[0] = 255;
+            e.network_device->subnet_mask[1] = 255;
+            e.network_device->subnet_mask[2] = 255;
+            e.network_device->subnet_mask[3] = 0;
+            get_unique_mac_address(e.network_device->mac_address);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -62,6 +67,13 @@ void draw_entity(Entity *e, bool debug) {
                             e->network_device->ipv4_address[1],
                             e->network_device->ipv4_address[2],
                             e->network_device->ipv4_address[3]),
+                        ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+                            "subnet mask: %d.%d.%d.%d",
+                            e->network_device->subnet_mask[0],
+                            e->network_device->subnet_mask[1],
+                            e->network_device->subnet_mask[2],
+                            e->network_device->subnet_mask[3]),
                         ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "mac: %02X:%02X:%02X:%02X:%02X:%02X",
