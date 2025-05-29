@@ -49,6 +49,8 @@ int main(void) {
 
     Entity_kind selected_entity_kind = EK_NONE;
 
+    Arena entity_arena = arena_make(32*1024);
+
     Arena temp_arena = arena_make(0);
 
     while (!WindowShouldClose()) {
@@ -58,9 +60,9 @@ int main(void) {
 
         // Input
         if (IsMouseButtonPressed(MOUSE_BUTTON_EXTRA)) {
-            Entity e = make_entity(m, ENTITY_DEFAULT_RADIUS, selected_entity_kind);
+            Entity e = make_entity(m, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
             da_append(entities, e);
-            log_debug("Added Entity %zu at %f, %f", e.id, e.pos.x, e.pos.y);
+            log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
         }
 
         if (IsKeyPressed(KEY_GRAVE)) {
@@ -75,6 +77,7 @@ int main(void) {
                 if (IsKeyPressed(KEY_E)) {
                     selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
                 }
+
                 // Moving selected entities
                 if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
                     for (size_t i = 0; i < entities.count; ++i) {
@@ -133,6 +136,7 @@ int main(void) {
                 case MODE_EDIT: {
                     const char *selected_entity_kind_str = arena_alloc_str(temp_arena, "Entity Kind: %s", entity_kind_as_str(selected_entity_kind));
                     draw_text_aligned(GetFontDefault(), selected_entity_kind_str, v2(width*0.5, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_CENTER, WHITE);
+
                 } break;
                 case MODE_COUNT:
                 default: ASSERT(false, "UNREACHABLE!");
@@ -143,6 +147,7 @@ int main(void) {
         EndDrawing();
     }
 
+    arena_free(&entity_arena);
     arena_free(&temp_arena);
     close_window(ren_tex);
     return 0;

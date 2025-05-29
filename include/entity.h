@@ -1,6 +1,7 @@
 #ifndef _ENTITY_H_
 #define _ENTITY_H_
 
+#include <network_device.h>
 #include <engine.h>
 
 typedef enum {
@@ -20,9 +21,15 @@ typedef struct {
     Entity_kind kind;
     size_t id;
     bool selected;
+
+    Arena *arena; // All entity-related allocations
+    Arena *temp_arena;
+
+    // Kind specific
+    Network_device *network_device;
 } Entity;
 
-Entity make_entity(Vector2 pos, float radius, Entity_kind kind);
+Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena);
 void draw_entity(Entity *e, bool debug);
 
 typedef struct {
