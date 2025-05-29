@@ -13,7 +13,7 @@ typedef struct {
 	size_t count;
 } Buffer;
 
-Buffer temp_buff = {0};
+extern Buffer temp_buff;
 
 #define tprintf(fmt, ...) ({\
 		if (temp_buff.count >= TEMP_BUFF_CAP) {\
@@ -36,9 +36,6 @@ typedef struct {
 
 Vector2i v2vi(Vector2 v);
 bool v2i_equal(Vector2i a, Vector2i b);
-
-int _screen_width, _screen_height, _width, _height;
-float _scl;
 
 // Window
 RenderTexture2D init_window(int screen_width, int screen_height, float scl, const char *title, int *width_out, int *height_out);
@@ -66,7 +63,7 @@ void draw_text_aligned_ex(Font font, const char *text, Vector2 pos, int font_siz
 void draw_text(Font font, const char *text, Vector2 pos, int font_size, Color color);
 
 // Misc
-Vector2 get_mpos_scaled();
+Vector2 get_mpos_scaled(float scl);
 
 #endif // _ENGINE_H_
 
@@ -88,24 +85,21 @@ bool v2i_equal(Vector2i a, Vector2i b) {
 RenderTexture2D init_window(int screen_width, int screen_height, float scl, const char *title, int *width_out, int *height_out) {
 	SetTraceLogLevel(LOG_NONE);
 	InitWindow(screen_width, screen_height, title);
-	_scl = scl;
-	_screen_width = screen_width;
-	_screen_height = screen_height;
 
-    _width = _screen_width * _scl;
-    _height = _screen_height * _scl;
+    int width = screen_width * scl;
+    int height = screen_height * scl;
 
-    *width_out = _width;
-    *height_out = _height;
+    *width_out = width;
+    *height_out = height;
 
-	log_info("Created Window with dimensions %dx%d", _screen_width, _screen_height);
+	log_info("Created Window with dimensions %dx%d", screen_width, screen_height);
 
-	RenderTexture2D ren_tex = LoadRenderTexture((int)(_width), (int)(_height));
+	RenderTexture2D ren_tex = LoadRenderTexture((int)(width), (int)(height));
 	if (!IsRenderTextureReady(ren_tex)) {
 		log_error("Failed to create RenderTexture2D!");
 		exit(1);
 	}
-	log_info("Created RenderTexture2D with dimensions %dx%d (Scaled down by %.2f)", ren_tex.texture.width, ren_tex.texture.height, _scl);
+	log_info("Created RenderTexture2D with dimensions %dx%d (Scaled down by %.2f)", ren_tex.texture.width, ren_tex.texture.height, scl);
 
 	return ren_tex;
 }
@@ -180,10 +174,10 @@ void draw_text(Font font, const char *text, Vector2 pos, int font_size, Color co
 }
 
 // Misc
-Vector2 get_mpos_scaled() {
+Vector2 get_mpos_scaled(float scl) {
 	Vector2 m = GetMousePosition();
-	m.x *= _scl;
-	m.y *= _scl;
+	m.x *= scl;
+	m.y *= scl;
 	return m;
 }
 
