@@ -5,6 +5,7 @@
 
 typedef enum {
     EK_NONE,
+    EK_NETWORK_DEVICE,
     EK_COUNT,
 } Entity_kind;
 
@@ -14,11 +15,13 @@ extern int entity_id_counter;
 
 typedef struct {
     Vector2 pos;
+    float radius;
     Entity_kind kind;
     size_t id;
+    bool selected;
 } Entity;
 
-Entity make_entity(Vector2 pos, Entity_kind kind);
+Entity make_entity(Vector2 pos, float radius, Entity_kind kind);
 void draw_entity(Entity *e, bool debug);
 
 typedef struct {
