@@ -225,7 +225,8 @@ int main(void) {
                             if (rect_contains_point(selection, e->pos)) {
                                 e->state |= (1<<ESTATE_SELECTED);
                             } else {
-                                e->state &= !(1<<ESTATE_SELECTED);
+                                if (!IsKeyDown(KEY_LEFT_CONTROL))
+                                    e->state &= !(1<<ESTATE_SELECTED);
                             }
                         }
                         if (hovering_entity) {
