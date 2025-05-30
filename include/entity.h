@@ -14,13 +14,19 @@ const char *entity_kind_as_str(const Entity_kind k);
 
 extern int entity_id_counter;
 
+typedef enum {
+    ESTATE_SELECTED,
+    ESTATE_HOVERING,
+    ESTATE_COUNT,
+} Entity_state_mask;
+
 typedef struct {
     Vector2 offset; // We use this to move with offset
     Vector2 pos;
     float radius;
     Entity_kind kind;
     size_t id;
-    bool selected;
+    int state;
 
     Arena *arena; // All entity-related allocations
     Arena *temp_arena;

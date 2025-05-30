@@ -20,7 +20,7 @@ Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Ar
         .radius = radius,
         .kind = kind,
         .id = entity_id_counter++,
-        .selected = false,
+        .state = 0,
         .arena = arena,
         .temp_arena = temp_arena,
     };
@@ -56,7 +56,7 @@ void draw_entity(Entity *e, bool debug) {
         case EK_NETWORK_DEVICE: {
             ASSERT(e->network_device, "We failed to allocate network_device!");
             DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
-            if (e->selected) {
+            if (e->state & (1<<ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
@@ -91,8 +91,10 @@ void draw_entity(Entity *e, bool debug) {
     if (debug) draw_text_aligned(GetFontDefault(), entity_kind_as_str(e->kind), e->pos, ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
 
     // Draw outline if selected
-    if (e->selected) {
+    if (e->state & (1<<ESTATE_SELECTED)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+2, WHITE);
-
+    }
+    if (e->state & (1<<ESTATE_HOVERING)) {
+        DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GRAY);
     }
 }

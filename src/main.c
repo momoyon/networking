@@ -15,14 +15,14 @@
 
 
 typedef enum {
-    MODE_NONE,
+    MODE_ADD,
     MODE_EDIT,
     MODE_COUNT,
 } Mode;
 
 const char *mode_as_str(const Mode m) {
     switch (m) {
-        case MODE_NONE: return "None";
+        case MODE_ADD: return  "Add";
         case MODE_EDIT: return "Edit";
         case MODE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -45,9 +45,10 @@ int main(void) {
 
     Entities entities = {0};
 
-    Mode current_mode = MODE_NONE;
+    Mode current_mode = MODE_ADD;
 
-    Entity_kind selected_entity_kind = EK_NONE;
+    Entity_kind selected_entity_kind = EK_NETWORK_DEVICE;
+    Entity *hovering_entity = NULL;
 
     Arena entity_arena = arena_make(32*1024);
 
@@ -59,25 +60,23 @@ int main(void) {
         Vector2 m = get_mpos_scaled(SCREEN_SCALE);
 
         // Input
-        if (IsMouseButtonPressed(MOUSE_BUTTON_EXTRA)) {
-            Entity e = make_entity(m, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
-            da_append(entities, e);
-            log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
-        }
-
-        if (IsKeyPressed(KEY_GRAVE)) {
+        if (IsKeyPressed(KEY_TAB)) {
             current_mode = (current_mode + 1) % MODE_COUNT;
         }
 
         // Mode-specific input
         switch (current_mode) {
-            case MODE_NONE: {
-            } break;
-            case MODE_EDIT: {
+            case MODE_ADD: {
                 if (IsKeyPressed(KEY_E)) {
                     selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
                 }
-
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    Entity e = make_entity(m, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
+                    da_append(entities, e);
+                    log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
+                }
+            } break;
+            case MODE_EDIT: {
                 // Moving selected entities
                 if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
                     for (size_t i = 0; i < entities.count; ++i) {
@@ -88,10 +87,20 @@ int main(void) {
                 if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
                     for (size_t i = 0; i < entities.count; ++i) {
                         Entity *e = &entities.items[i];
-                        if (e->selected) {
+                        if (e->state & (1<<ESTATE_SELECTED)) {
                             e->pos = Vector2Add(m, e->offset);
                         }
                     }
+                }
+
+                // Moving hovering entity
+                if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+                    if (hovering_entity) {
+                        hovering_entity->offset = Vector2Subtract(hovering_entity->pos, m);
+                    }
+                }
+                if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) && hovering_entity) {
+                    hovering_entity->pos = Vector2Add(m, hovering_entity->offset);
                 }
             } break;
             case MODE_COUNT:
@@ -102,16 +111,34 @@ int main(void) {
             ClearBackground(BLACK);
 
             // Edit
+            // Find hovering entity
+            hovering_entity = NULL;
+            for (size_t i = 0; i < entities.count; ++i) {
+                Entity *e = &entities.items[i];
+                float dist_sq = Vector2DistanceSqr(e->pos, m);
+                //     v
+                // 00100
+                // &
+                // 11110
+                e->state &= ~(1<<ESTATE_HOVERING);
+                if (dist_sq <= e->radius*e->radius) {
+                    hovering_entity = e;
+                    hovering_entity->state |= (1<<ESTATE_HOVERING);
+                }
+            }
             // Mode-specific edit
             switch (current_mode) {
-                case MODE_NONE: {
+                case MODE_ADD: {
                 } break;
                 case MODE_EDIT: {
+                    // Select entities
                     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                         for (size_t i = 0; i < entities.count; ++i) {
                             Entity *e = &entities.items[i];
                             float dist_sq = Vector2DistanceSqr(e->pos, m);
-                            if (dist_sq <= e->radius*e->radius) e->selected = !e->selected;
+                            if (dist_sq <= e->radius*e->radius) {
+                                e->state = e->state ^ (1<<ESTATE_SELECTED);
+                            }
                         }
                     }
                 } break;
@@ -131,11 +158,11 @@ int main(void) {
 
             // Mode-specific draw
             switch (current_mode) {
-                case MODE_NONE: {
-                } break;
-                case MODE_EDIT: {
+                case MODE_ADD: {
                     const char *selected_entity_kind_str = arena_alloc_str(temp_arena, "Entity Kind: %s", entity_kind_as_str(selected_entity_kind));
                     draw_text_aligned(GetFontDefault(), selected_entity_kind_str, v2(width*0.5, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_CENTER, WHITE);
+                } break;
+                case MODE_EDIT: {
 
                 } break;
                 case MODE_COUNT:
