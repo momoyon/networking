@@ -88,7 +88,7 @@ void draw_entity(Entity *e, bool debug) {
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
-    if (debug) draw_text_aligned(GetFontDefault(), entity_kind_as_str(e->kind), e->pos, ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
+    if (debug) draw_text_aligned(GetFontDefault(), entity_kind_as_str(e->kind), Vector2Subtract(e->pos, v2(0, ENTITY_DEFAULT_RADIUS*0.5)), ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
 
     // Draw outline if selected
     if (e->state & (1<<ESTATE_SELECTED)) {
@@ -97,4 +97,51 @@ void draw_entity(Entity *e, bool debug) {
     if (e->state & (1<<ESTATE_HOVERING)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GRAY);
     }
+
+    ASSERT(!(e->state & (1<<ESTATE_CONNECTING_FROM) && e->state & (1<<ESTATE_CONNECTING_TO)), "I can't connect to myself");
+    if (e->state & (1<<ESTATE_CONNECTING_FROM)) {
+        DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, RED);
+    }
+
+    if (e->state & (1<<ESTATE_CONNECTING_TO)) {
+        DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GREEN);
+    }
+
+    // Draw connections
+    for (size_t i = 0; i < e->connections.count; ++i) {
+        Connection *c = &e->connections.items[i];
+        ASSERT(c->to, "We found a connection to NULL!");
+        DrawLineBezier(e->pos, c->to->pos, 1.0, WHITE);
+    }
+}
+
+bool connect(Entity *from, Entity *to) {
+    ASSERT(from, "Bruh pass a valid entity!");
+    ASSERT(to,   "Bruh pass a valid entity!");
+
+    for (size_t i = 0; i < from->connections.count; ++i) {
+        Connection c = from->connections.items[i];
+        if (c.to == to) {
+            log_debug("We already connected these entities!");
+            return false;
+        }
+    }
+
+    Connection c = {
+        .to = to
+    };
+    da_append(from->connections, c);
+
+    for (size_t i = 0; i < to->connections.count; ++i) {
+        Connection c = to->connections.items[i];
+        if (c.to == to) {
+            log_debug("We already connected these entities!");
+            return false;
+        }
+    }
+
+    c.to = from;
+    da_append(to->connections, c);
+
+    return true;
 }

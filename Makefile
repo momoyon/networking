@@ -7,6 +7,6 @@ networking: src/*.c
 	$(CC) $(CFLAGS) -o $@ src/*.c $(LDFLAGS) $(LIBS)
 
 debug: src/*.c
-	$(CC) $(CFLAGS) -DDEBUG=1 -o networking-debug src/*.c $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -ggdb -DDEBUG=1 -o networking-debug src/*.c $(LDFLAGS) $(LIBS)
 
 all: networking debug

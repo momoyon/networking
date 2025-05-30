@@ -1,5 +1,6 @@
 #include <config.h>
 #include <entity.h>
+#include <connection.h>
 
 #define COMMONLIB_REMOVE_PREFIX
 #define COMMONLIB_IMPLEMENTATION
@@ -13,6 +14,16 @@
 #define SCREEN_HEIGHT (9*FACTOR)
 #define SCREEN_SCALE  0.5
 
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  ((byte) & 0x80 ? '1' : '0'), \
+  ((byte) & 0x40 ? '1' : '0'), \
+  ((byte) & 0x20 ? '1' : '0'), \
+  ((byte) & 0x10 ? '1' : '0'), \
+  ((byte) & 0x08 ? '1' : '0'), \
+  ((byte) & 0x04 ? '1' : '0'), \
+  ((byte) & 0x02 ? '1' : '0'), \
+  ((byte) & 0x01 ? '1' : '0')
 
 typedef enum {
     MODE_ADD,
@@ -44,11 +55,12 @@ int main(void) {
     // Font font = GetFontDefault();
 
     Entities entities = {0};
-
     Mode current_mode = MODE_ADD;
 
     Entity_kind selected_entity_kind = EK_NETWORK_DEVICE;
     Entity *hovering_entity = NULL;
+    Entity *connecting_from = NULL;
+    Entity *connecting_to = NULL;
 
     Arena entity_arena = arena_make(32*1024);
 
@@ -78,30 +90,48 @@ int main(void) {
             } break;
             case MODE_EDIT: {
                 // Moving selected entities
-                if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+                if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
                     for (size_t i = 0; i < entities.count; ++i) {
                         Entity *e = &entities.items[i];
                         e->offset = Vector2Subtract(e->pos, m);
                     }
                 }
-                if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
-                    for (size_t i = 0; i < entities.count; ++i) {
-                        Entity *e = &entities.items[i];
-                        if (e->state & (1<<ESTATE_SELECTED)) {
-                            e->pos = Vector2Add(m, e->offset);
+                if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+                    if (hovering_entity) {
+                        hovering_entity->pos = Vector2Add(m, hovering_entity->offset);
+                    } else {
+                        for (size_t i = 0; i < entities.count; ++i) {
+                            Entity *e = &entities.items[i];
+                            if (e->state & (1<<ESTATE_SELECTED)) {
+                                e->pos = Vector2Add(m, e->offset);
+                            }
                         }
                     }
                 }
 
-                // Moving hovering entity
-                if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+                if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
                     if (hovering_entity) {
-                        hovering_entity->offset = Vector2Subtract(hovering_entity->pos, m);
+                        connecting_from = hovering_entity;
+                        connecting_from->state |= (1<<ESTATE_CONNECTING_FROM);
                     }
                 }
-                if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) && hovering_entity) {
-                    hovering_entity->pos = Vector2Add(m, hovering_entity->offset);
+
+                if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && connecting_from) {
+                    if (hovering_entity != connecting_from) {
+                        connecting_to = hovering_entity;
+                        if (connecting_to)
+                            connecting_to->state |= (1<<ESTATE_CONNECTING_TO);
+                    }
                 }
+
+                if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) {
+                    if (connecting_from && connecting_to) {
+                        connect(connecting_from, connecting_to);
+                    }
+                    connecting_from = NULL;
+                    connecting_to = NULL;
+                }
+
             } break;
             case MODE_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
@@ -116,11 +146,12 @@ int main(void) {
             for (size_t i = 0; i < entities.count; ++i) {
                 Entity *e = &entities.items[i];
                 float dist_sq = Vector2DistanceSqr(e->pos, m);
-                //     v
-                // 00100
-                // &
-                // 11110
+                // Clear states
                 e->state &= ~(1<<ESTATE_HOVERING);
+                if (e != connecting_from)
+                    e->state &= ~(1<<ESTATE_CONNECTING_FROM);
+                if (e != connecting_to)
+                    e->state &= ~(1<<ESTATE_CONNECTING_TO);
                 if (dist_sq <= e->radius*e->radius) {
                     hovering_entity = e;
                     hovering_entity->state |= (1<<ESTATE_HOVERING);
@@ -154,6 +185,26 @@ int main(void) {
 
             if (debug_draw) {
                 draw_text_aligned(GetFontDefault(), mode_as_str(current_mode), v2(2, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_LEFT, WHITE);
+
+
+                int y = (ENTITY_DEFAULT_RADIUS*0.5) * 2 + (2*2);
+                const char *hovering_entity_str = arena_alloc_str(temp_arena, "Hovering: %p", hovering_entity);
+                const char *connecting_from_str = arena_alloc_str(temp_arena, "From: %p", connecting_from);
+                const char *connecting_to_str = arena_alloc_str(temp_arena, "To: %p", connecting_to);
+                draw_text(GetFontDefault(), hovering_entity_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+                if (hovering_entity) {
+                    const char *hovering_entity_state_str = arena_alloc_str(temp_arena, "Hovering state: "BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(hovering_entity->state & 0xFF));
+                    draw_text(GetFontDefault(), hovering_entity_state_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                    y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+                    const char *hovering_entity_connections_str = arena_alloc_str(temp_arena, "Hovering connections: %zu", hovering_entity->connections.count);
+                    draw_text(GetFontDefault(), hovering_entity_connections_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                    y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+                }
+                draw_text(GetFontDefault(), connecting_from_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+                draw_text(GetFontDefault(), connecting_to_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
             }
 
             // Mode-specific draw
@@ -163,7 +214,9 @@ int main(void) {
                     draw_text_aligned(GetFontDefault(), selected_entity_kind_str, v2(width*0.5, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_CENTER, WHITE);
                 } break;
                 case MODE_EDIT: {
-
+                    if (connecting_from) {
+                        DrawLineBezier(connecting_from->pos, m, 1.0, GRAY);
+                    }
                 } break;
                 case MODE_COUNT:
                 default: ASSERT(false, "UNREACHABLE!");
