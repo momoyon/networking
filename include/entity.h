@@ -19,7 +19,19 @@ typedef enum {
 
 const char *entity_kind_as_str(const Entity_kind k);
 
-extern int entity_id_counter;
+typedef struct {
+    int *items;
+    size_t count;
+    size_t capacity;
+} Entity_ids;
+
+// NOTE: How we assign unique ids for entities:
+// 1. We first check if `free_entity_ids` is empty:
+//      1.true If empty: go 2.
+//      1.false If not empty: pop last id as unique id
+// 2. get `entity_id_counter` as unique id and increment `entity_id_counter`
+extern size_t entity_id_counter;
+extern Entity_ids free_entity_ids;
 
 typedef enum {
     ESTATE_SELECTED,

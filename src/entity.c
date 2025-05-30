@@ -3,7 +3,19 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
-int entity_id_counter = 0;
+size_t entity_id_counter = 0;
+Entity_ids free_entity_ids = {0};
+
+static size_t get_unique_id(void) {
+    if (free_entity_ids.count > 0) {
+        int last_free_id = -1;
+        da_remove(free_entity_ids, int, &last_free_id, (int)free_entity_ids.count-1);
+        ASSERT(last_free_id != -1, "We failed to get last free id!");
+        return last_free_id;
+    } else {
+        return entity_id_counter++;
+    }
+}
 
 const char *entity_kind_as_str(const Entity_kind k) {
     switch (k) {
@@ -19,7 +31,7 @@ Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Ar
         .pos = pos,
         .radius = radius,
         .kind = kind,
-        .id = entity_id_counter++,
+        .id = get_unique_id(),
         .state = 0,
         .arena = arena,
         .temp_arena = temp_arena,
@@ -117,6 +129,7 @@ void draw_entity(Entity *e, bool debug) {
 
 void free_entity(Entity *e) {
     log_debug("Freed connections of Entity %zu", e->id);
+    da_append(free_entity_ids, e->id);
     da_free(e->connections);
 }
 
