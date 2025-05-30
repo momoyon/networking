@@ -1,4 +1,4 @@
-#include <network_device.h>
+#include <network_interface.h>
 
 // TODO: Move this to commonlib.h
 int randomi(int from, int to) {

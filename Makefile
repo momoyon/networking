@@ -4,7 +4,7 @@ LDFLAGS=-L./raylib-5.0_win64_mingw-w64/lib
 LIBS=-lraylib -lgdi32 -lwinmm
 
 networking: src/*.c
-	$(CC) $(CFLAGS) -o $@ src/*.c $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -O2 -o $@ src/*.c $(LDFLAGS) $(LIBS)
 
 debug: src/*.c
 	$(CC) $(CFLAGS) -ggdb -DDEBUG=1 -o networking-debug src/*.c $(LDFLAGS) $(LIBS)

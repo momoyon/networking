@@ -48,7 +48,8 @@ int main(void) {
     bool debug_draw = false;
 #endif // defined(DEBUG)
 
-    RenderTexture2D ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, "Networking", &width, &height);
+    const char *window_name = "Networking";
+    RenderTexture2D ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, window_name, &width, &height);
 
     // Font font = GetFontDefault();
 
@@ -70,6 +71,11 @@ int main(void) {
 
     while (!WindowShouldClose()) {
         arena_reset(&temp_arena);
+
+        const char *title_str = arena_alloc_str(temp_arena, "%s | %d FPS", window_name, GetFPS());
+
+        SetWindowTitle(title_str);
+
         BeginDrawing();
         Vector2 m = get_mpos_scaled(SCREEN_SCALE);
 

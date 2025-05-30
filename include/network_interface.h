@@ -8,7 +8,7 @@ typedef struct {
     uint8 ipv4_address[4];
     uint8 subnet_mask[4];
     uint8 mac_address[6];
-} Network_device;
+} Network_interface;
 
 typedef struct {
     uint8 addr[6];

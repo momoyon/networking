@@ -21,6 +21,7 @@ const char *entity_kind_as_str(const Entity_kind k) {
     switch (k) {
         case EK_NONE: return "None";
         case EK_NETWORK_DEVICE: return "Network Device";
+        case EK_SWITCH: return "Switch";
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -41,12 +42,15 @@ Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Ar
         case EK_NONE: {
         } break;
         case EK_NETWORK_DEVICE: {
-            e.network_device = (Network_device *)arena_alloc(arena, sizeof(Network_device));
-            e.network_device->subnet_mask[0] = 255;
-            e.network_device->subnet_mask[1] = 255;
-            e.network_device->subnet_mask[2] = 255;
-            e.network_device->subnet_mask[3] = 0;
-            get_unique_mac_address(e.network_device->mac_address);
+            e.network_interface = (Network_interface *)arena_alloc(arena, sizeof(Network_interface));
+            e.network_interface->subnet_mask[0] = 255;
+            e.network_interface->subnet_mask[1] = 255;
+            e.network_interface->subnet_mask[2] = 255;
+            e.network_interface->subnet_mask[3] = 0;
+            get_unique_mac_address(e.network_interface->mac_address);
+        } break;
+        case EK_SWITCH: {
+            e.switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -66,7 +70,7 @@ void draw_entity(Entity *e, bool debug) {
             DrawCircle(e->pos.x, e->pos.y, e->radius, RED);
         } break;
         case EK_NETWORK_DEVICE: {
-            ASSERT(e->network_device, "We failed to allocate network_device!");
+            ASSERT(e->network_interface, "We failed to allocate network_interface!");
             DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
             if (e->state & (1<<ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
@@ -75,27 +79,31 @@ void draw_entity(Entity *e, bool debug) {
 
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "ipv4: %d.%d.%d.%d",
-                            e->network_device->ipv4_address[0],
-                            e->network_device->ipv4_address[1],
-                            e->network_device->ipv4_address[2],
-                            e->network_device->ipv4_address[3]),
+                            e->network_interface->ipv4_address[0],
+                            e->network_interface->ipv4_address[1],
+                            e->network_interface->ipv4_address[2],
+                            e->network_interface->ipv4_address[3]),
                         ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "subnet mask: %d.%d.%d.%d",
-                            e->network_device->subnet_mask[0],
-                            e->network_device->subnet_mask[1],
-                            e->network_device->subnet_mask[2],
-                            e->network_device->subnet_mask[3]),
+                            e->network_interface->subnet_mask[0],
+                            e->network_interface->subnet_mask[1],
+                            e->network_interface->subnet_mask[2],
+                            e->network_interface->subnet_mask[3]),
                         ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "mac: %02X:%02X:%02X:%02X:%02X:%02X",
-                            e->network_device->mac_address[0],
-                            e->network_device->mac_address[1],
-                            e->network_device->mac_address[2],
-                            e->network_device->mac_address[3],
-                            e->network_device->mac_address[4],
-                            e->network_device->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                            e->network_interface->mac_address[0],
+                            e->network_interface->mac_address[1],
+                            e->network_interface->mac_address[2],
+                            e->network_interface->mac_address[3],
+                            e->network_interface->mac_address[4],
+                            e->network_interface->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
             }
+        } break;
+        case EK_SWITCH: {
+            ASSERT(e->switchh, "We failed to allocate switch!");
+            DrawCircle(e->pos.x, e->pos.y, e->radius, SKYBLUE);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");

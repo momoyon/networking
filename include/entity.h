@@ -1,7 +1,7 @@
 #ifndef _ENTITY_H_
 #define _ENTITY_H_
 
-#include <network_device.h>
+#include <switch.h>
 #include <engine.h>
 #include <connection.h>
 
@@ -14,6 +14,7 @@ typedef struct {
 typedef enum {
     EK_NONE,
     EK_NETWORK_DEVICE,
+    EK_SWITCH,
     EK_COUNT,
 } Entity_kind;
 
@@ -55,7 +56,8 @@ struct Entity {
     Connections connections;
 
     // Kind specific
-    Network_device *network_device;
+    Network_interface *network_interface;
+    Switch *switchh; // switch is a keyword in C
 };
 
 Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena);
