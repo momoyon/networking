@@ -84,6 +84,7 @@ int main(void) {
         // Mode-specific input
         switch (current_mode) {
             case MODE_NORMAL: {
+                // Change Entity kind
                 if (IsKeyPressed(KEY_E)) {
                     selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
                 }
@@ -94,15 +95,28 @@ int main(void) {
                         selected_entity_kind--;
                 }
 
+                // Add Entity
                 if (IsKeyPressed(KEY_SPACE)) {
                     Entity e = make_entity(m, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
                     da_append(entities, e);
                     log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
                 }
 
+                // Delete Selected entities
+                if (IsKeyPressed(KEY_D)) {
+                    for (int i = (int)entities.count-1; i >= 0; --i) {
+                        Entity *e = &entities.items[i];
+                        if (e->state & (1<<ESTATE_SELECTED)) {
+                            Entity d = {0};
+                            free_entity(e);
+                            da_remove(entities, Entity, &d, (int)i);
+                        }
+                    }
+                }
+
                 // Select/Deselect all
                 if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_A)) {
-                    for (size_t i = 0; i < entities.count; ++i) {
+                    for (int i = (int)entities.count-1; i >= 0; --i) {
                         Entity *e = &entities.items[i];
                         if (IsKeyDown(KEY_LEFT_SHIFT)) {
                             e->state &= ~(1<<ESTATE_SELECTED);
@@ -114,7 +128,7 @@ int main(void) {
 
                 // Moving selected entities
                 if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
-                    for (size_t i = 0; i < entities.count; ++i) {
+                    for (int i = (int)entities.count-1; i >= 0; --i) {
                         Entity *e = &entities.items[i];
                         e->offset = Vector2Subtract(e->pos, m);
                     }
@@ -123,7 +137,7 @@ int main(void) {
                     if (hovering_entity) {
                         hovering_entity->pos = Vector2Add(m, hovering_entity->offset);
                     } else {
-                        for (size_t i = 0; i < entities.count; ++i) {
+                        for (int i = (int)entities.count-1; i >= 0; --i) {
                             Entity *e = &entities.items[i];
                             if (e->state & (1<<ESTATE_SELECTED)) {
                                 e->pos = Vector2Add(m, e->offset);
@@ -166,7 +180,7 @@ int main(void) {
             // Edit
             // Find hovering entity
             hovering_entity = NULL;
-            for (size_t i = 0; i < entities.count; ++i) {
+            for (int i = (int)entities.count-1; i >= 0; --i) {
                 Entity *e = &entities.items[i];
                 float dist_sq = Vector2DistanceSqr(e->pos, m);
                 // Clear states
@@ -206,7 +220,7 @@ int main(void) {
                     }
                     if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
                         selecting = false;
-                        for (size_t i = 0; i < entities.count; ++i) {
+                        for (int i = (int)entities.count-1; i >= 0; --i) {
                             Entity *e = &entities.items[i];
                             if (rect_contains_point(selection, e->pos)) {
                                 e->state |= (1<<ESTATE_SELECTED);
@@ -225,7 +239,7 @@ int main(void) {
             }
 
             // Draw
-            for (size_t i = 0; i < entities.count; ++i) {
+            for (int i = (int)entities.count-1; i >= 0; --i) {
                 Entity *e = &entities.items[i];
                 draw_entity(e, debug_draw);
             }
@@ -247,10 +261,18 @@ int main(void) {
                     const char *hovering_entity_connections_str = arena_alloc_str(temp_arena, "Hovering connections: %zu", hovering_entity->connections.count);
                     draw_text(GetFontDefault(), hovering_entity_connections_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                     y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+                    const char *hovering_id = arena_alloc_str(temp_arena, "Hovering ID: %zu", hovering_entity->id);
+                    draw_text(GetFontDefault(), hovering_id, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                    y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
                 }
                 draw_text(GetFontDefault(), connecting_from_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
                 draw_text(GetFontDefault(), connecting_to_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+                const char *entities_count_str = arena_alloc_str(temp_arena, "Entities count: %zu", entities.count);
+                draw_text(GetFontDefault(), entities_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
             }
 

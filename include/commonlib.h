@@ -26,6 +26,7 @@
 #define da_append c_da_append
 #define da_free c_da_free
 #define da_shift c_da_shift
+#define da_remove c_da_remove
 #define DYNAMIC_ARRAY_INITIAL_CAPACITY c_DYNAMIC_ARRAY_INITIAL_CAPACITY
 // #define c_DYNAMIC_ARRAY_INITIAL_CAPACITY
 
@@ -202,8 +203,18 @@ typedef struct c_Arena c_Arena;
 	} while (0)
 
 // NOTE: We cant do C_ASSERT() here because it aint one expression...
+// NOTE: da_shift will make the da loose its ptr, so store the ptr elsewhere if you want to free it later!!!
 #define c_da_shift(da) (assert((da).count > 0 && "Array is empty"), (da).count--, *(da).items++)
 #define c_da_free(da) C_FREE((da).items)
+#define c_da_remove(da, type, elm_ptr, idx) do {\
+        if ((idx) >= 0 && (idx) <= (da).count-1) {\
+            type temp = (da).items[(idx)];\
+            (da).items[(idx)] = (da).items[(da).count-1];\
+            (da).items[(da).count-1] = temp;\
+            if ((elm_ptr) != NULL) *(elm_ptr) = temp;\
+            (da).count--;\
+        }\
+    } while (0)
 
 //
 // OS

@@ -115,6 +115,11 @@ void draw_entity(Entity *e, bool debug) {
     }
 }
 
+void free_entity(Entity *e) {
+    log_debug("Freed connections of Entity %zu", e->id);
+    da_free(e->connections);
+}
+
 bool connect(Entity *from, Entity *to) {
     ASSERT(from, "Bruh pass a valid entity!");
     ASSERT(to,   "Bruh pass a valid entity!");

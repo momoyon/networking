@@ -48,6 +48,7 @@ struct Entity {
 
 Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena);
 void draw_entity(Entity *e, bool debug);
+void free_entity(Entity *e);
 
 typedef struct {
     Entity *items;
