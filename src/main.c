@@ -77,6 +77,9 @@ int main(void) {
         if (IsKeyPressed(KEY_TAB)) {
             current_mode = (current_mode + 1) % MODE_COUNT;
         }
+        if (IsKeyPressed(KEY_GRAVE)) {
+            debug_draw = !debug_draw;
+        }
 
         // Mode-specific input
         switch (current_mode) {
@@ -95,6 +98,18 @@ int main(void) {
                     Entity e = make_entity(m, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
                     da_append(entities, e);
                     log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
+                }
+
+                // Select/Deselect all
+                if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_A)) {
+                    for (size_t i = 0; i < entities.count; ++i) {
+                        Entity *e = &entities.items[i];
+                        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                            e->state &= ~(1<<ESTATE_SELECTED);
+                        } else {
+                            e->state |= (1<<ESTATE_SELECTED);
+                        }
+                    }
                 }
 
                 // Moving selected entities
