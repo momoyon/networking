@@ -1,14 +1,16 @@
-#ifndef _NETWORK_DEVICE_H_
-#define _NETWORK_DEVICE_H_
+#ifndef _NETWORK_INTERFACE_H_
+#define _NETWORK_INTERFACE_H_
 
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
-typedef struct {
+struct Network_interface {
     uint8 ipv4_address[4];
     uint8 subnet_mask[4];
     uint8 mac_address[6];
-} Network_interface;
+
+    int dst_id; // ID of Entity
+};
 
 typedef struct {
     uint8 addr[6];
@@ -27,5 +29,5 @@ int randomi(int from, int to);
 
 void get_unique_mac_address(uint8 *mac_address);
 
-#endif // _NETWORK_DEVICE_H_
+#endif // _NETWORK_INTERFACE_H_
 

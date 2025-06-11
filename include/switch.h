@@ -1,7 +1,7 @@
 #ifndef _SWITCH_H_
 #define _SWITCH_H_
 
-#include <network_interface.h>
+#include <predecls.h>
 
 typedef struct {
     Network_interface *eth0;

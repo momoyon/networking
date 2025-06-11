@@ -54,3 +54,4 @@ void get_unique_mac_address(uint8 *mac_address) {
         }
     }
 }
+

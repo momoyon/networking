@@ -20,14 +20,14 @@ static size_t get_unique_id(void) {
 const char *entity_kind_as_str(const Entity_kind k) {
     switch (k) {
         case EK_NONE: return "None";
-        case EK_NETWORK_DEVICE: return "Network Device";
+        case EK_NETWORK_INTERFACE: return "Network Interface";
         case EK_SWITCH: return "Switch";
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
 }
 
-Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena) {
+Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena) {
     Entity e = (Entity) {
         .pos = pos,
         .radius = radius,
@@ -36,12 +36,13 @@ Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Ar
         .state = 0,
         .arena = arena,
         .temp_arena = temp_arena,
+        .entities = entities,
     };
 
     switch (kind) {
         case EK_NONE: {
         } break;
-        case EK_NETWORK_DEVICE: {
+        case EK_NETWORK_INTERFACE: {
             e.network_interface = (Network_interface *)arena_alloc(arena, sizeof(Network_interface));
             e.network_interface->subnet_mask[0] = 255;
             e.network_interface->subnet_mask[1] = 255;
@@ -69,7 +70,7 @@ void draw_entity(Entity *e, bool debug) {
         case EK_NONE: {
             DrawCircle(e->pos.x, e->pos.y, e->radius, RED);
         } break;
-        case EK_NETWORK_DEVICE: {
+        case EK_NETWORK_INTERFACE: {
             ASSERT(e->network_interface, "We failed to allocate network_interface!");
             DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
             if (e->state & (1<<ESTATE_SELECTED)) {
@@ -100,6 +101,11 @@ void draw_entity(Entity *e, bool debug) {
                             e->network_interface->mac_address[4],
                             e->network_interface->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
             }
+            if (e->network_interface->dst_id >= 0) {
+                Entity *dst = get_entity_by_id(e->entities, e->network_interface->dst_id);
+                if (dst)
+                    DrawLineBezier(e->pos, dst->pos, 1.0, WHITE);
+            }
         } break;
         case EK_SWITCH: {
             ASSERT(e->switchh, "We failed to allocate switch!");
@@ -126,48 +132,37 @@ void draw_entity(Entity *e, bool debug) {
     if (e->state & (1<<ESTATE_CONNECTING_TO)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GREEN);
     }
-
-    // Draw connections
-    for (size_t i = 0; i < e->connections.count; ++i) {
-        Connection *c = &e->connections.items[i];
-        ASSERT(c->to, "We found a connection to NULL!");
-        DrawLineBezier(e->pos, c->to->pos, 1.0, WHITE);
-    }
 }
 
 void free_entity(Entity *e) {
-    log_debug("Freed connections of Entity %zu", e->id);
     da_append(free_entity_ids, e->id);
-    da_free(e->connections);
 }
 
-bool connect(Entity *from, Entity *to) {
-    ASSERT(from, "Bruh pass a valid entity!");
-    ASSERT(to,   "Bruh pass a valid entity!");
-
-    for (size_t i = 0; i < from->connections.count; ++i) {
-        Connection c = from->connections.items[i];
-        if (c.to == to) {
-            log_debug("We already connected these entities!");
-            return false;
+Entity *get_entity_by_id(Entities *entities, int id) {
+    for (size_t i = 0; i < entities->count; ++i) {
+        if (entities->items[i].id == id) {
+            return &entities->items[i];
         }
     }
+    return NULL;
+}
 
-    Connection c = {
-        .to = to
-    };
-    da_append(from->connections, c);
+bool connect(Entities *entities, int a_id, int b_id) {
+    ASSERT(entities, "Bro pass a array of entities!");
+    Entity *a = get_entity_by_id(entities, a_id);
+    Entity *b = get_entity_by_id(entities, b_id);
 
-    for (size_t i = 0; i < to->connections.count; ++i) {
-        Connection c = to->connections.items[i];
-        if (c.to == to) {
-            log_debug("We already connected these entities!");
-            return false;
-        }
+    ASSERT(a && b, "BRUH");
+
+    if (a->kind != EK_NETWORK_INTERFACE ||
+        b->kind != EK_NETWORK_INTERFACE) {
+        log_debug("We can only connect network interfaces!");
+        return false;
     }
 
-    c.to = from;
-    da_append(to->connections, c);
+    ASSERT(a->network_interface && b->network_interface, "Fucked up");
 
+    a->network_interface->dst_id = b_id;
+    b->network_interface->dst_id = a_id;
     return true;
 }

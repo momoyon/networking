@@ -1,6 +1,7 @@
+#include <predecls.h>
 #include <config.h>
+#include <network_interface.h>
 #include <entity.h>
-#include <connection.h>
 
 #define COMMONLIB_REMOVE_PREFIX
 #define COMMONLIB_IMPLEMENTATION
@@ -53,10 +54,10 @@ int main(void) {
 
     // Font font = GetFontDefault();
 
-    Entities entities = {0};
+
     Mode current_mode = MODE_NORMAL;
 
-    Entity_kind selected_entity_kind = EK_NETWORK_DEVICE;
+    Entity_kind selected_entity_kind = EK_NETWORK_INTERFACE;
     Entity *hovering_entity = NULL;
     Entity *connecting_from = NULL;
     Entity *connecting_to = NULL;
@@ -103,7 +104,7 @@ int main(void) {
 
                 // Add Entity
                 if (IsKeyPressed(KEY_SPACE)) {
-                    Entity e = make_entity(m, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
+                    Entity e = make_entity(&entities, m, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
                     da_append(entities, e);
                     log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
                 }
@@ -132,14 +133,16 @@ int main(void) {
                     }
                 }
 
-                // Moving selected entities
-                if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+                // Move selected entities
+                if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE) ||
+                        IsKeyPressed(KEY_Z)) {
                     for (int i = (int)entities.count-1; i >= 0; --i) {
                         Entity *e = &entities.items[i];
                         e->offset = Vector2Subtract(e->pos, m);
                     }
                 }
-                if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+                if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) ||
+                        IsKeyDown(KEY_Z)) {
                     if (hovering_entity) {
                         hovering_entity->pos = Vector2Add(m, hovering_entity->offset);
                     } else {
@@ -152,24 +155,28 @@ int main(void) {
                     }
                 }
 
-                if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-                    if (hovering_entity) {
+                if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) ||
+                        IsKeyPressed(KEY_X)) {
+                    if (hovering_entity && hovering_entity->kind == EK_NETWORK_INTERFACE) {
+                        ASSERT(hovering_entity->network_interface, "BRO");
                         connecting_from = hovering_entity;
                         connecting_from->state |= (1<<ESTATE_CONNECTING_FROM);
                     }
                 }
 
-                if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && connecting_from) {
-                    if (hovering_entity != connecting_from) {
+                if ((IsMouseButtonDown(MOUSE_BUTTON_RIGHT) || IsKeyDown(KEY_X)) && connecting_from) {
+                    if (hovering_entity && hovering_entity != connecting_from && hovering_entity->kind == EK_NETWORK_INTERFACE) {
+                        ASSERT(hovering_entity->network_interface, "BRO");
                         connecting_to = hovering_entity;
                         if (connecting_to)
                             connecting_to->state |= (1<<ESTATE_CONNECTING_TO);
                     }
                 }
 
-                if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) {
+                if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT) ||
+                        IsKeyReleased(KEY_X)) {
                     if (connecting_from && connecting_to) {
-                        connect(connecting_from, connecting_to);
+                        connect(&entities, connecting_from->id, connecting_to->id);
                     }
                     connecting_from = NULL;
                     connecting_to = NULL;
@@ -264,9 +271,6 @@ int main(void) {
                 if (hovering_entity) {
                     const char *hovering_entity_state_str = arena_alloc_str(temp_arena, "Hovering state: "BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(hovering_entity->state & 0xFF));
                     draw_text(GetFontDefault(), hovering_entity_state_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-                    y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
-                    const char *hovering_entity_connections_str = arena_alloc_str(temp_arena, "Hovering connections: %zu", hovering_entity->connections.count);
-                    draw_text(GetFontDefault(), hovering_entity_connections_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                     y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
                     const char *hovering_id = arena_alloc_str(temp_arena, "Hovering ID: %zu", hovering_entity->id);
                     draw_text(GetFontDefault(), hovering_id, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);

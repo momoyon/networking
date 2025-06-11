@@ -3,17 +3,11 @@
 
 #include <switch.h>
 #include <engine.h>
-#include <connection.h>
-
-typedef struct {
-    Connection *items;
-    size_t count;
-    size_t capacity;
-} Connections;
+#include <network_interface.h>
 
 typedef enum {
     EK_NONE,
-    EK_NETWORK_DEVICE,
+    EK_NETWORK_INTERFACE,
     EK_SWITCH,
     EK_COUNT,
 } Entity_kind;
@@ -42,6 +36,12 @@ typedef enum {
     ESTATE_COUNT,
 } Entity_state_mask;
 
+typedef struct {
+    Entity *items;
+    size_t count;
+    size_t capacity;
+} Entities;
+
 struct Entity {
     Vector2 offset; // We use this to move with offset
     Vector2 pos;
@@ -53,23 +53,18 @@ struct Entity {
     Arena *arena; // All entity-related allocations
     Arena *temp_arena;
 
-    Connections connections;
-
     // Kind specific
     Network_interface *network_interface;
     Switch *switchh; // switch is a keyword in C
+
+    Entities *entities;
 };
 
-Entity make_entity(Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena);
+Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena);
 void draw_entity(Entity *e, bool debug);
 void free_entity(Entity *e);
 
-typedef struct {
-    Entity *items;
-    size_t count;
-    size_t capacity;
-} Entities;
-
-bool connect(Entity *from, Entity *to);
+bool connect(Entities *entities, int a_id, int b_id);
+Entity *get_entity_by_id(Entities *entities, int id);
 
 #endif // _ENTITY_H_
