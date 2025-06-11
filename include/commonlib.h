@@ -23,12 +23,18 @@
 #define ASSERT C_ASSERT
 #define ARRAY_LEN C_ARRAY_LEN
 
-#define da_append c_da_append
-#define da_free c_da_free
-#define da_shift c_da_shift
-#define da_remove c_da_remove
+#define darr_append c_darr_append
+#define darr_free c_darr_free
+#define darr_shift c_darr_shift
+#define darr_remove c_darr_remove
+#define darr_delete c_darr_delete
 #define DYNAMIC_ARRAY_INITIAL_CAPACITY c_DYNAMIC_ARRAY_INITIAL_CAPACITY
 // #define c_DYNAMIC_ARRAY_INITIAL_CAPACITY
+#define arr_stack_init c_arr_stack_init
+#define arr_heap_init c_arr_heap_init
+#define arr_append c_arr_append
+#define arr_remove c_arr_remove
+#define arr_delete c_arr_delete
 
 #define os_get_timedate c_os_get_timedate
 #define os_file_exists c_os_file_exists
@@ -91,6 +97,9 @@
 // Memory allocation
 #ifndef C_MALLOC
 #define C_MALLOC malloc
+#endif
+#ifndef C_CALLOC
+#define C_CALLOC calloc
 #endif
 #ifndef C_FREE
 #define C_FREE free
@@ -167,7 +176,7 @@ typedef struct c_Arena c_Arena;
 // Dynamic-Array
 //
 
-// NOTE: To use c_da_append() the Dynamic-Array struct should be defined using
+// NOTE: To use c_darr_append() the Dynamic-Array struct should be defined using
 // DEFINE_DYNAMIC_ARRAY or have the same members as below!
 // NOTE!!!: We actually don't want this since this makes the user want to
 // use this macro to define dynamic arrays. But the user might want extra fields
@@ -188,7 +197,7 @@ typedef struct c_Arena c_Arena;
 
 #define c_DYNAMIC_ARRAY_INITIAL_CAPACITY (sizeof(size_t))
 
-#define c_da_append(da, elm) do {\
+#define c_darr_append(da, elm) do {\
 		if ((da).items == NULL) {\
 			(da).capacity = c_DYNAMIC_ARRAY_INITIAL_CAPACITY;\
 			(da).count = 0;\
@@ -203,18 +212,95 @@ typedef struct c_Arena c_Arena;
 	} while (0)
 
 // NOTE: We cant do C_ASSERT() here because it aint one expression...
-// NOTE: da_shift will make the da loose its ptr, so store the ptr elsewhere if you want to free it later!!!
-#define c_da_shift(da) (assert((da).count > 0 && "Array is empty"), (da).count--, *(da).items++)
-#define c_da_free(da) C_FREE((da).items)
-#define c_da_remove(da, type, elm_ptr, idx) do {\
+// NOTE: darr_shift will make the da loose its ptr, so store the ptr elsewhere if you want to free it later!!!
+#define c_darr_shift(da) (assert((da).count > 0 && "Array is empty"), (da).count--, *(da).items++)
+#define c_darr_free(da) C_FREE((da).items)
+#define c_darr_delete(da, type, idx) do {\
         if ((idx) >= 0 && (idx) <= (da).count-1) {\
             type temp = (da).items[(idx)];\
             (da).items[(idx)] = (da).items[(da).count-1];\
-            (da).items[(da).count-1] = temp;\
-            if ((elm_ptr) != NULL) *(elm_ptr) = temp;\
-            (da).count--;\
+            (da).items[--(da).count] = temp;\
+        } else {\
+            c_log_error("%s:%d: Trying to remove from outofbounds! %zu != (0 ~ %zu)", __FILE__, __LINE__, idx, (da).count);\
+            exit(1);\
         }\
     } while (0)
+#define c_darr_remove(da, type, elm_ptr, idx) do {\
+        if ((idx) >= 0 && (idx) <= (da).count-1) {\
+            type temp = (da).items[(idx)];\
+            (da).items[(idx)] = (da).items[(da).count-1];\
+            (da).items[--(da).count] = temp;\
+            if ((elm_ptr) == NULL) {\
+                c_log_error("%s:%d: You cant pass NULL as the elm_ptr! please use c_darr_delete to not get the element removed!", __FILE__, __LINE__);\
+                exit(1);\
+            }\
+            type *temp_ptr = elm_ptr; \
+            *temp_ptr = temp; \
+        } else {\
+            c_log_error("%s:%d: Trying to remove from outofbounds! %zu != (0 ~ %zu)", __FILE__, __LINE__, idx, (da).count);\
+            exit(1);\
+        }\
+    } while (0)
+
+//
+// Static-Array
+//
+
+// #define DEFINE_DYNAMIC_ARRAY(struct_name, elm_type) typedef struct {
+//         elm_type *items;
+//         size_t count;
+//         size_t capacity;
+//     }
+
+// NOTE: Initializes the static-array on the heap
+#define c_arr_heap_init(arr, cap) do {\
+    if ((arr).items != NULL) {\
+        log_error("%s:%d: This static-array is already initialized!", __FILE__, __LINE__);\
+        exit(1);\
+    }\
+    (arr).capacity = cap;\
+    (arr).items = C_CALLOC(sizeof(*(arr).items), (arr).capacity);\
+    if ((arr).items == NULL) {\
+        log_error("%s:%d: calloc failed while trying init this static-array!", __FILE__, __LINE__);\
+        exit(1);\
+    }\
+    } while (0)
+
+// NOTE: Initializes the static-array on the stack
+// NOTE: You are supposed to pass a struct that ateast has the same members as Dynamic-Arrays.
+// NOTE: This just sets the `capacity` member of the struct to the capacity inferred by the stack-allocated items
+// eg: ```C
+//     #define ARR_CAP 1024
+//     typedef struct {
+//          int items[ARR_CAP];
+//          size_t count;
+//          size_t capacity;
+//     } Array;
+//     ```
+#define c_arr_stack_init(arr) do {\
+        if ((arr).items == NULL) {\
+            log_error("%s:%d: Please pass an static-array that has it's `items` alloced on the stack!", __FILE__, __LINE__);\
+            exit(1);\
+        }\
+        (arr).capacity = C_ARRAY_LEN((arr).items);\
+        if ((arr).capacity == 0) {\
+            log_error("%s:%d: Failed to set the capacity of the static-array!", __FILE__, __LINE__);\
+            exit(1);\
+        }\
+    } while (0)
+
+#define c_arr_append(arr, elm) do {\
+    if ((arr).items == NULL) {\
+        log_error("%s:%d: Please initialize the static array!", __FILE__, __LINE__);\
+        exit(1);\
+    }\
+    if ((arr).count + 1 < (arr).capacity) {\
+        (arr).items[(arr).count++] = elm;\
+    }\
+    } while (0)
+
+#define c_arr_remove c_darr_remove
+#define c_arr_delete c_darr_delete
 
 //
 // OS
