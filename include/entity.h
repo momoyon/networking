@@ -50,6 +50,8 @@ struct Entity {
     size_t id;
     int state;
 
+    Texture2D tex;
+
     Arena *arena; // All entity-related allocations
     Arena *temp_arena;
 

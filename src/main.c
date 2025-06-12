@@ -53,7 +53,11 @@ int main(void) {
     RenderTexture2D ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, window_name, &width, &height);
 
     // Font font = GetFontDefault();
+    //
 
+    Entities entities = {0};
+
+    arr_heap_init(entities, ENTITIES_MAX_CAP);
 
     Mode current_mode = MODE_NORMAL;
 
@@ -105,7 +109,7 @@ int main(void) {
                 // Add Entity
                 if (IsKeyPressed(KEY_SPACE)) {
                     Entity e = make_entity(&entities, m, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
-                    da_append(entities, e);
+                    arr_append(entities, e);
                     log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
                 }
 
@@ -116,7 +120,7 @@ int main(void) {
                         if (e->state & (1<<ESTATE_SELECTED)) {
                             Entity d = {0};
                             free_entity(e);
-                            da_remove(entities, Entity, &d, (int)i);
+                            arr_remove(entities, Entity, &d, (int)i);
                         }
                     }
                 }

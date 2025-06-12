@@ -29,6 +29,10 @@
 #define darr_remove c_darr_remove
 #define darr_delete c_darr_delete
 #define DYNAMIC_ARRAY_INITIAL_CAPACITY c_DYNAMIC_ARRAY_INITIAL_CAPACITY
+// Deprecated Dynamic-array API
+#define da_append c_da_append
+#define da_delete c_da_delete
+#define da_remove c_da_remove
 // #define c_DYNAMIC_ARRAY_INITIAL_CAPACITY
 #define arr_stack_init c_arr_stack_init
 #define arr_heap_init c_arr_heap_init
@@ -197,7 +201,11 @@ typedef struct c_Arena c_Arena;
 
 #define c_DYNAMIC_ARRAY_INITIAL_CAPACITY (sizeof(size_t))
 
-#define c_darr_append(da, elm) do {\
+#define c_darr_append(da, elm) c_darr_append_impl(da, elm, c_darr_append)
+#define c_darr_append_impl(da, elm, api) do {\
+        if (strcmp(#api, "c_darr_append") != 0) {\
+            c_log_warning("%s is deprecated please use the newer api!", #api);\
+        }\
 		if ((da).items == NULL) {\
 			(da).capacity = c_DYNAMIC_ARRAY_INITIAL_CAPACITY;\
 			(da).count = 0;\
@@ -215,7 +223,12 @@ typedef struct c_Arena c_Arena;
 // NOTE: darr_shift will make the da loose its ptr, so store the ptr elsewhere if you want to free it later!!!
 #define c_darr_shift(da) (assert((da).count > 0 && "Array is empty"), (da).count--, *(da).items++)
 #define c_darr_free(da) C_FREE((da).items)
-#define c_darr_delete(da, type, idx) do {\
+
+#define c_darr_delete(da, type, idx) c_darr_delete_impl(da, type, idx, c_darr_delete)
+#define c_darr_delete_impl(da, type, idx, api) do {\
+        if (strcmp(#api, "c_darr_delete") != 0) {\
+            c_log_warning("%s is deprecated please use the newer api!", #api);\
+        }\
         if ((idx) >= 0 && (idx) <= (da).count-1) {\
             type temp = (da).items[(idx)];\
             (da).items[(idx)] = (da).items[(da).count-1];\
@@ -225,7 +238,12 @@ typedef struct c_Arena c_Arena;
             exit(1);\
         }\
     } while (0)
-#define c_darr_remove(da, type, elm_ptr, idx) do {\
+
+#define c_darr_remove(da, type, elm_ptr, idx) c_darr_remove_impl(da, type, elm_ptr, idx, c_darr_remove)
+#define c_darr_remove_impl(da, type, elm_ptr, idx, api) do {\
+        if (strcmp(#api, "c_darr_remove") != 0) {\
+            c_log_warning("%s is deprecated please use the newer api!", #api);\
+        }\
         if ((idx) >= 0 && (idx) <= (da).count-1) {\
             type temp = (da).items[(idx)];\
             (da).items[(idx)] = (da).items[(da).count-1];\
@@ -241,6 +259,11 @@ typedef struct c_Arena c_Arena;
             exit(1);\
         }\
     } while (0)
+
+// Deprecated API
+#define c_da_append(da, elm) c_darr_append_impl(da, elm, c_da_append)
+#define c_da_delete(da, type, idx) c_darr_delete_impl(da, type, idx, c_da_delete)
+#define c_da_remove(da, type, elm_ptr, idx) c_darr_remove_impl(da, type, elm_ptr, idx, c_da_remove)
 
 //
 // Static-Array
