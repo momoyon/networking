@@ -83,6 +83,12 @@ int main(void) {
     entity_arena = arena_make(32*1024);
     temp_arena = arena_make(0);
 
+	Camera2D cam = {
+		.zoom = 1.0,
+		.offset = CLITERAL(Vector2) { width / 2, height / 2 },
+	};
+	Vector2 mpos_from = {0};
+
     while (!WindowShouldClose()) {
         arena_reset(&temp_arena);
 
@@ -92,6 +98,7 @@ int main(void) {
 
         BeginDrawing();
         Vector2 m = get_mpos_scaled(SCREEN_SCALE);
+		Vector2 m_world = GetScreenToWorld2D(m, cam);
 
         // Input
         if (IsKeyPressed(KEY_TAB)) {
@@ -100,6 +107,17 @@ int main(void) {
         if (IsKeyPressed(KEY_GRAVE)) {
             debug_draw = !debug_draw;
         }
+
+		// Move camera
+		if (IsKeyDown(KEY_LEFT_SHIFT) &&
+			IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+			mpos_from = m_world;
+		}
+		if (IsKeyDown(KEY_LEFT_SHIFT) &&
+			IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+			cam.target.x -= m_world.x - mpos_from.x;
+			cam.target.y -= m_world.y - mpos_from.y;
+		}
 
         // Mode-specific input
         switch (current_mode) {
@@ -117,7 +135,7 @@ int main(void) {
 
                 // Add Entity
                 if (IsKeyPressed(KEY_SPACE)) {
-                    Entity e = make_entity(&entities, m, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
+                    Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
                     arr_append(entities, e);
                     log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
                 }
@@ -159,23 +177,25 @@ int main(void) {
                         IsKeyPressed(KEY_Z)) {
                     for (int i = (int)entities.count-1; i >= 0; --i) {
                         Entity *e = &entities.items[i];
-                        e->offset = Vector2Subtract(e->pos, m);
+                        e->offset = Vector2Subtract(e->pos, m_world);
                     }
                 }
+
                 if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) ||
                         IsKeyDown(KEY_Z)) {
                     if (hovering_entity) {
-                        hovering_entity->pos = Vector2Add(m, hovering_entity->offset);
+                        hovering_entity->pos = Vector2Add(m_world, hovering_entity->offset);
                     } else {
                         for (int i = (int)entities.count-1; i >= 0; --i) {
                             Entity *e = &entities.items[i];
                             if (e->state & (1<<ESTATE_SELECTED)) {
-                                e->pos = Vector2Add(m, e->offset);
+                                e->pos = Vector2Add(m_world, e->offset);
                             }
                         }
                     }
                 }
 
+				// Connect 
                 if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) ||
                         IsKeyPressed(KEY_X)) {
                     if (hovering_entity && hovering_entity->kind == EK_NETWORK_INTERFACE) {
@@ -216,7 +236,7 @@ int main(void) {
             hovering_entity = NULL;
             for (int i = (int)entities.count-1; i >= 0; --i) {
                 Entity *e = &entities.items[i];
-                float dist_sq = Vector2DistanceSqr(e->pos, m);
+                float dist_sq = Vector2DistanceSqr(e->pos, m_world);
                 // Clear states
                 e->state &= ~(1<<ESTATE_HOVERING);
                 if (e != connecting_from)
@@ -234,22 +254,22 @@ int main(void) {
                     // Select entities
                     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                         selecting = true;
-                        selection_start = m;
-                        selection.x = m.x;
-                        selection.y = m.y;
+                        selection_start = m_world;
+                        selection.x = m_world.x;
+                        selection.y = m_world.y;
                     }
                     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                        if (m.x < selection_start.x) {
-                            selection.x = m.x;
-                            selection.width = selection_start.x - m.x;
+                        if (m_world.x < selection_start.x) {
+                            selection.x = m_world.x;
+                            selection.width = selection_start.x - m_world.x;
                         } else {
-                            selection.width = m.x - selection.x;
+                            selection.width = m_world.x - selection.x;
                         }
-                        if (m.y < selection_start.y) {
-                            selection.y = m.y;
-                            selection.height = selection_start.y - m.y;
+                        if (m_world.y < selection_start.y) {
+                            selection.y = m_world.y;
+                            selection.height = selection_start.y - m_world.y;
                         } else {
-                            selection.height = m.y - selection.y;
+                            selection.height = m_world.y - selection.y;
                         }
                     }
                     if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
@@ -274,10 +294,18 @@ int main(void) {
             }
 
             // Draw
-            for (int i = (int)entities.count-1; i >= 0; --i) {
-                Entity *e = &entities.items[i];
-                draw_entity(e, debug_draw);
-            }
+			BeginMode2D(cam);
+				for (int i = (int)entities.count-1; i >= 0; --i) {
+					Entity *e = &entities.items[i];
+					draw_entity(e, debug_draw);
+				}
+
+				//// DEBUG: Draw mpos_from and m_world - mpos_from
+				// DrawCircle(mpos_from.x, mpos_from.y, 8, RED);
+				// if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+				// 	DrawLineV(m_world, mpos_from, WHITE);
+				// }
+			EndMode2D();
 
             if (debug_draw) {
                 draw_text_aligned(GetFontDefault(), mode_as_str(current_mode), v2(2, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_LEFT, WHITE);
@@ -317,14 +345,17 @@ int main(void) {
             // Mode-specific draw
             switch (current_mode) {
                 case MODE_NORMAL: {
-                    const char *selected_entity_kind_str = arena_alloc_str(temp_arena, "Entity Kind: %s", entity_kind_as_str(selected_entity_kind));
-                    draw_text_aligned(GetFontDefault(), selected_entity_kind_str, v2(width*0.5, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_CENTER, WHITE);
-                    if (connecting_from) {
-                        DrawLineBezier(connecting_from->pos, m, 1.0, GRAY);
-                    }
+					const char *selected_entity_kind_str = arena_alloc_str(temp_arena, "Entity Kind: %s", entity_kind_as_str(selected_entity_kind));
+					draw_text_aligned(GetFontDefault(), selected_entity_kind_str, v2(width*0.5, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_CENTER, WHITE);
+					
+					BeginMode2D(cam);
+						if (connecting_from) {
+							DrawLineBezier(connecting_from->pos, m_world, 1.0, GRAY);
+						}
 
-                    if (selecting)
-                        DrawRectangleLinesEx(selection, 1.0, WHITE);
+						if (selecting)
+							DrawRectangleLinesEx(selection, 1.0, WHITE);
+					EndMode2D();
                 } break;
                 case MODE_COUNT:
                 default: ASSERT(false, "UNREACHABLE!");
