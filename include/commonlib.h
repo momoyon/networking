@@ -203,9 +203,10 @@ typedef struct c_Arena c_Arena;
 
 #define c_darr_append(da, elm) c_darr_append_impl(da, elm, c_darr_append)
 #define c_darr_append_impl(da, elm, api) do {\
-        if (strcmp(#api, "c_darr_append") != 0) {\
-            c_log_warning("%s is deprecated please use the newer api!", #api);\
-        }\
+		if (strcmp(#api, "c_darr_append") != 0) {\
+		    c_log_info("API IS '%s'", #api);\
+		    c_log_warning("%s is deprecated please use the newer api!", #api);\
+		}\
 		if ((da).items == NULL) {\
 			(da).capacity = c_DYNAMIC_ARRAY_INITIAL_CAPACITY;\
 			(da).count = 0;\

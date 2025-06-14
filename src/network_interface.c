@@ -49,7 +49,7 @@ void get_unique_mac_address(uint8 *mac_address) {
             m.addr[4] = random_mac_address[4];
             m.addr[5] = random_mac_address[5];
 
-            da_append(assigned_mac_addresses, m);
+            darr_append(assigned_mac_addresses, m);
             return;
         }
     }

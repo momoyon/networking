@@ -2,6 +2,7 @@
 #include <config.h>
 #include <network_interface.h>
 #include <entity.h>
+#include <common.h>
 
 #define COMMONLIB_REMOVE_PREFIX
 #define COMMONLIB_IMPLEMENTATION
@@ -39,6 +40,11 @@ const char *mode_as_str(const Mode m) {
     }
 }
 
+// Externs from common.h
+RenderTexture2D ren_tex;
+Arena entity_arena;
+Arena temp_arena;
+
 int main(void) {
     int width = 0;
     int height = 0;
@@ -50,7 +56,7 @@ int main(void) {
 #endif // defined(DEBUG)
 
     const char *window_name = "Networking";
-    RenderTexture2D ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, window_name, &width, &height);
+    ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, window_name, &width, &height);
 
     // Font font = GetFontDefault();
     //
@@ -70,9 +76,8 @@ int main(void) {
     Vector2 selection_start = {0};
     bool selecting = false;
 
-    Arena entity_arena = arena_make(32*1024);
-
-    Arena temp_arena = arena_make(0);
+    entity_arena = arena_make(32*1024);
+    temp_arena = arena_make(0);
 
     while (!WindowShouldClose()) {
         arena_reset(&temp_arena);
@@ -312,8 +317,6 @@ int main(void) {
         EndDrawing();
     }
 
-    arena_free(&entity_arena);
-    arena_free(&temp_arena);
-    close_window(ren_tex);
+	cleanup();
     return 0;
 }

@@ -1,5 +1,6 @@
 #include <entity.h>
 #include <config.h>
+#include <common.h>
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
@@ -49,8 +50,8 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
             e.network_interface->subnet_mask[2] = 255;
             e.network_interface->subnet_mask[3] = 0;
             get_unique_mac_address(e.network_interface->mac_address);
-	    e.tex = LoadTexture("resources/gfx/network_interface.png");
-	    ASSERT(IsTextureReady(e.tex), "Failed to load network interface image!");
+			e.tex = load_texture_checked("resources/gfx/network_interface.png");
+			ASSERT(IsTextureReady(e.tex), "Failed to load network interface image!");
         } break;
         case EK_SWITCH: {
             e.switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
@@ -75,7 +76,8 @@ void draw_entity(Entity *e, bool debug) {
         case EK_NETWORK_INTERFACE: {
             ASSERT(e->network_interface, "We failed to allocate network_interface!");
             // DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
-	    DrawTexture(e->tex, e->pos.x, e->pos.y, WHITE);
+
+            DrawTextureEx(e->tex, e->pos, 0.f, ENTITY_TEXTURE_SCALE, WHITE);
             if (e->state & (1<<ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
@@ -138,7 +140,7 @@ void draw_entity(Entity *e, bool debug) {
 }
 
 void free_entity(Entity *e) {
-    da_append(free_entity_ids, e->id);
+    darr_append(free_entity_ids, e->id);
 }
 
 Entity *get_entity_by_id(Entities *entities, int id) {
