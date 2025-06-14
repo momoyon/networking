@@ -4,12 +4,14 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
+typedef struct Entity Entity;
+
 struct Network_interface {
     uint8 ipv4_address[4];
     uint8 subnet_mask[4];
     uint8 mac_address[6];
 
-    int dst_id; // ID of Entity
+    Entity *dst;
 };
 
 typedef struct {

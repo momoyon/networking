@@ -129,6 +129,14 @@ int main(void) {
                         if (e->state & (1<<ESTATE_SELECTED)) {
                             Entity d = {0};
                             free_entity(e);
+							// Remove any connections before removing
+							if (e->kind = EK_NETWORK_INTERFACE && e->network_interface && e->network_interface->dst != NULL) {
+								Entity *e_conn = e->network_interface->dst;
+								if (e_conn->network_interface->dst == e) {
+									e_conn->network_interface->dst = NULL;
+								}
+								e->network_interface->dst = NULL;
+							}
                             arr_remove(entities, Entity, &d, (int)i);
                         }
                     }
@@ -189,7 +197,7 @@ int main(void) {
                 if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT) ||
                         IsKeyReleased(KEY_X)) {
                     if (connecting_from && connecting_to) {
-                        connect(&entities, connecting_from->id, connecting_to->id);
+                        connect(&entities, connecting_from, connecting_to);
                     }
                     connecting_from = NULL;
                     connecting_to = NULL;
@@ -298,6 +306,12 @@ int main(void) {
                 const char *entities_count_str = arena_alloc_str(temp_arena, "Entities count: %zu", entities.count);
                 draw_text(GetFontDefault(), entities_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
+				if (hovering_entity && hovering_entity->kind == EK_NETWORK_INTERFACE) {
+					const char *dst_str = arena_alloc_str(temp_arena, "Hovering dst: %p", hovering_entity->network_interface->dst);
+					draw_text(GetFontDefault(), dst_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+					y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+				}
             }
 
             // Mode-specific draw

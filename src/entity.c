@@ -49,6 +49,7 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
             e.network_interface->subnet_mask[1] = 255;
             e.network_interface->subnet_mask[2] = 255;
             e.network_interface->subnet_mask[3] = 0;
+			e.network_interface->dst = NULL;
             get_unique_mac_address(e.network_interface->mac_address);
 			e.tex = load_texture_checked("resources/gfx/network_interface.png");
 			ASSERT(IsTextureReady(e.tex), "Failed to load network interface image!");
@@ -119,10 +120,8 @@ void draw_entity(Entity *e, bool debug) {
                             e->network_interface->mac_address[4],
                             e->network_interface->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
             }
-            if (e->network_interface->dst_id >= 0) {
-                Entity *dst = get_entity_by_id(e->entities, e->network_interface->dst_id);
-                if (dst)
-                    DrawLineBezier(e->pos, dst->pos, 1.0, WHITE);
+            if (e->network_interface->dst != NULL) {
+				DrawLineBezier(e->pos, e->network_interface->dst->pos, 1.0, WHITE);
             }
         } break;
         case EK_SWITCH: {
@@ -156,19 +155,8 @@ void free_entity(Entity *e) {
     darr_append(free_entity_ids, e->id);
 }
 
-Entity *get_entity_by_id(Entities *entities, int id) {
-    for (size_t i = 0; i < entities->count; ++i) {
-        if (entities->items[i].id == id) {
-            return &entities->items[i];
-        }
-    }
-    return NULL;
-}
-
-bool connect(Entities *entities, int a_id, int b_id) {
-    ASSERT(entities, "Bro pass a array of entities!");
-    Entity *a = get_entity_by_id(entities, a_id);
-    Entity *b = get_entity_by_id(entities, b_id);
+bool connect(Entities *entities, Entity *a, Entity *b) {
+    ASSERT(entities, "Bro pass an array of entities!");
 
     ASSERT(a && b, "BRUH");
 
@@ -178,9 +166,26 @@ bool connect(Entities *entities, int a_id, int b_id) {
         return false;
     }
 
+	// Check if they are already connected to other nics
+	if (a->network_interface->dst != NULL) {
+		Entity *a_conn = a->network_interface->dst;
+		// The other one is connected to this
+		if (a_conn->network_interface->dst == a) {
+			a_conn->network_interface->dst = NULL;
+		}
+	}
+
+	if (b->network_interface->dst != NULL) {
+		Entity *b_conn = b->network_interface->dst;
+		// The other one is connected to this
+		if (b_conn->network_interface->dst == b) {
+			b_conn->network_interface->dst = NULL;
+		}
+	}
+
     ASSERT(a->network_interface && b->network_interface, "Fucked up");
 
-    a->network_interface->dst_id = b_id;
-    b->network_interface->dst_id = a_id;
+    a->network_interface->dst = b;
+    b->network_interface->dst = a;
     return true;
 }
