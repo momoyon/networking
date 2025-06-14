@@ -7,6 +7,8 @@
 #include <raylib.h>
 #include <raymath.h>
 
+#include <stb_ds.h>
+
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
@@ -59,6 +61,19 @@ void draw_text(Font font, const char *text, Vector2 pos, int font_size, Color co
 
 // Misc
 Vector2 get_mpos_scaled(float scl);
+
+// Assets Manager
+
+typedef struct {
+	const char *key;
+	Texture2D value;
+} Texture_KV;
+
+typedef struct {
+	Texture_KV *texture_map;
+} Texture_manager;
+
+bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out);
 
 #endif // _ENGINE_H_
 
@@ -267,6 +282,20 @@ Vector2 get_mpos_scaled(float scl) {
 	m.x *= scl;
 	m.y *= scl;
 	return m;
+}
+
+// Assets Manager
+bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out) {
+	Texture2D tex = LoadTexture(filepath);
+	if (!IsTextureReady(tex)) return false;
+
+	*tex_out = tex;
+
+	hmput(tm->texture_map, filepath, tex);
+
+	log_debug("Added '%s' to texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
+
+	return true;
 }
 
 #endif // ENGINE_IMPLEMENTATION

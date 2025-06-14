@@ -5,9 +5,12 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
+#include <engine.h>
+
 extern RenderTexture2D ren_tex;
 extern Arena entity_arena;
 extern Arena temp_arena;
+extern Texture_manager tex_man;
 
 void cleanup(void);
 void crash(void);

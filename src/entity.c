@@ -77,7 +77,20 @@ void draw_entity(Entity *e, bool debug) {
             ASSERT(e->network_interface, "We failed to allocate network_interface!");
             // DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
 
-            DrawTextureEx(e->tex, e->pos, 0.f, ENTITY_TEXTURE_SCALE, WHITE);
+			Rectangle src = {
+				.x = 0,
+				.y = 0,
+				.width = e->tex.width,
+				.height = e->tex.height,
+			};
+
+			Rectangle dst = {
+				.x = e->pos.x,
+				.y = e->pos.y,
+				.width  = e->tex.width*ENTITY_TEXTURE_SCALE,
+				.height = e->tex.height*ENTITY_TEXTURE_SCALE,
+			};
+			DrawTexturePro(e->tex, src, dst, CLITERAL(Vector2) { (ENTITY_DEFAULT_RADIUS/2)+1, (ENTITY_DEFAULT_RADIUS/2)+1 }, 0.0, WHITE); // Draw a part of a texture defined by a rectangle with 'pro' parameters
             if (e->state & (1<<ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
@@ -119,7 +132,7 @@ void draw_entity(Entity *e, bool debug) {
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
-    if (debug) draw_text_aligned(GetFontDefault(), entity_kind_as_str(e->kind), Vector2Subtract(e->pos, v2(0, ENTITY_DEFAULT_RADIUS*0.5)), ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
+    if (debug) draw_text_aligned(GetFontDefault(), entity_kind_as_str(e->kind), Vector2Subtract(e->pos, v2(0, ENTITY_DEFAULT_RADIUS*1.5)), ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
 
     // Draw outline if selected
     if (e->state & (1<<ESTATE_SELECTED)) {

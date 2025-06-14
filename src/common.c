@@ -15,9 +15,9 @@ void crash(void) {
 }
 
 Texture2D load_texture_checked(const char *filepath) {
-	Texture2D tex = LoadTexture(filepath);
-	if (!IsTextureReady(tex)) {
-		log_error("Failed to load Texture '%s'", filepath);
+	Texture2D tex = {0};
+
+	if (!load_texture(&tex_man, filepath, &tex)) {
 		crash();
 	}
 

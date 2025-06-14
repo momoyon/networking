@@ -11,6 +11,9 @@
 #define ENGINE_IMPLEMENTATION
 #include <engine.h>
 
+#define STB_DS_IMPLEMENTATION
+#include <stb_ds.h>
+
 #define FACTOR 105
 #define SCREEN_WIDTH  (16*FACTOR)
 #define SCREEN_HEIGHT (9*FACTOR)
@@ -44,6 +47,7 @@ const char *mode_as_str(const Mode m) {
 RenderTexture2D ren_tex;
 Arena entity_arena;
 Arena temp_arena;
+Texture_manager tex_man;
 
 int main(void) {
     int width = 0;
