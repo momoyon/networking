@@ -286,14 +286,20 @@ Vector2 get_mpos_scaled(float scl) {
 
 // Assets Manager
 bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out) {
-	Texture2D tex = LoadTexture(filepath);
-	if (!IsTextureReady(tex)) return false;
 
-	*tex_out = tex;
+	Texture_KV *tex_KV = hmgetp_null(tm->texture_map, filepath);
 
-	hmput(tm->texture_map, filepath, tex);
+	if (tex_KV != NULL) {
+		*tex_out = tex_KV->value;
+		log_debug("Found '%s' at texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
+	} else {
+		Texture2D tex = LoadTexture(filepath);
+		if (!IsTextureReady(tex)) return false;
+		*tex_out = tex;
+		hmput(tm->texture_map, filepath, tex);
+		log_debug("Added '%s' to texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
+	}
 
-	log_debug("Added '%s' to texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
 
 	return true;
 }

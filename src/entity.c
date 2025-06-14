@@ -4,6 +4,8 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
+#include <switch.h>
+
 size_t entity_id_counter = 0;
 Entity_ids free_entity_ids = {0};
 
@@ -56,6 +58,7 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
         } break;
         case EK_SWITCH: {
             e.switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
+			e.tex = load_texture_checked("resources/gfx/switch.png");
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -78,20 +81,6 @@ void draw_entity(Entity *e, bool debug) {
             ASSERT(e->network_interface, "We failed to allocate network_interface!");
             // DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
 
-			Rectangle src = {
-				.x = 0,
-				.y = 0,
-				.width = e->tex.width,
-				.height = e->tex.height,
-			};
-
-			Rectangle dst = {
-				.x = e->pos.x,
-				.y = e->pos.y,
-				.width  = e->tex.width*ENTITY_TEXTURE_SCALE,
-				.height = e->tex.height*ENTITY_TEXTURE_SCALE,
-			};
-			DrawTexturePro(e->tex, src, dst, CLITERAL(Vector2) { (ENTITY_DEFAULT_RADIUS/2)+1, (ENTITY_DEFAULT_RADIUS/2)+1 }, 0.0, WHITE); // Draw a part of a texture defined by a rectangle with 'pro' parameters
             if (e->state & (1<<ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
@@ -126,11 +115,28 @@ void draw_entity(Entity *e, bool debug) {
         } break;
         case EK_SWITCH: {
             ASSERT(e->switchh, "We failed to allocate switch!");
-            DrawCircle(e->pos.x, e->pos.y, e->radius, SKYBLUE);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
+	if (IsTextureReady(e->tex)) {
+		Rectangle src = {
+			.x = 0,
+			.y = 0,
+			.width = e->tex.width,
+			.height = e->tex.height,
+		};
+
+		Rectangle dst = {
+			.x = e->pos.x,
+			.y = e->pos.y,
+			.width  = e->tex.width*ENTITY_TEXTURE_SCALE,
+			.height = e->tex.height*ENTITY_TEXTURE_SCALE,
+		};
+		DrawTexturePro(e->tex, src, dst, CLITERAL(Vector2) { (ENTITY_DEFAULT_RADIUS/2)+1, (ENTITY_DEFAULT_RADIUS/2)+1 }, 0.0, WHITE);
+	} else {
+		DrawCircle(e->pos.x, e->pos.y, e->radius, WHITE);
+	}
     if (debug) draw_text_aligned(GetFontDefault(), entity_kind_as_str(e->kind), Vector2Subtract(e->pos, v2(0, ENTITY_DEFAULT_RADIUS*1.5)), ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
 
     // Draw outline if selected
@@ -188,4 +194,15 @@ bool connect(Entities *entities, Entity *a, Entity *b) {
     a->network_interface->dst = b;
     b->network_interface->dst = a;
     return true;
+}
+
+Switch make_switch(Arena *arena, size_t eth_count) {
+	Switch s = {
+		.eth = (Network_interface *)arena_alloc(arena, sizeof(Network_interface) * eth_count),
+		.eth_count = eth_count,
+	};
+
+	ASSERT(s.eth != NULL, "Failed to alloc eth ports!");
+
+	return s;
 }

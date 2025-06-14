@@ -67,6 +67,5 @@ void draw_entity(Entity *e, bool debug);
 void free_entity(Entity *e);
 
 bool connect(Entities *entities, Entity *a, Entity *b);
-Entity *get_entity_by_id(Entities *entities, int id);
 
 #endif // _ENTITY_H_
