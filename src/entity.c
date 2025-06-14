@@ -104,12 +104,28 @@ void draw_entity(Entity *e, bool debug) {
 						ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 
             }
-				//         if (e->nic->dst != NULL) {
-				// DrawLineBezier(e->pos, e->nic->dst->pos, 1.0, WHITE);
-				//         }
         } break;
         case EK_SWITCH: {
             ASSERT(e->switchh, "We failed to allocate switch!");
+            if (e->state & (1<<ESTATE_SELECTED)) {
+                Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
+                DrawLineV(e->pos, p, WHITE);
+                ASSERT(e->temp_arena, "BRUH");
+
+				for (size_t i = 0; i < e->switchh->nic_ptrs.count; ++i) {
+					Nic *nic = e->switchh->nic_ptrs.items[i];
+					if (nic == NULL) continue;
+					draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+								"eth%zu: %d.%d.%d.%d (%p)", i, 
+								nic->ipv4_address[0],
+								nic->ipv4_address[1],
+								nic->ipv4_address[2],
+								nic->ipv4_address[3],
+								nic),
+							ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+				}
+            }
+
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -189,9 +205,26 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 	    } break;
 		case EK_SWITCH: {
 			ASSERT(other->switchh, "bo");
+
+			if (nic->nic->switchh != NULL && nic->nic->switchh != other->switchh) {
+				log_error("Please disconnect the nic from any other switch!");
+				return false;
+			}
+
 			nic->nic->switchh = other->switchh;
 
-			// TODO: Check if the nic is in the switch's nic_ptrs
+			bool found = false;
+
+			for (size_t i = 0; i < other->switchh->nic_ptrs.count; ++i) {
+				Nic *nic_ptr = other->switchh->nic_ptrs.items[i];
+				if (nic_ptr == nic->nic) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) { 
+				arr_append(other->switchh->nic_ptrs, nic->nic);
+			}
 			return true;
 	    } break;
 		case EK_COUNT:
@@ -243,12 +276,11 @@ void make_nic(Nic *nic, Arena *arena) {
 }
 
 void make_switch(Switch *switch_out, Arena *arena, size_t nic_count) {
-	Switch s = {
-		.nic_ptrs = (Nic **)arena_alloc(arena, sizeof(Nic*) * nic_count),
-		.nic_count = nic_count,
-	};
+	Switch s = {0};
 
-	ASSERT(s.nic_ptrs != NULL, "Failed to alloc nic ports!");
+	arr_heap_init(s.nic_ptrs, nic_count);
+
+	memset(s.nic_ptrs.items, 0, sizeof(Nic*) * nic_count);
 
 	*switch_out = s;
 }

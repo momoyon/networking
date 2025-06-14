@@ -229,6 +229,7 @@ int main(void) {
                 if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT) ||
                         IsKeyReleased(KEY_X)) {
                     if (connecting_from && connecting_to) {
+						// TODO: Slow af, but who cares...
 						for (size_t i = 0; i < connections.count; ++i) {
 							Connection *conn = &connections.items[i];
 							if (conn->from == &connecting_from->pos ||
