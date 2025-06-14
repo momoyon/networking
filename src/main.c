@@ -2,6 +2,7 @@
 #include <config.h>
 #include <nic.h>
 #include <entity.h>
+#include <connection.h>
 #include <common.h>
 
 #define COMMONLIB_REMOVE_PREFIX
@@ -44,6 +45,7 @@ const char *mode_as_str(const Mode m) {
 }
 
 // Externs from common.h
+Connections connections;
 RenderTexture2D ren_tex;
 Arena entity_arena;
 Arena temp_arena;
@@ -119,6 +121,9 @@ int main(void) {
 			cam.target.y -= m_world.y - mpos_from.y;
 		}
 
+		// Zoom camera
+		
+
         // Mode-specific input
         switch (current_mode) {
             case MODE_NORMAL: {
@@ -148,6 +153,14 @@ int main(void) {
                             Entity d = {0};
                             free_entity(e);
 							// Remove any connections before removing
+							// TODO: Slow af, but who cares
+							for (size_t j = 0; j < connections.count; ++j) {
+								Connection *conn = &connections.items[j];
+								if (conn->from == &e->pos || conn->to == &e->pos) {
+									darr_delete(connections, Connection, (int)j);
+									break;
+								}
+							}
 							if (e->kind = EK_NIC && e->nic && e->nic->dst != NULL) {
 								Entity *e_conn = e->nic->dst;
 								if (e_conn->nic->dst == e) {
@@ -155,6 +168,7 @@ int main(void) {
 								}
 								e->nic->dst = NULL;
 							}
+
                             arr_remove(entities, Entity, &d, (int)i);
                         }
                     }
@@ -215,7 +229,16 @@ int main(void) {
                 if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT) ||
                         IsKeyReleased(KEY_X)) {
                     if (connecting_from && connecting_to) {
-                        connect(&entities, connecting_from, connecting_to);
+						for (size_t i = 0; i < connections.count; ++i) {
+							Connection *conn = &connections.items[i];
+							if (conn->from == &connecting_from->pos ||
+								conn->to == &connecting_from->pos ||
+								conn->from == &connecting_to->pos ||
+								conn->to == &connecting_to->pos) {
+								darr_delete(connections, Connection, i);
+							}
+						}
+						connect(&entities, connecting_from, connecting_to);
                     }
                     connecting_from = NULL;
                     connecting_to = NULL;
@@ -297,6 +320,10 @@ int main(void) {
 					Entity *e = &entities.items[i];
 					draw_entity(e, debug_draw);
 				}
+				for (int i = (int)connections.count-1; i >= 0; --i) {
+					Connection *c = &connections.items[i];
+					draw_connection(c, debug_draw);
+				}
 
 				//// DEBUG: Draw mpos_from and m_world - mpos_from
 				// DrawCircle(mpos_from.x, mpos_from.y, 8, RED);
@@ -331,6 +358,10 @@ int main(void) {
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
                 const char *entities_count_str = arena_alloc_str(temp_arena, "Entities count: %zu", entities.count);
                 draw_text(GetFontDefault(), entities_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
+                const char *connections_count_str = arena_alloc_str(temp_arena, "Connections count: %zu", connections.count);
+                draw_text(GetFontDefault(), connections_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
 				if (hovering_entity) {

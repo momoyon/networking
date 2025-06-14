@@ -7,6 +7,7 @@
 void cleanup(void) { 
     arena_free(&entity_arena);
     arena_free(&temp_arena);
+	darr_free(connections);
     close_window(ren_tex);
 }
 

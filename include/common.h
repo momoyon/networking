@@ -6,7 +6,15 @@
 #include <commonlib.h>
 
 #include <engine.h>
+#include <connection.h>
 
+typedef struct {
+	Connection *items;
+	size_t count;
+	size_t capacity;
+} Connections; // Darr
+
+extern Connections connections;
 extern RenderTexture2D ren_tex;
 extern Arena entity_arena;
 extern Arena temp_arena;

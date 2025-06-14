@@ -98,6 +98,11 @@ void draw_entity(Entity *e, bool debug) {
                             e->nic->mac_address[3],
                             e->nic->mac_address[4],
                             e->nic->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+                            "switch: %p",
+							e->nic->switchh),
+						ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+
             }
 				//         if (e->nic->dst != NULL) {
 				// DrawLineBezier(e->pos, e->nic->dst->pos, 1.0, WHITE);
@@ -184,7 +189,7 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 	    } break;
 		case EK_SWITCH: {
 			ASSERT(other->switchh, "bo");
-			nic->switchh = other->switchh;
+			nic->nic->switchh = other->switchh;
 
 			// TODO: Check if the nic is in the switch's nic_ptrs
 			return true;
@@ -201,9 +206,11 @@ bool connect(Entities *entities, Entity *a, Entity *b) {
 
     ASSERT(a && b, "BRUH");
 
+	bool connected = false;
+
 	switch (a->kind) {
 		case EK_NIC: {
-			return connect_nic_to(a, b);
+			connected = connect_nic_to(a, b);
 	    } break;
 		case EK_SWITCH: {
 			log_debug("connecting from SWITCH is UNIMPLEMENTED!");
@@ -213,9 +220,16 @@ bool connect(Entities *entities, Entity *a, Entity *b) {
 		default: ASSERT(false, "UNREACHABLE!");
 	}
 
+	if (connected) {
+		Connection conn = {
+			.from = &a->pos,
+			.to   = &b->pos,
+		};
+		darr_append(connections, conn);
+	}
+
     return true;
 }
-
 
 // Makers
 void make_nic(Nic *nic, Arena *arena) {
