@@ -1,6 +1,6 @@
 #include <predecls.h>
 #include <config.h>
-#include <network_interface.h>
+#include <nic.h>
 #include <entity.h>
 #include <common.h>
 
@@ -71,7 +71,7 @@ int main(void) {
 
     Mode current_mode = MODE_NORMAL;
 
-    Entity_kind selected_entity_kind = EK_NETWORK_INTERFACE;
+    Entity_kind selected_entity_kind = EK_NIC;
     Entity *hovering_entity = NULL;
     Entity *connecting_from = NULL;
     Entity *connecting_to = NULL;
@@ -148,12 +148,12 @@ int main(void) {
                             Entity d = {0};
                             free_entity(e);
 							// Remove any connections before removing
-							if (e->kind = EK_NETWORK_INTERFACE && e->network_interface && e->network_interface->dst != NULL) {
-								Entity *e_conn = e->network_interface->dst;
-								if (e_conn->network_interface->dst == e) {
-									e_conn->network_interface->dst = NULL;
+							if (e->kind = EK_NIC && e->nic && e->nic->dst != NULL) {
+								Entity *e_conn = e->nic->dst;
+								if (e_conn->nic->dst == e) {
+									e_conn->nic->dst = NULL;
 								}
-								e->network_interface->dst = NULL;
+								e->nic->dst = NULL;
 							}
                             arr_remove(entities, Entity, &d, (int)i);
                         }
@@ -198,16 +198,14 @@ int main(void) {
 				// Connect 
                 if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) ||
                         IsKeyPressed(KEY_X)) {
-                    if (hovering_entity && hovering_entity->kind == EK_NETWORK_INTERFACE) {
-                        ASSERT(hovering_entity->network_interface, "BRO");
+                    if (hovering_entity) {
                         connecting_from = hovering_entity;
                         connecting_from->state |= (1<<ESTATE_CONNECTING_FROM);
                     }
                 }
 
                 if ((IsMouseButtonDown(MOUSE_BUTTON_RIGHT) || IsKeyDown(KEY_X)) && connecting_from) {
-                    if (hovering_entity && hovering_entity != connecting_from && hovering_entity->kind == EK_NETWORK_INTERFACE) {
-                        ASSERT(hovering_entity->network_interface, "BRO");
+                    if (hovering_entity && hovering_entity != connecting_from) {
                         connecting_to = hovering_entity;
                         if (connecting_to)
                             connecting_to->state |= (1<<ESTATE_CONNECTING_TO);
@@ -335,19 +333,24 @@ int main(void) {
                 draw_text(GetFontDefault(), entities_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
-				if (hovering_entity && hovering_entity->kind == EK_NETWORK_INTERFACE) {
-					const char *dst_str = arena_alloc_str(temp_arena, "Hovering dst: %p", hovering_entity->network_interface->dst);
-					draw_text(GetFontDefault(), dst_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-					y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+				if (hovering_entity) {
+					if (hovering_entity->kind == EK_NIC) {
+						const char *dst_str = arena_alloc_str(temp_arena, "Hovering dst: %p", hovering_entity->nic->dst);
+						draw_text(GetFontDefault(), dst_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
+						const char *switch_str = arena_alloc_str(temp_arena, "Hovering switch: %p", hovering_entity->nic->switchh);
+						draw_text(GetFontDefault(), switch_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+					}
 				}
             }
 
-            // Mode-specific draw
+            // Mode-specific Draw
             switch (current_mode) {
                 case MODE_NORMAL: {
 					const char *selected_entity_kind_str = arena_alloc_str(temp_arena, "Entity Kind: %s", entity_kind_as_str(selected_entity_kind));
 					draw_text_aligned(GetFontDefault(), selected_entity_kind_str, v2(width*0.5, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_CENTER, WHITE);
-					
 					BeginMode2D(cam);
 						if (connecting_from) {
 							DrawLineBezier(connecting_from->pos, m_world, 1.0, GRAY);

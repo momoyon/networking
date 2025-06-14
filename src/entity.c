@@ -22,8 +22,7 @@ static size_t get_unique_id(void) {
 
 const char *entity_kind_as_str(const Entity_kind k) {
     switch (k) {
-        case EK_NONE: return "None";
-        case EK_NETWORK_INTERFACE: return "Network Interface";
+        case EK_NIC: return "Network Interface Card";
         case EK_SWITCH: return "Switch";
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -43,21 +42,15 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
     };
 
     switch (kind) {
-        case EK_NONE: {
-        } break;
-        case EK_NETWORK_INTERFACE: {
-            e.network_interface = (Network_interface *)arena_alloc(arena, sizeof(Network_interface));
-            e.network_interface->subnet_mask[0] = 255;
-            e.network_interface->subnet_mask[1] = 255;
-            e.network_interface->subnet_mask[2] = 255;
-            e.network_interface->subnet_mask[3] = 0;
-			e.network_interface->dst = NULL;
-            get_unique_mac_address(e.network_interface->mac_address);
-			e.tex = load_texture_checked("resources/gfx/network_interface.png");
+        case EK_NIC: {
+            e.nic = (Nic *)arena_alloc(arena, sizeof(Nic));
+			make_nic(e.nic, arena);
+			e.tex = load_texture_checked("resources/gfx/nic.png");
 			ASSERT(IsTextureReady(e.tex), "Failed to load network interface image!");
         } break;
         case EK_SWITCH: {
             e.switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
+			make_switch(e.switchh, arena, 4);
 			e.tex = load_texture_checked("resources/gfx/switch.png");
         } break;
         case EK_COUNT:
@@ -74,11 +67,8 @@ static void draw_info_text(Vector2 *p, const char *text, int font_size, Color co
 
 void draw_entity(Entity *e, bool debug) {
     switch (e->kind) {
-        case EK_NONE: {
-            DrawCircle(e->pos.x, e->pos.y, e->radius, RED);
-        } break;
-        case EK_NETWORK_INTERFACE: {
-            ASSERT(e->network_interface, "We failed to allocate network_interface!");
+        case EK_NIC: {
+            ASSERT(e->nic, "We failed to allocate nic!");
             // DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
 
             if (e->state & (1<<ESTATE_SELECTED)) {
@@ -88,30 +78,30 @@ void draw_entity(Entity *e, bool debug) {
 
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "ipv4: %d.%d.%d.%d",
-                            e->network_interface->ipv4_address[0],
-                            e->network_interface->ipv4_address[1],
-                            e->network_interface->ipv4_address[2],
-                            e->network_interface->ipv4_address[3]),
+                            e->nic->ipv4_address[0],
+                            e->nic->ipv4_address[1],
+                            e->nic->ipv4_address[2],
+                            e->nic->ipv4_address[3]),
                         ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "subnet mask: %d.%d.%d.%d",
-                            e->network_interface->subnet_mask[0],
-                            e->network_interface->subnet_mask[1],
-                            e->network_interface->subnet_mask[2],
-                            e->network_interface->subnet_mask[3]),
+                            e->nic->subnet_mask[0],
+                            e->nic->subnet_mask[1],
+                            e->nic->subnet_mask[2],
+                            e->nic->subnet_mask[3]),
                         ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "mac: %02X:%02X:%02X:%02X:%02X:%02X",
-                            e->network_interface->mac_address[0],
-                            e->network_interface->mac_address[1],
-                            e->network_interface->mac_address[2],
-                            e->network_interface->mac_address[3],
-                            e->network_interface->mac_address[4],
-                            e->network_interface->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                            e->nic->mac_address[0],
+                            e->nic->mac_address[1],
+                            e->nic->mac_address[2],
+                            e->nic->mac_address[3],
+                            e->nic->mac_address[4],
+                            e->nic->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
             }
-            if (e->network_interface->dst != NULL) {
-				DrawLineBezier(e->pos, e->network_interface->dst->pos, 1.0, WHITE);
-            }
+				//         if (e->nic->dst != NULL) {
+				// DrawLineBezier(e->pos, e->nic->dst->pos, 1.0, WHITE);
+				//         }
         } break;
         case EK_SWITCH: {
             ASSERT(e->switchh, "We failed to allocate switch!");
@@ -161,48 +151,90 @@ void free_entity(Entity *e) {
     darr_append(free_entity_ids, e->id);
 }
 
+static bool connect_nic_to(Entity *nic, Entity *other) {
+	if (nic->kind != EK_NIC) {
+		log_debug("That isn't a NIC brotato _/\\_");
+		return false;
+	}
+
+	switch (other->kind) {
+		case EK_NIC: {
+			Entity *a = nic;
+			Entity *b = other;
+			// Check if they are already connected to other nics
+			if (a->nic->dst != NULL) {
+				Entity *a_conn = a->nic->dst;
+				// The other one is connected to this
+				if (a_conn->nic->dst == a) {
+					a_conn->nic->dst = NULL;
+				}
+			}
+
+			if (b->nic->dst != NULL) {
+				Entity *b_conn = b->nic->dst;
+				// The other one is connected to this
+				if (b_conn->nic->dst == b) {
+					b_conn->nic->dst = NULL;
+				}
+			}
+
+			a->nic->dst = b;
+			b->nic->dst = a;
+			return true;
+	    } break;
+		case EK_SWITCH: {
+			ASSERT(other->switchh, "bo");
+			nic->switchh = other->switchh;
+
+			// TODO: Check if the nic is in the switch's nic_ptrs
+			return true;
+	    } break;
+		case EK_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+
+	return false;
+}
+
 bool connect(Entities *entities, Entity *a, Entity *b) {
     ASSERT(entities, "Bro pass an array of entities!");
 
     ASSERT(a && b, "BRUH");
 
-    if (a->kind != EK_NETWORK_INTERFACE ||
-        b->kind != EK_NETWORK_INTERFACE) {
-        log_debug("We can only connect network interfaces!");
-        return false;
-    }
-
-	// Check if they are already connected to other nics
-	if (a->network_interface->dst != NULL) {
-		Entity *a_conn = a->network_interface->dst;
-		// The other one is connected to this
-		if (a_conn->network_interface->dst == a) {
-			a_conn->network_interface->dst = NULL;
-		}
+	switch (a->kind) {
+		case EK_NIC: {
+			return connect_nic_to(a, b);
+	    } break;
+		case EK_SWITCH: {
+			log_debug("connecting from SWITCH is UNIMPLEMENTED!");
+			return false;
+	    } break;
+		case EK_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
 	}
 
-	if (b->network_interface->dst != NULL) {
-		Entity *b_conn = b->network_interface->dst;
-		// The other one is connected to this
-		if (b_conn->network_interface->dst == b) {
-			b_conn->network_interface->dst = NULL;
-		}
-	}
-
-    ASSERT(a->network_interface && b->network_interface, "Fucked up");
-
-    a->network_interface->dst = b;
-    b->network_interface->dst = a;
     return true;
 }
 
-Switch make_switch(Arena *arena, size_t eth_count) {
+
+// Makers
+void make_nic(Nic *nic, Arena *arena) {
+	nic->subnet_mask[0] = 255;
+	nic->subnet_mask[1] = 255;
+	nic->subnet_mask[2] = 255;
+	nic->subnet_mask[3] = 0;
+	nic->dst = NULL;
+	nic->switchh = NULL;
+	get_unique_mac_address(nic->mac_address);
+}
+
+void make_switch(Switch *switch_out, Arena *arena, size_t nic_count) {
 	Switch s = {
-		.eth = (Network_interface *)arena_alloc(arena, sizeof(Network_interface) * eth_count),
-		.eth_count = eth_count,
+		.nic_ptrs = (Nic **)arena_alloc(arena, sizeof(Nic*) * nic_count),
+		.nic_count = nic_count,
 	};
 
-	ASSERT(s.eth != NULL, "Failed to alloc eth ports!");
+	ASSERT(s.nic_ptrs != NULL, "Failed to alloc nic ports!");
 
-	return s;
+	*switch_out = s;
 }

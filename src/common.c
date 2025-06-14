@@ -12,12 +12,14 @@ void cleanup(void) {
 
 void crash(void) {
 	cleanup();
+	exit(1);
 }
 
 Texture2D load_texture_checked(const char *filepath) {
 	Texture2D tex = {0};
 
 	if (!load_texture(&tex_man, filepath, &tex)) {
+		log_debug("Failed to load texture '%s'", filepath);
 		crash();
 	}
 
@@ -32,7 +34,7 @@ Texture2D load_texture_checked(const char *filepath) {
 		crash();
 	}
 
-	log_debug("Loaded Texture '%s' (%dx%d)", filepath, tex.width, tex.height);
+	// log_debug("Loaded Texture '%s' (%dx%d)", filepath, tex.width, tex.height);
 
 	return tex;
 }

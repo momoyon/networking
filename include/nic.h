@@ -1,18 +1,23 @@
-#ifndef _NETWORK_INTERFACE_H_
-#define _NETWORK_INTERFACE_H_
+#ifndef _NIC_H_
+#define _NIC_H_
 
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
 typedef struct Entity Entity;
+typedef struct Switch Switch;
 
-struct Network_interface {
+struct Nic {
     uint8 ipv4_address[4];
     uint8 subnet_mask[4];
     uint8 mac_address[6];
 
     Entity *dst;
+
+	Switch *switchh; // Switch this network interface belongs to.
 };
+
+void make_nic(struct Nic *nic, Arena *arena);
 
 typedef struct {
     uint8 addr[6];
@@ -31,5 +36,5 @@ int randomi(int from, int to);
 
 void get_unique_mac_address(uint8 *mac_address);
 
-#endif // _NETWORK_INTERFACE_H_
+#endif // _NIC_H_
 

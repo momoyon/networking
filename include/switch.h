@@ -6,11 +6,12 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
-typedef struct {
-    Network_interface *eth;
-	size_t eth_count;
-} Switch;
+typedef struct Switch Switch;
+struct Switch {
+    Nic **nic_ptrs;
+	size_t nic_count;
+};
 
-Switch make_switch(Arena *arena, size_t eth_count);
+void make_switch(Switch *switch_out, Arena *arena, size_t nic_count);
 
 #endif // _SWITCH_H_

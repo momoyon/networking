@@ -286,7 +286,6 @@ Vector2 get_mpos_scaled(float scl) {
 
 // Assets Manager
 bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out) {
-
 	Texture_KV *tex_KV = hmgetp_null(tm->texture_map, filepath);
 
 	if (tex_KV != NULL) {
@@ -299,7 +298,6 @@ bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out)
 		hmput(tm->texture_map, filepath, tex);
 		log_debug("Added '%s' to texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
 	}
-
 
 	return true;
 }

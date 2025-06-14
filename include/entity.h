@@ -3,11 +3,10 @@
 
 #include <switch.h>
 #include <engine.h>
-#include <network_interface.h>
+#include <nic.h>
 
 typedef enum {
-    EK_NONE,
-    EK_NETWORK_INTERFACE,
+    EK_NIC,
     EK_SWITCH,
     EK_COUNT,
 } Entity_kind;
@@ -56,7 +55,7 @@ struct Entity {
     Arena *temp_arena;
 
     // Kind specific
-    Network_interface *network_interface;
+    Nic    *nic;
     Switch *switchh; // switch is a keyword in C
 
     Entities *entities;
