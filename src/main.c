@@ -2,7 +2,6 @@
 #include <config.h>
 #include <nic.h>
 #include <entity.h>
-#include <connection.h>
 #include <common.h>
 
 #define COMMONLIB_REMOVE_PREFIX
@@ -45,7 +44,6 @@ const char *mode_as_str(const Mode m) {
 }
 
 // Externs from common.h
-Connections connections;
 RenderTexture2D ren_tex;
 Arena entity_arena;
 Arena temp_arena;
@@ -152,21 +150,12 @@ int main(void) {
                         if (e->state & (1<<ESTATE_SELECTED)) {
                             Entity d = {0};
                             free_entity(e);
-							// Remove any connections before removing
-							// TODO: Slow af, but who cares
-							for (size_t j = 0; j < connections.count; ++j) {
-								Connection *conn = &connections.items[j];
-								if (conn->from == &e->pos || conn->to == &e->pos) {
-									darr_delete(connections, Connection, (int)j);
-									break;
+							if (e->kind == EK_NIC && e->nic && e->nic->nic_entity != NULL) {
+								Entity *e_conn = e->nic->nic_entity;
+								if (e_conn->nic->nic_entity == e) {
+									e_conn->nic->nic_entity = NULL;
 								}
-							}
-							if (e->kind = EK_NIC && e->nic && e->nic->dst != NULL) {
-								Entity *e_conn = e->nic->dst;
-								if (e_conn->nic->dst == e) {
-									e_conn->nic->dst = NULL;
-								}
-								e->nic->dst = NULL;
+								e->nic->nic_entity = NULL;
 							}
 
                             arr_remove(entities, Entity, &d, (int)i);
@@ -230,15 +219,6 @@ int main(void) {
                         IsKeyReleased(KEY_X)) {
                     if (connecting_from && connecting_to) {
 						// TODO: Slow af, but who cares...
-						for (size_t i = 0; i < connections.count; ++i) {
-							Connection *conn = &connections.items[i];
-							if (conn->from == &connecting_from->pos ||
-								conn->to == &connecting_from->pos ||
-								conn->from == &connecting_to->pos ||
-								conn->to == &connecting_to->pos) {
-								darr_delete(connections, Connection, i);
-							}
-						}
 						connect(&entities, connecting_from, connecting_to);
                     }
                     connecting_from = NULL;
@@ -321,10 +301,6 @@ int main(void) {
 					Entity *e = &entities.items[i];
 					draw_entity(e, debug_draw);
 				}
-				for (int i = (int)connections.count-1; i >= 0; --i) {
-					Connection *c = &connections.items[i];
-					draw_connection(c, debug_draw);
-				}
 
 				//// DEBUG: Draw mpos_from and m_world - mpos_from
 				// DrawCircle(mpos_from.x, mpos_from.y, 8, RED);
@@ -361,17 +337,13 @@ int main(void) {
                 draw_text(GetFontDefault(), entities_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
-                const char *connections_count_str = arena_alloc_str(temp_arena, "Connections count: %zu", connections.count);
-                draw_text(GetFontDefault(), connections_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
-
 				if (hovering_entity) {
 					if (hovering_entity->kind == EK_NIC) {
-						const char *dst_str = arena_alloc_str(temp_arena, "Hovering dst: %p", hovering_entity->nic->dst);
+						const char *dst_str = arena_alloc_str(temp_arena, "Hovering dst: %p", hovering_entity->nic->nic_entity);
 						draw_text(GetFontDefault(), dst_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
-						const char *switch_str = arena_alloc_str(temp_arena, "Hovering switch: %p", hovering_entity->nic->switchh);
+						const char *switch_str = arena_alloc_str(temp_arena, "Hovering switch: %p", hovering_entity->nic->switch_entity);
 						draw_text(GetFontDefault(), switch_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 					}

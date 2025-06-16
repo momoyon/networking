@@ -18,7 +18,6 @@ struct Switch {
 };
 
 void make_switch(Switch *switch_out, Arena *arena, size_t nic_count);
-
-// TODO: free_switch
+void free_switch(Switch *s);
 
 #endif // _SWITCH_H_

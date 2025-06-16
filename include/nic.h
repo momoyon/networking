@@ -12,9 +12,9 @@ struct Nic {
     uint8 subnet_mask[4];
     uint8 mac_address[6];
 
-    Entity *dst;
+    Entity *nic_entity; // Other nic connected to
 
-	Switch *switchh; // Switch this network interface belongs to.
+	Entity *switch_entity; // Switch this network interface belongs to.
 };
 
 void make_nic(struct Nic *nic, Arena *arena);

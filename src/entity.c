@@ -100,10 +100,20 @@ void draw_entity(Entity *e, bool debug) {
                             e->nic->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "switch: %p",
-							e->nic->switchh),
+							e->nic->switch_entity),
 						ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 
             }
+
+			// Draw connections
+			if (e->nic->nic_entity) {
+				// TODO: This is happen twice in a connection
+				DrawLineBezier(e->pos, e->nic->nic_entity->pos, 1, WHITE);
+			}
+
+			if (e->nic->switch_entity) {
+				DrawLineBezier(e->pos, e->nic->switch_entity->pos, 1, WHITE);
+			}
         } break;
         case EK_SWITCH: {
             ASSERT(e->switchh, "We failed to allocate switch!");
@@ -125,7 +135,6 @@ void draw_entity(Entity *e, bool debug) {
 							ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 				}
             }
-
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -170,6 +179,17 @@ void draw_entity(Entity *e, bool debug) {
 
 void free_entity(Entity *e) {
     darr_append(free_entity_ids, e->id);
+
+	switch (e->kind) {
+		case EK_NIC: {
+
+		} break;
+		case EK_SWITCH: {
+			free_switch(e->switchh);
+		} break;
+		case EK_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
 }
 
 static bool connect_nic_to(Entity *nic, Entity *other) {
@@ -183,35 +203,35 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 			Entity *a = nic;
 			Entity *b = other;
 			// Check if they are already connected to other nics
-			if (a->nic->dst != NULL) {
-				Entity *a_conn = a->nic->dst;
+			if (a->nic->nic_entity != NULL) {
+				Entity *a_conn = a->nic->nic_entity;
 				// The other one is connected to this
-				if (a_conn->nic->dst == a) {
-					a_conn->nic->dst = NULL;
+				if (a_conn->nic->nic_entity == a) {
+					a_conn->nic->nic_entity = NULL;
 				}
 			}
 
-			if (b->nic->dst != NULL) {
-				Entity *b_conn = b->nic->dst;
+			if (b->nic->nic_entity != NULL) {
+				Entity *b_conn = b->nic->nic_entity;
 				// The other one is connected to this
-				if (b_conn->nic->dst == b) {
-					b_conn->nic->dst = NULL;
+				if (b_conn->nic->nic_entity == b) {
+					b_conn->nic->nic_entity = NULL;
 				}
 			}
 
-			a->nic->dst = b;
-			b->nic->dst = a;
+			a->nic->nic_entity = b;
+			b->nic->nic_entity = a;
 			return true;
 	    } break;
 		case EK_SWITCH: {
 			ASSERT(other->switchh, "bo");
 
-			if (nic->nic->switchh != NULL && nic->nic->switchh != other->switchh) {
+			if (nic->nic->switch_entity != NULL && nic->nic->switch_entity != other) {
 				log_error("Please disconnect the nic from any other switch!");
 				return false;
 			}
 
-			nic->nic->switchh = other->switchh;
+			nic->nic->switch_entity = other;
 
 			bool found = false;
 
@@ -254,33 +274,67 @@ bool connect(Entities *entities, Entity *a, Entity *b) {
 	}
 
 	if (connected) {
-		Connection conn = {
-			.from = &a->pos,
-			.to   = &b->pos,
-		};
-		darr_append(connections, conn);
+		// Connection conn = {
+		// 	.from = &a->pos,
+		// 	.to   = &b->pos,
+		// };
+		// darr_append(connections, conn);
 	}
 
     return true;
 }
 
+bool can_have_multiple_connections(Entity *a, Entity *b) {
+	switch (a->kind) {
+		case EK_NIC: {
+			switch (b->kind) {
+				case EK_NIC:    return false;
+				case EK_SWITCH: return true;
+				case EK_COUNT:
+				default: ASSERT(false, "UNREACHABLE!");
+			}
+		} break;
+		case EK_SWITCH: {
+			switch (b->kind) {
+				case EK_NIC:    return true;
+				case EK_SWITCH: return false;
+				case EK_COUNT:
+				default: ASSERT(false, "UNREACHABLE!");
+			}
+		} break;
+		case EK_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+}
+
 // Makers
 void make_nic(Nic *nic, Arena *arena) {
+	(void)arena;
 	nic->subnet_mask[0] = 255;
 	nic->subnet_mask[1] = 255;
 	nic->subnet_mask[2] = 255;
 	nic->subnet_mask[3] = 0;
-	nic->dst = NULL;
-	nic->switchh = NULL;
+	nic->nic_entity = NULL;
+	nic->switch_entity = NULL;
 	get_unique_mac_address(nic->mac_address);
 }
 
 void make_switch(Switch *switch_out, Arena *arena, size_t nic_count) {
+	(void)arena;
 	Switch s = {0};
 
+	// TODO: Alloc this in the arena
 	arr_heap_init(s.nic_ptrs, nic_count);
 
 	memset(s.nic_ptrs.items, 0, sizeof(Nic*) * nic_count);
 
+	log_debug("Switch.nic_ptrs.capacity: %zu | nic_count: %zu", s.nic_ptrs.capacity, nic_count);
+
 	*switch_out = s;
+}
+
+
+// Free-ers
+void free_switch(Switch *s) {
+	arr_free(s->nic_ptrs);
 }

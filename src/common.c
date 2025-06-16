@@ -7,7 +7,6 @@
 void cleanup(void) { 
     arena_free(&entity_arena);
     arena_free(&temp_arena);
-	darr_free(connections);
     close_window(ren_tex);
 }
 
@@ -25,12 +24,12 @@ Texture2D load_texture_checked(const char *filepath) {
 	}
 
 	if (tex.width != ENTITY_SIZE_IN_PIXELS) {
-		log_error("The width of '%s' is incorrect! Please make all the textures %d pixels!", ENTITY_SIZE_IN_PIXELS);
+		log_error("The width of '%s' is incorrect! Please make all the textures %d pixels!", filepath, ENTITY_SIZE_IN_PIXELS);
 		UnloadTexture(tex);
 		crash();
 	}
 	if (tex.height != ENTITY_SIZE_IN_PIXELS) {
-		log_error("The height of '%s' is incorrect! Please make all the textures %d pixels!", ENTITY_SIZE_IN_PIXELS);
+		log_error("The height of '%s' is incorrect! Please make all the textures %d pixels!", filepath, ENTITY_SIZE_IN_PIXELS);
 		UnloadTexture(tex);
 		crash();
 	}

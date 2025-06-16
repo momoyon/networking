@@ -66,5 +66,6 @@ void draw_entity(Entity *e, bool debug);
 void free_entity(Entity *e);
 
 bool connect(Entities *entities, Entity *a, Entity *b);
+bool can_have_multiple_connections(Entity *a, Entity *b);
 
 #endif // _ENTITY_H_

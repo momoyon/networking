@@ -39,6 +39,7 @@
 #define arr_append c_arr_append
 #define arr_remove c_arr_remove
 #define arr_delete c_arr_delete
+#define arr_free   c_arr_free
 
 #define os_get_timedate c_os_get_timedate
 #define os_file_exists c_os_file_exists
@@ -203,10 +204,9 @@ typedef struct c_Arena c_Arena;
 
 #define c_darr_append(da, elm) c_darr_append_impl(da, elm, c_darr_append)
 #define c_darr_append_impl(da, elm, api) do {\
-		if (strcmp(#api, "c_darr_append") != 0) {\
-		    c_log_info("API IS '%s'", #api);\
-		    c_log_warning("%s is deprecated please use the newer api!", #api);\
-		}\
+        if (strcmp(#api, "c_darr_append") != 0) {\
+            c_log_warning("%s is deprecated please use the newer api!", #api);\
+        }\
 		if ((da).items == NULL) {\
 			(da).capacity = c_DYNAMIC_ARRAY_INITIAL_CAPACITY;\
 			(da).count = 0;\
@@ -235,7 +235,7 @@ typedef struct c_Arena c_Arena;
             (da).items[(idx)] = (da).items[(da).count-1];\
             (da).items[--(da).count] = temp;\
         } else {\
-            c_log_error("%s:%d: Trying to remove from outofbounds! %zu != (0 ~ %zu)", __FILE__, __LINE__, idx, (da).count);\
+            c_log_error("%s:%d: Trying to remove from outofbounds! %zu != (0 ~ %zu)", __FILE__, __LINE__, (size_t)idx, (size_t)(da).count);\
             exit(1);\
         }\
     } while (0)
@@ -256,7 +256,7 @@ typedef struct c_Arena c_Arena;
             type *temp_ptr = elm_ptr; \
             *temp_ptr = temp; \
         } else {\
-            c_log_error("%s:%d: Trying to remove from outofbounds! %zu != (0 ~ %zu)", __FILE__, __LINE__, idx, (da).count);\
+            c_log_error("%s:%d: Trying to remove from outofbounds! %zu != (0 ~ %zu)", __FILE__, __LINE__, (size_t)idx, (size_t)(da).count);\
             exit(1);\
         }\
     } while (0)
@@ -283,7 +283,7 @@ typedef struct c_Arena c_Arena;
         exit(1);\
     }\
     (arr).capacity = cap;\
-    (arr).items = C_CALLOC(sizeof(*(arr).items), (arr).capacity);\
+    (arr).items = C_CALLOC((arr).capacity, sizeof(*(arr).items));\
     if ((arr).items == NULL) {\
         log_error("%s:%d: calloc failed while trying init this static-array!", __FILE__, __LINE__);\
         exit(1);\
@@ -325,6 +325,7 @@ typedef struct c_Arena c_Arena;
 
 #define c_arr_remove c_darr_remove
 #define c_arr_delete c_darr_delete
+#define c_arr_free c_darr_free
 
 //
 // OS
