@@ -35,6 +35,8 @@ typedef enum {
     MODE_COUNT,
 } Mode;
 
+// TODO: Deleting messes up the pointers
+
 const char *mode_as_str(const Mode m) {
     switch (m) {
         case MODE_NORMAL: return  "Normal";
@@ -150,13 +152,6 @@ int main(void) {
                         if (e->state & (1<<ESTATE_SELECTED)) {
                             Entity d = {0};
                             free_entity(e);
-							if (e->kind == EK_NIC && e->nic && e->nic->nic_entity != NULL) {
-								Entity *e_conn = e->nic->nic_entity;
-								if (e_conn->nic->nic_entity == e) {
-									e_conn->nic->nic_entity = NULL;
-								}
-								e->nic->nic_entity = NULL;
-							}
 
                             arr_remove(entities, Entity, &d, (int)i);
                         }
@@ -218,7 +213,6 @@ int main(void) {
                 if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT) ||
                         IsKeyReleased(KEY_X)) {
                     if (connecting_from && connecting_to) {
-						// TODO: Slow af, but who cares...
 						connect(&entities, connecting_from, connecting_to);
                     }
                     connecting_from = NULL;

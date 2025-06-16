@@ -182,10 +182,10 @@ void free_entity(Entity *e) {
 
 	switch (e->kind) {
 		case EK_NIC: {
-
+			free_nic(e);
 		} break;
 		case EK_SWITCH: {
-			free_switch(e->switchh);
+			free_switch(e);
 		} break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
@@ -244,6 +244,8 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 			}
 			if (!found) { 
 				arr_append(other->switchh->nic_ptrs, nic->nic);
+			} else {
+				log_debug("RAH");
 			}
 			return true;
 	    } break;
@@ -335,6 +337,29 @@ void make_switch(Switch *switch_out, Arena *arena, size_t nic_count) {
 
 
 // Free-ers
-void free_switch(Switch *s) {
-	arr_free(s->nic_ptrs);
+void free_nic(Entity *e) {
+	ASSERT(e->kind == EK_NIC, "Br");
+	if (e->nic->nic_entity != NULL) {
+		Entity *e_conn = e->nic->nic_entity;
+		if (e_conn->nic->nic_entity == e) {
+			e_conn->nic->nic_entity = NULL;
+		}
+		e->nic->nic_entity = NULL;
+	}
+
+	if (e->nic->switch_entity != NULL) {
+		Entity *e_switch = e->nic->switch_entity;
+		for (size_t i = 0; i < e_switch->switchh->nic_ptrs.count; ++i) {
+			Nic *nic_ptr = e_switch->switchh->nic_ptrs.items[i];
+			if (nic_ptr == e->nic) {
+				arr_delete(e_switch->switchh->nic_ptrs, Nic *, i);
+				break; // We shouldn't have duplicate entries
+			}
+		}
+	}
+}
+
+void free_switch(Entity *e) {
+	ASSERT(e->kind == EK_SWITCH, "Br");
+	arr_free(e->switchh->nic_ptrs);
 }
