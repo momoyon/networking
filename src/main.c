@@ -35,8 +35,6 @@ typedef enum {
     MODE_COUNT,
 } Mode;
 
-// TODO: Deleting messes up the pointers
-
 const char *mode_as_str(const Mode m) {
     switch (m) {
         case MODE_NORMAL: return  "Normal";
@@ -66,7 +64,7 @@ int main(void) {
 
     // Font font = GetFontDefault();
     //
-
+	const char *entities_save_path = "test.entities";
 
     arr_heap_init(entities, ENTITIES_MAX_CAP);
 
@@ -122,6 +120,22 @@ int main(void) {
 
 		// Zoom camera
 		
+		// Save entities
+		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
+			if (save_entities(&entities, entities_save_path)) {
+				log_debug("Successfully saved entities to `%s`", entities_save_path);
+			} else {
+				log_debug("Failed to save entities to `%s`", entities_save_path);
+			}
+		}
+		// Load entities
+		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
+			if (load_entities(&entities, entities_save_path)) {
+				log_debug("Successfully loadd entities to `%s`", entities_save_path);
+			} else {
+				log_debug("Failed to load entities to `%s`", entities_save_path);
+			}
+		}
 
         // Mode-specific input
         switch (current_mode) {

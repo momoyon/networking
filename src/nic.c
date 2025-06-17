@@ -1,11 +1,5 @@
 #include <nic.h>
 
-// TODO: Move this to commonlib.h
-int randomi(int from, int to) {
-    float r = rand() % RAND_MAX; // 0..1
-    return from + (r * (to - from));
-}
-
 Mac_addresses assigned_mac_addresses = {0};
 
 void get_unique_mac_address(uint8 *mac_address) {

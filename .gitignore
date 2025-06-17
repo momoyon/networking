@@ -1,3 +1,4 @@
 *.exe
 tags
 raylib-5.0_win64_mingw-w64/
+*.entities

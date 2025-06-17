@@ -31,9 +31,6 @@ typedef struct {
 
 extern Mac_addresses assigned_mac_addresses;
 
-// TODO: Move this to commonlib.h
-int randomi(int from, int to);
-
 void get_unique_mac_address(uint8 *mac_address);
 
 #endif // _NIC_H_

@@ -86,6 +86,10 @@ void free_nic(Entity *e);
 void free_switch(Entity *e);
 
 bool connect_entity(Entities *entities, Entity *a, Entity *b);
-bool can_have_multiple_connections(Entity *a, Entity *b);
+
+// I/O
+bool is_entities_saved(Entities *entities);
+bool save_entity_to_data(Entity *e, char *data, size_t data_count);
+bool load_entity_from_data(Entity *e, char *data, size_t data_count);
 
 #endif // _ENTITY_H_

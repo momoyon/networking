@@ -263,29 +263,6 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b) {
     return true;
 }
 
-bool can_have_multiple_connections(Entity *a, Entity *b) {
-	switch (a->kind) {
-		case EK_NIC: {
-			switch (b->kind) {
-				case EK_NIC:    return false;
-				case EK_SWITCH: return true;
-				case EK_COUNT:
-				default: ASSERT(false, "UNREACHABLE!");
-			}
-		} break;
-		case EK_SWITCH: {
-			switch (b->kind) {
-				case EK_NIC:    return true;
-				case EK_SWITCH: return false;
-				case EK_COUNT:
-				default: ASSERT(false, "UNREACHABLE!");
-			}
-		} break;
-		case EK_COUNT:
-		default: ASSERT(false, "UNREACHABLE!");
-	}
-}
-
 // Makers
 Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena) {
     Entity e = (Entity) {
@@ -434,3 +411,17 @@ void free_switch(Entity *e) {
 	}
 	arr_free(e->switchh->nic_ptrs);
 }
+
+// I/O
+// NOTE: Yea so we can't just dump the entities array and load it directly from the filesystem cuz the entities have memebers alloced on Arena memory... :(
+bool is_entities_saved(Entities *entities) {
+	(void)entities;
+	ASSERT(false, "is_entities_saved() is unimplemented!");
+	return false;
+}
+
+bool save_entity_to_data(Entity *e, char *data, size_t data_count) {
+	// TODO: Implement String_builder in commonlib.h
+}
+
+bool load_entity_from_data(Entity *e, char *data, size_t data_count);
