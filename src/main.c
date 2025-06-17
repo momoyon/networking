@@ -122,18 +122,35 @@ int main(void) {
 		
 		// Save entities
 		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
-			if (save_entities(&entities, entities_save_path)) {
-				log_debug("Successfully saved entities to `%s`", entities_save_path);
-			} else {
-				log_debug("Failed to save entities to `%s`", entities_save_path);
+			// if (save_entities(&entities, entities_save_path)) {
+			// 	log_debug("Successfully saved entities to `%s`", entities_save_path);
+			// } else {
+			// 	log_debug("Failed to save entities to `%s`", entities_save_path);
+			// }
+			/// DEBUG
+			if (hovering_entity) {
+				save_entity_to_file(hovering_entity, &temp_arena, "test.entity", CURRENT_ENTITY_SAVE_FORMAT);
 			}
 		}
 		// Load entities
 		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
-			if (load_entities(&entities, entities_save_path)) {
-				log_debug("Successfully loadd entities to `%s`", entities_save_path);
-			} else {
-				log_debug("Failed to load entities to `%s`", entities_save_path);
+			// if (load_entities(&entities, entities_save_path)) {
+			// 	log_debug("Successfully loadd entities to `%s`", entities_save_path);
+			// } else {
+			// 	log_debug("Failed to load entities to `%s`", entities_save_path);
+			// }
+			/// DEBUG
+			Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
+			if (load_entity_from_data_v01(&e, &temp_arena)) {
+				if (free_entity_indices.count == 0) {
+					arr_append(entities, e);
+				} else {
+					int free_index = -1;
+					darr_remove(free_entity_indices, int, &free_index, free_entity_indices.count-1);
+					ASSERT(free_index >= 0, "This shouldn't happen!");
+					entities.items[free_index] = e;
+				}
+				entities_count++;
 			}
 		}
 
@@ -361,6 +378,10 @@ int main(void) {
                     y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
                     const char *hovering_id = arena_alloc_str(temp_arena, "Hovering ID: %zu", hovering_entity->id);
                     draw_text(GetFontDefault(), hovering_id, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                    y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
+                    const char *hovering_pos = arena_alloc_str(temp_arena, "Hovering ID: %.2f, %.2f", hovering_entity->pos.x, hovering_entity->pos.y);
+                    draw_text(GetFontDefault(), hovering_pos, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                     y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
                 }
                 draw_text(GetFontDefault(), connecting_from_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);

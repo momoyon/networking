@@ -63,7 +63,6 @@ void draw_text(Font font, const char *text, Vector2 pos, int font_size, Color co
 Vector2 get_mpos_scaled(float scl);
 
 // Assets Manager
-
 typedef struct {
 	const char *key;
 	Texture2D value;
@@ -74,6 +73,9 @@ typedef struct {
 } Texture_manager;
 
 bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out);
+
+// UI
+
 
 #endif // _ENGINE_H_
 

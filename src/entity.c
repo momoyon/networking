@@ -420,8 +420,86 @@ bool is_entities_saved(Entities *entities) {
 	return false;
 }
 
-bool save_entity_to_data(Entity *e, char *data, size_t data_count) {
-	// TODO: Implement String_builder in commonlib.h
+const char *save_entity_to_data(Entity *e, Arena *temp_arena, int version) {
+	char *s = arena_alloc_str(*temp_arena, "v%d %.2f %.2f %d %zu %d", version, e->pos.x, e->pos.y, e->kind, e->id, e->state);
+	log_debug("BRO: %s", s);
+
+	return s;
 }
 
-bool load_entity_from_data(Entity *e, char *data, size_t data_count);
+bool load_entity_from_data(Entity *e, const char *data, int version) {
+	String_view sv = SV(data);
+
+	String_view version_sv = sv_lpop_until_char(&sv, ' ');
+	sv_lremove(&sv, 1); // Remove space
+
+	int version = sv_to_int(sv_lremove(&version_sv, 1));
+
+	switch (version) {
+		case 1: return load_entity_from_data_v1(e, data);
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+}
+
+bool load_entity_from_data_v1(Entity *e, const char *data) {
+
+	if (!sv_equals(version_sv, SV("v1"))) {
+		log_error("Version mismatch! Loading using: v1, data using: "SV_FMT, SV_ARG(version_sv));
+		return false;
+	}
+
+	String_view pos_x_sv = sv_lpop_until_char(&sv, ' ');
+	sv_lremove(&sv, 1); // Remove space
+	String_view pos_y_sv = sv_lpop_until_char(&sv, ' ');
+	sv_lremove(&sv, 1); // Remove space
+
+	String_view kind_sv = sv_lpop_until_char(&sv, ' ');
+	sv_lremove(&sv, 1); // Remove space
+
+	String_view id_sv = sv_lpop_until_char(&sv, ' ');
+	sv_lremove(&sv, 1); // Remove space
+
+	String_view state_sv = sv_lpop_until_char(&sv, ' ');
+	sv_lremove(&sv, 1); // Remove space
+
+	if (sv.count > 0) {
+		log_warning("Excess data remaining after parsing with version v0.1! (Excess %zu bytes)", sv.count);
+	}
+	return true;
+}
+
+bool load_entity_from_file(Entity *e, const char *filepath) {
+	int file_size = -1;
+	const char *file = read_file(filepath, &file_size);
+	if (file_size == -1) {
+		return false;
+	}
+	
+	return load_entity_from_data(e, file);
+}
+
+bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int version) {
+	FILE *f = fopen(filepath, "w");
+
+	if (!f) { 
+		return false;
+	}
+
+	const char *s = save_entity_to_data(e, temp_arena, version);
+	size_t s_len = strlen(s);
+
+
+	size_t wrote = fwrite(s, sizeof(char), s_len, f);
+	if (wrote < s_len) {
+		log_debug("Failed to fwrite!");
+		fclose(f);
+		return false;
+	}
+
+	temp_arena->ptr -= s_len; // Dealloc the string;
+
+	fclose(f);
+
+	return true;
+}
+

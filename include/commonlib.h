@@ -65,6 +65,12 @@
 #define randomi c_randomi
 #define randomf c_randomf
 
+#define String_builder c_String_builder
+#define sb_append c_sb_append
+#define sb_append_char c_sb_append_char
+#define sb_append_null c_sb_append_null
+#define sb_free c_sb_free
+
 #define String_view c_String_view
 
 #define shift_args c_shift_args
@@ -407,12 +413,16 @@ void c_arena_free(c_Arena* a);
 //
 
 typedef struct {
-    char* data;
-    size_t size;
+    char* items;
+    size_t count;
     size_t capacity;
 } c_String_builder;
+#define c_STRING_VIEW_INITIAL_CAPACITY c_DYNAMIC_ARRAY_INITIAL_CAPACITY
 
 void c_sb_append(c_String_builder* sb, char* data);
+void c_sb_append_char(c_String_builder* sb, char ch);
+void c_sb_append_null(c_String_builder *sb);
+void c_sb_free(c_String_builder *sb);
 
 //
 // String view
@@ -487,7 +497,7 @@ float c_randomf(float from, float to) {
 }
 
 int c_randomi(int from, int to) {
-	return randomf((float)from, (float)to);
+	return c_randomf((float)from, (float)to);
 }
 
 //
@@ -643,15 +653,45 @@ void c_arena_free(c_Arena* a) {
 //
 
 void c_sb_append(c_String_builder* sb, char* data) {
+	if (sb->items == NULL) {
+		sb->capacity = c_STRING_VIEW_INITIAL_CAPACITY;
+		sb->count = 0;
+		sb->items = C_MALLOC(sizeof(char) * sb->capacity);
+	}
     size_t data_size = strlen(data);
-    if (sb->size + data_size > sb->capacity) {
+    if (sb->count + data_size + 1 > sb->capacity) {
         sb->capacity *= 2;
-        sb->data = C_REALLOC(sb->data, sb->capacity);
+        sb->items = C_REALLOC(sb->items, sb->capacity);
     }
 
     // void *memcpy(void dest[restrict .n], const void src[restrict .n],
-    C_MEMCPY((void *)((uintptr_t)sb->data + (uintptr_t)sb->data), data, data_size);
-    sb->size += data_size;
+    C_MEMCPY((void *)((uintptr_t)sb->items + (uintptr_t)sb->count), data, data_size);
+    sb->count += data_size;
+}
+
+void c_sb_append_char(c_String_builder* sb, char ch) {
+	if (sb->items == NULL) {
+		sb->capacity = c_STRING_VIEW_INITIAL_CAPACITY;
+		sb->count = 0;
+		sb->items = C_MALLOC(sizeof(char) * sb->capacity);
+	}
+    if (sb->count + 1 > sb->capacity) {
+        sb->capacity *= 2;
+        sb->items = C_REALLOC(sb->items, sb->capacity);
+    }
+
+	sb->items[sb->count++] = ch;
+}
+
+void c_sb_append_null(c_String_builder *sb) {
+	c_sb_append_char(sb, '\0');
+}
+
+void c_sb_free(c_String_builder *sb) {
+	if (sb->items) {
+		C_FREE(sb->items);
+		sb->items = NULL;
+	}
 }
 
 //
@@ -912,8 +952,8 @@ bool c_sv_equals(c_String_view sv1, c_String_view sv2) {
 }
 
 c_String_view c_sv_get_part(c_String_view sv, int from, int to) {
-    from = clampi(from, 0, sv.count);
-    to   = clampi(to, from, sv.count);
+    from = c_clampi(from, 0, sv.count);
+    to   = c_clampi(to, from, sv.count);
 
     c_String_view range = {
         .data = (char*)(sv.data + from),
