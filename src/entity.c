@@ -213,7 +213,27 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 	return false;
 }
 
-bool connect(Entities *entities, Entity *a, Entity *b) {
+static bool connect_switch_to(Entity *switchh, Entity *other) {
+	if (switchh->kind != EK_SWITCH) {
+		log_debug("That isn't a NIC brochacho _/\\_");
+		return false;
+	}
+
+	switch (other->kind) {
+		case EK_NIC: {
+			return connect_nic_to(other, switchh); // We can do this 
+	    } break;
+		case EK_SWITCH: {
+			log_debug("We can't connect two switched directly!");
+			return false;
+	    } break;
+		case EK_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+	return false;
+}
+
+bool connect_entity(Entities *entities, Entity *a, Entity *b) {
     ASSERT(entities, "Bro pass an array of entities!");
 
     ASSERT(a && b, "BRUH");
@@ -225,7 +245,7 @@ bool connect(Entities *entities, Entity *a, Entity *b) {
 			connected = connect_nic_to(a, b);
 	    } break;
 		case EK_SWITCH: {
-			log_debug("connecting from SWITCH is UNIMPLEMENTED!");
+			connected = connect_switch_to(a, b);
 			return false;
 	    } break;
 		case EK_COUNT:

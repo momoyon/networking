@@ -85,7 +85,7 @@ void free_entity(Entity *e);
 void free_nic(Entity *e);
 void free_switch(Entity *e);
 
-bool connect(Entities *entities, Entity *a, Entity *b);
+bool connect_entity(Entities *entities, Entity *a, Entity *b);
 bool can_have_multiple_connections(Entity *a, Entity *b);
 
 #endif // _ENTITY_H_

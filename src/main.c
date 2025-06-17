@@ -238,7 +238,7 @@ int main(void) {
                 if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT) ||
                         IsKeyReleased(KEY_X)) {
                     if (connecting_from && connecting_to) {
-						connect(&entities, connecting_from, connecting_to);
+						connect_entity(&entities, connecting_from, connecting_to);
                     }
                     connecting_from = NULL;
                     connecting_to = NULL;
