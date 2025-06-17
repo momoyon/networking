@@ -48,6 +48,8 @@ typedef struct {
 	size_t capacity;
 } Entity_indices; // NOTE: are the indices in the entities static array @Darr
 
+extern size_t entities_count; // NOTE: We need to maintain this cuz we use instance pooling
+extern Entities entities;
 extern Entity_indices free_entity_indices;
 
 // NOTE: How we add new entities:

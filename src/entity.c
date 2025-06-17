@@ -8,6 +8,8 @@
 
 size_t entity_id_counter = 0;
 Entity_ids free_entity_ids = {0};
+size_t entities_count = 0;
+Entities entities = {0};
 Entity_indices free_entity_indices = {0};
 
 static size_t get_unique_id(void) {
@@ -362,5 +364,13 @@ void free_nic(Entity *e) {
 
 void free_switch(Entity *e) {
 	ASSERT(e->kind == EK_SWITCH, "Br");
+
+	// Remove any reference to this switch from the connected NICs
+	for (size_t i = 0; i < e->switchh->nic_ptrs.count; ++i) {
+		Nic *nic_ptr = e->switchh->nic_ptrs.items[i];
+		if (nic_ptr && nic_ptr->switch_entity == e) {
+			nic_ptr->switch_entity = NULL;
+		}
+	}
 	arr_free(e->switchh->nic_ptrs);
 }

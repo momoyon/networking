@@ -67,7 +67,6 @@ int main(void) {
     // Font font = GetFontDefault();
     //
 
-    Entities entities = {0};
 
     arr_heap_init(entities, ENTITIES_MAX_CAP);
 
@@ -149,6 +148,7 @@ int main(void) {
 						ASSERT(free_index >= 0, "This shouldn't happen!");
 						entities.items[free_index] = e;
 					}
+					entities_count++;
                     log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
                 }
 
@@ -163,6 +163,8 @@ int main(void) {
 							e->state |= (1<<ESTATE_DEAD);
                             // arr_remove(entities, Entity, &d, (int)i);
 							darr_append(free_entity_indices, i);
+							ASSERT(entities_count > 0, "We cant remove if there are no entities");
+							entities_count--;
                         }
                     }
                 }
@@ -342,7 +344,7 @@ int main(void) {
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
-                const char *entities_count_str = arena_alloc_str(temp_arena, "Entities count: %zu", entities.count);
+                const char *entities_count_str = arena_alloc_str(temp_arena, "Entities count: %zu", entities_count);
                 draw_text(GetFontDefault(), entities_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
