@@ -78,6 +78,9 @@ struct Entity {
 
 Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena);
 void draw_entity(Entity *e, bool debug);
+void disconnect_entity(Entity *e);
+void disconnect_nic(Entity *e);
+void disconnect_switch(Entity *e);
 void free_entity(Entity *e);
 void free_nic(Entity *e);
 void free_switch(Entity *e);

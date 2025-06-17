@@ -1,4 +1,4 @@
-#include <predecls.h>
+#include<predecls.h>
 #include <config.h>
 #include <nic.h>
 #include <entity.h>
@@ -152,21 +152,32 @@ int main(void) {
                     log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
                 }
 
-                // Delete Selected entities
                 if (IsKeyPressed(KEY_D)) {
-                    for (int i = (int)entities.count-1; i >= 0; --i) {
-                        Entity *e = &entities.items[i];
-						if (e->state & (1<<ESTATE_DEAD)) continue;
-                        if (e->state & (1<<ESTATE_SELECTED)) {
-                            free_entity(e);
+					if (IsKeyDown(KEY_LEFT_SHIFT)) {
+						// Delete Selected entities
+						for (int i = (int)entities.count-1; i >= 0; --i) {
+							Entity *e = &entities.items[i];
+							if (e->state & (1<<ESTATE_DEAD)) continue;
+							if (e->state & (1<<ESTATE_SELECTED)) {
+								free_entity(e);
 
-							e->state |= (1<<ESTATE_DEAD);
-                            // arr_remove(entities, Entity, &d, (int)i);
-							darr_append(free_entity_indices, i);
-							ASSERT(entities_count > 0, "We cant remove if there are no entities");
-							entities_count--;
-                        }
-                    }
+								e->state |= (1<<ESTATE_DEAD);
+								// arr_remove(entities, Entity, &d, (int)i);
+								darr_append(free_entity_indices, i);
+								ASSERT(entities_count > 0, "We cant remove if there are no entities");
+								entities_count--;
+							}
+						}
+					} else {
+						// Disconnect connections of Selected entities
+						for (int i = (int)entities.count-1; i >= 0; --i) {
+							Entity *e = &entities.items[i];
+							if (e->state & (1<<ESTATE_DEAD)) continue;
+							if (e->state & (1<<ESTATE_SELECTED)) {
+								disconnect_entity(e);
+							}
+						}
+					}
                 }
 
                 // Select/Deselect all

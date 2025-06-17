@@ -25,42 +25,11 @@ static size_t get_unique_id(void) {
 
 const char *entity_kind_as_str(const Entity_kind k) {
     switch (k) {
-        case EK_NIC: return "Network Interface Card";
+        case EK_NIC: return "NIC";
         case EK_SWITCH: return "Switch";
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
-}
-
-Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena) {
-    Entity e = (Entity) {
-        .pos = pos,
-        .radius = radius,
-        .kind = kind,
-        .id = get_unique_id(),
-        .state = 0,
-        .arena = arena,
-        .temp_arena = temp_arena,
-        .entities = entities,
-    };
-
-    switch (kind) {
-        case EK_NIC: {
-            e.nic = (Nic *)arena_alloc(arena, sizeof(Nic));
-			make_nic(e.nic, arena);
-			e.tex = load_texture_checked("resources/gfx/nic.png");
-			ASSERT(IsTextureReady(e.tex), "Failed to load network interface image!");
-        } break;
-        case EK_SWITCH: {
-            e.switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
-			make_switch(e.switchh, arena, 4);
-			e.tex = load_texture_checked("resources/gfx/switch.png");
-        } break;
-        case EK_COUNT:
-        default: ASSERT(false, "UNREACHABLE!");
-    }
-
-    return e;
 }
 
 static void draw_info_text(Vector2 *p, const char *text, int font_size, Color color) {
@@ -178,21 +147,6 @@ void draw_entity(Entity *e, bool debug) {
     if (e->state & (1<<ESTATE_CONNECTING_TO)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GREEN);
     }
-}
-
-void free_entity(Entity *e) {
-    darr_append(free_entity_ids, e->id);
-
-	switch (e->kind) {
-		case EK_NIC: {
-			free_nic(e);
-		} break;
-		case EK_SWITCH: {
-			free_switch(e);
-		} break;
-		case EK_COUNT:
-		default: ASSERT(false, "UNREACHABLE!");
-	}
 }
 
 static bool connect_nic_to(Entity *nic, Entity *other) {
@@ -313,6 +267,37 @@ bool can_have_multiple_connections(Entity *a, Entity *b) {
 }
 
 // Makers
+Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena) {
+    Entity e = (Entity) {
+        .pos = pos,
+        .radius = radius,
+        .kind = kind,
+        .id = get_unique_id(),
+        .state = 0,
+        .arena = arena,
+        .temp_arena = temp_arena,
+        .entities = entities,
+    };
+
+    switch (kind) {
+        case EK_NIC: {
+            e.nic = (Nic *)arena_alloc(arena, sizeof(Nic));
+			make_nic(e.nic, arena);
+			e.tex = load_texture_checked("resources/gfx/nic.png");
+			ASSERT(IsTextureReady(e.tex), "Failed to load network interface image!");
+        } break;
+        case EK_SWITCH: {
+            e.switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
+			make_switch(e.switchh, arena, 4);
+			e.tex = load_texture_checked("resources/gfx/switch.png");
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+
+    return e;
+}
+
 void make_nic(Nic *nic, Arena *arena) {
 	(void)arena;
 	nic->subnet_mask[0] = 255;
@@ -338,8 +323,63 @@ void make_switch(Switch *switch_out, Arena *arena, size_t nic_count) {
 	*switch_out = s;
 }
 
+// Disconnect-ers
+void disconnect_entity(Entity *e) {
+	switch (e->kind) {
+		case EK_NIC: {
+			disconnect_nic(e);
+		} break;
+		case EK_SWITCH: {
+			disconnect_switch(e);
+		} break;
+		case EK_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+}
+void disconnect_nic(Entity *e) {
+	ASSERT(e->kind == EK_NIC, "BRO");
+	if (e->nic->nic_entity && e->nic->nic_entity->nic->nic_entity == e) {
+		e->nic->nic_entity->nic->nic_entity = NULL;
+	}
+	e->nic->nic_entity = NULL;
+	if (e->nic->switch_entity) {
+		for (size_t i = 0; i < e->nic->switch_entity->switchh->nic_ptrs.count; ++i) {
+			Nic *nic_ptr = e->nic->switch_entity->switchh->nic_ptrs.items[i];
+			if (nic_ptr == e->nic) {
+				arr_delete(e->nic->switch_entity->switchh->nic_ptrs, Nic *, i);
+				break; // We shouldn't have duplicate entries
+			}
+		}
+	}
+	e->nic->switch_entity = NULL;
+}
+void disconnect_switch(Entity *e) {
+	ASSERT(e->kind == EK_SWITCH, "BRO");
+	for (size_t i = 0; i < e->switchh->nic_ptrs.count; ++i) {
+		Nic *nic_ptr = e->switchh->nic_ptrs.items[i];
+		if (nic_ptr && nic_ptr->switch_entity == e) {
+			nic_ptr->switch_entity = NULL;
+		}
+	}
+	e->switchh->nic_ptrs.count = 0;
+}
 
 // Free-ers
+void free_entity(Entity *e) {
+    darr_append(free_entity_ids, e->id);
+
+	switch (e->kind) {
+		case EK_NIC: {
+			free_nic(e);
+		} break;
+		case EK_SWITCH: {
+			free_switch(e);
+		} break;
+		case EK_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+}
+
 void free_nic(Entity *e) {
 	ASSERT(e->kind == EK_NIC, "Br");
 	if (e->nic->nic_entity != NULL) {
