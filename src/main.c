@@ -141,7 +141,14 @@ int main(void) {
                 // Add Entity
                 if (IsKeyPressed(KEY_SPACE)) {
                     Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
-                    arr_append(entities, e);
+					if (free_entity_indices.count == 0) {
+						arr_append(entities, e);
+					} else {
+						int free_index = -1;
+						darr_remove(free_entity_indices, int, &free_index, free_entity_indices.count-1);
+						ASSERT(free_index >= 0, "This shouldn't happen!");
+						entities.items[free_index] = e;
+					}
                     log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
                 }
 
@@ -149,11 +156,13 @@ int main(void) {
                 if (IsKeyPressed(KEY_D)) {
                     for (int i = (int)entities.count-1; i >= 0; --i) {
                         Entity *e = &entities.items[i];
+						if (e->state & (1<<ESTATE_DEAD)) continue;
                         if (e->state & (1<<ESTATE_SELECTED)) {
-                            Entity d = {0};
                             free_entity(e);
 
-                            arr_remove(entities, Entity, &d, (int)i);
+							e->state |= (1<<ESTATE_DEAD);
+                            // arr_remove(entities, Entity, &d, (int)i);
+							darr_append(free_entity_indices, i);
                         }
                     }
                 }
@@ -162,6 +171,7 @@ int main(void) {
                 if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_A)) {
                     for (int i = (int)entities.count-1; i >= 0; --i) {
                         Entity *e = &entities.items[i];
+						if (e->state & (1<<ESTATE_DEAD)) continue;
                         if (IsKeyDown(KEY_LEFT_SHIFT)) {
                             e->state &= ~(1<<ESTATE_SELECTED);
                         } else {
@@ -175,6 +185,7 @@ int main(void) {
                         IsKeyPressed(KEY_Z)) {
                     for (int i = (int)entities.count-1; i >= 0; --i) {
                         Entity *e = &entities.items[i];
+						if (e->state & (1<<ESTATE_DEAD)) continue;
                         e->offset = Vector2Subtract(e->pos, m_world);
                     }
                 }
@@ -186,6 +197,7 @@ int main(void) {
                     } else {
                         for (int i = (int)entities.count-1; i >= 0; --i) {
                             Entity *e = &entities.items[i];
+							if (e->state & (1<<ESTATE_DEAD)) continue;
                             if (e->state & (1<<ESTATE_SELECTED)) {
                                 e->pos = Vector2Add(m_world, e->offset);
                             }
@@ -232,6 +244,7 @@ int main(void) {
             hovering_entity = NULL;
             for (int i = (int)entities.count-1; i >= 0; --i) {
                 Entity *e = &entities.items[i];
+				if (e->state & (1<<ESTATE_DEAD)) continue;
                 float dist_sq = Vector2DistanceSqr(e->pos, m_world);
                 // Clear states
                 e->state &= ~(1<<ESTATE_HOVERING);
@@ -272,6 +285,7 @@ int main(void) {
                         selecting = false;
                         for (int i = (int)entities.count-1; i >= 0; --i) {
                             Entity *e = &entities.items[i];
+							if (e->state & (1<<ESTATE_DEAD)) continue;
                             if (rect_contains_point(selection, e->pos)) {
                                 e->state |= (1<<ESTATE_SELECTED);
                             } else {
@@ -293,6 +307,7 @@ int main(void) {
 			BeginMode2D(cam);
 				for (int i = (int)entities.count-1; i >= 0; --i) {
 					Entity *e = &entities.items[i];
+					if (e->state & (1<<ESTATE_DEAD)) continue;
 					draw_entity(e, debug_draw);
 				}
 

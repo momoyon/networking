@@ -8,6 +8,7 @@
 
 size_t entity_id_counter = 0;
 Entity_ids free_entity_ids = {0};
+Entity_indices free_entity_indices = {0};
 
 static size_t get_unique_id(void) {
     if (free_entity_ids.count > 0) {
