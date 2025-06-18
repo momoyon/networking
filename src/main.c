@@ -122,36 +122,30 @@ int main(void) {
 		
 		// Save entities
 		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
-			// if (save_entities(&entities, entities_save_path)) {
-			// 	log_debug("Successfully saved entities to `%s`", entities_save_path);
-			// } else {
-			// 	log_debug("Failed to save entities to `%s`", entities_save_path);
-			// }
+			if (save_entities(&entities, entities_save_path)) {
+				log_debug("Successfully saved entities to `%s`", entities_save_path);
+			} else {
+				log_debug("Failed to save entities to `%s`", entities_save_path);
+			}
+			
 			/// DEBUG
 			if (hovering_entity) {
-				save_entity_to_file(hovering_entity, &temp_arena, "test.entity", CURRENT_ENTITY_SAVE_FORMAT);
+				save_entity_to_file(hovering_entity, &temp_arena, "test.entity", ENTITY_SAVE_VERSION);
 			}
 		}
 		// Load entities
 		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
-			// if (load_entities(&entities, entities_save_path)) {
-			// 	log_debug("Successfully loadd entities to `%s`", entities_save_path);
-			// } else {
-			// 	log_debug("Failed to load entities to `%s`", entities_save_path);
-			// }
-			/// DEBUG
-			Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
-			if (load_entity_from_data_v01(&e, &temp_arena)) {
-				if (free_entity_indices.count == 0) {
-					arr_append(entities, e);
-				} else {
-					int free_index = -1;
-					darr_remove(free_entity_indices, int, &free_index, free_entity_indices.count-1);
-					ASSERT(free_index >= 0, "This shouldn't happen!");
-					entities.items[free_index] = e;
-				}
-				entities_count++;
+			if (load_entities(&entities, entities_save_path, &entity_arena, &temp_arena)) {
+				log_debug("Successfully loadd entities to `%s`", entities_save_path);
+			} else {
+				log_debug("Failed to load entities to `%s`", entities_save_path);
 			}
+			/// DEBUG
+			
+			// Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
+			// if (load_entity_from_file(&e, "test.entity")) {
+			// add_entity(e);
+			// }
 		}
 
         // Mode-specific input
@@ -171,16 +165,7 @@ int main(void) {
                 // Add Entity
                 if (IsKeyPressed(KEY_SPACE)) {
                     Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
-					if (free_entity_indices.count == 0) {
-						arr_append(entities, e);
-					} else {
-						int free_index = -1;
-						darr_remove(free_entity_indices, int, &free_index, free_entity_indices.count-1);
-						ASSERT(free_index >= 0, "This shouldn't happen!");
-						entities.items[free_index] = e;
-					}
-					entities_count++;
-                    log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
+					add_entity(e);
                 }
 
                 if (IsKeyPressed(KEY_D)) {

@@ -15,7 +15,7 @@ Entity_indices free_entity_indices = {0};
 static size_t get_unique_id(void) {
     if (free_entity_ids.count > 0) {
         int last_free_id = -1;
-        da_remove(free_entity_ids, int, &last_free_id, (int)free_entity_ids.count-1);
+        darr_remove(free_entity_ids, int, &last_free_id, (int)free_entity_ids.count-1);
         ASSERT(last_free_id != -1, "We failed to get last free id!");
         return last_free_id;
     } else {
@@ -263,6 +263,25 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b) {
     return true;
 }
 
+static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
+	(void)temp_arena;
+    switch (e->kind) {
+        case EK_NIC: {
+            e->nic = (Nic *)arena_alloc(arena, sizeof(Nic));
+			make_nic(e->nic, arena);
+			e->tex = load_texture_checked("resources/gfx/nic.png");
+			ASSERT(IsTextureReady(e->tex), "Failed to load network interface image!");
+        } break;
+        case EK_SWITCH: {
+            e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
+			make_switch(e->switchh, arena, 4);
+			e->tex = load_texture_checked("resources/gfx/switch.png");
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+}
+
 // Makers
 Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena) {
     Entity e = (Entity) {
@@ -276,21 +295,7 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
         .entities = entities,
     };
 
-    switch (kind) {
-        case EK_NIC: {
-            e.nic = (Nic *)arena_alloc(arena, sizeof(Nic));
-			make_nic(e.nic, arena);
-			e.tex = load_texture_checked("resources/gfx/nic.png");
-			ASSERT(IsTextureReady(e.tex), "Failed to load network interface image!");
-        } break;
-        case EK_SWITCH: {
-            e.switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
-			make_switch(e.switchh, arena, 4);
-			e.tex = load_texture_checked("resources/gfx/switch.png");
-        } break;
-        case EK_COUNT:
-        default: ASSERT(false, "UNREACHABLE!");
-    }
+	init_entity(&e, arena, temp_arena);
 
     return e;
 }
@@ -421,52 +426,101 @@ bool is_entities_saved(Entities *entities) {
 }
 
 const char *save_entity_to_data(Entity *e, Arena *temp_arena, int version) {
-	char *s = arena_alloc_str(*temp_arena, "v%d %.2f %.2f %d %zu %d", version, e->pos.x, e->pos.y, e->kind, e->id, e->state);
+	char *s = "";
+	switch (version) {
+		case 1: {
+			s = arena_alloc_str(*temp_arena, "v1 %.2f %.2f %d %zu %d ", e->pos.x, e->pos.y, e->kind, e->id, e->state);
+		} break;
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+	temp_arena->ptr--; // remove \0
 	log_debug("BRO: %s", s);
 
 	return s;
 }
 
-bool load_entity_from_data(Entity *e, const char *data, int version) {
-	String_view sv = SV(data);
+static bool load_entity_from_data_v1(Entity *e, String_view *sv) {
+	String_view pos_x_sv = sv_lpop_until_char(sv, ' ');
+	sv_lremove(sv, 1); // Remove space
+	String_view pos_y_sv = sv_lpop_until_char(sv, ' ');
+	sv_lremove(sv, 1); // Remove space
 
-	String_view version_sv = sv_lpop_until_char(&sv, ' ');
-	sv_lremove(&sv, 1); // Remove space
+	String_view kind_sv = sv_lpop_until_char(sv, ' ');
+	sv_lremove(sv, 1); // Remove space
 
-	int version = sv_to_int(sv_lremove(&version_sv, 1));
+	String_view id_sv = sv_lpop_until_char(sv, ' ');
+	sv_lremove(sv, 1); // Remove space
 
-	switch (version) {
-		case 1: return load_entity_from_data_v1(e, data);
-		default: ASSERT(false, "UNREACHABLE!");
+	String_view state_sv = sv_lpop_until_char(sv, ' ');
+	sv_lremove(sv, 1); // Remove space
+
+	int pos_x_count = -1;
+	float pos_x = sv_to_float(pos_x_sv, &pos_x_count);
+	if (pos_x_count < 0) {
+		log_error("pos.x: Failed to convert `"SV_FMT"` to float!", SV_ARG(pos_x_sv));
+		return false;
 	}
-}
-
-bool load_entity_from_data_v1(Entity *e, const char *data) {
-
-	if (!sv_equals(version_sv, SV("v1"))) {
-		log_error("Version mismatch! Loading using: v1, data using: "SV_FMT, SV_ARG(version_sv));
+	int pos_y_count = -1;
+	float pos_y = sv_to_float(pos_y_sv, &pos_y_count);
+	if (pos_y_count < 0) {
+		log_error("pos.y: Failed to convert `"SV_FMT"` to float!", SV_ARG(pos_y_sv));
 		return false;
 	}
 
-	String_view pos_x_sv = sv_lpop_until_char(&sv, ' ');
-	sv_lremove(&sv, 1); // Remove space
-	String_view pos_y_sv = sv_lpop_until_char(&sv, ' ');
-	sv_lremove(&sv, 1); // Remove space
-
-	String_view kind_sv = sv_lpop_until_char(&sv, ' ');
-	sv_lremove(&sv, 1); // Remove space
-
-	String_view id_sv = sv_lpop_until_char(&sv, ' ');
-	sv_lremove(&sv, 1); // Remove space
-
-	String_view state_sv = sv_lpop_until_char(&sv, ' ');
-	sv_lremove(&sv, 1); // Remove space
-
-	if (sv.count > 0) {
-		log_warning("Excess data remaining after parsing with version v0.1! (Excess %zu bytes)", sv.count);
+	int kind_count = -1;
+	int kind = sv_to_uint(kind_sv, &kind_count, 10);
+	if (kind_count < 0) {
+		log_error("kind: Failed to convert `"SV_FMT"` to uint!!", SV_ARG(kind_sv));
+		return false;
 	}
+
+	int id_count = -1;
+	int id = sv_to_uint(id_sv, &id_count, 10);
+	if (id_count < 0) {
+		log_error("id: Failed to convert `"SV_FMT"` to uint!!", SV_ARG(id_sv));
+		return false;
+	}
+
+	int state_count = -1;
+	int state = sv_to_int(state_sv, &state_count, 10);
+	if (state_count < 0) {
+		log_error("state: Failed to convert `"SV_FMT"` to int!!", SV_ARG(state_sv));
+		return false;
+	}
+
+	log_debug("Loading %s[%d] @ %.2f %.2f", entity_kind_as_str(kind), id, pos_x, pos_y);
+
+	e->pos.x = pos_x;
+	e->pos.y = pos_y;
+	e->kind = kind;
+	e->id = id;
+	e->state = state;
+
 	return true;
 }
+
+bool load_entity_from_data(Entity *e, String_view *data_sv) {
+	sv_ltrim(data_sv);
+	String_view version_sv = sv_lpop_until_char(data_sv, ' ');
+	sv_lremove(data_sv, 1); // Remove space
+	sv_lremove(&version_sv, 1); // Remove v
+	int version_count = -1;
+	int version = sv_to_int(version_sv, &version_count, 10);
+	if (version_count < 0) {
+		log_error("Failed to convert `"SV_FMT"` to int!", SV_ARG(version_sv));
+		return false;
+	}
+
+	switch (version) {
+		case 1: return load_entity_from_data_v1(e, data_sv);
+		default: {
+			log_debug("Got version %d", version);
+			ASSERT(false, "UNREACHABLE!");
+	    } break;
+	}
+	return false;
+}
+
 
 bool load_entity_from_file(Entity *e, const char *filepath) {
 	int file_size = -1;
@@ -474,8 +528,14 @@ bool load_entity_from_file(Entity *e, const char *filepath) {
 	if (file_size == -1) {
 		return false;
 	}
+	String_view sv = SV(file);
 	
-	return load_entity_from_data(e, file);
+	if (!load_entity_from_data(e, &sv)) {
+		return false;
+	}
+
+	free((void*)file);
+	return true;
 }
 
 bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int version) {
@@ -503,3 +563,60 @@ bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int
 	return true;
 }
 
+bool save_entities(Entities *entities, const char *filepath) {
+	Arena entities_arena = arena_make(0);
+
+	for (size_t i = 0; i < entities->count; ++i) {
+		Entity *e = &entities->items[i];
+		if (e->state & (1<<ESTATE_DEAD)) continue;
+
+		if (!save_entity_to_data(e, &entities_arena, ENTITY_SAVE_VERSION)) {
+			arena_free(&entities_arena);
+			return false;
+		}
+	}
+
+	int c = (int)((char*)entities_arena.ptr - (char*)entities_arena.buff);
+	// log_debug("Alloced %zu bytes in entities_arena", c);
+	log_debug("Entities: %.*s", c, (char*)entities_arena.buff);
+
+	FILE *f = fopen(filepath, "wb");
+	size_t wrote = fwrite(entities_arena.buff, sizeof(char), c, f);
+	if (wrote < c) {
+		log_error("Failed to write entities data to `%s`", filepath);
+		fclose(f);
+		return false;
+	}
+	fclose(f);
+
+	arena_free(&entities_arena);
+	return true;
+}
+
+bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena) {
+	// Reset before loading new entities
+	entities_count = 0;
+	entities->count = 0;
+
+	int file_size = -1;
+	const char *file = read_file(filepath, &file_size);
+
+	if (file_size == -1) {
+		return false;
+	}
+
+	String_view sv = SV(file);
+
+	while (sv.count > 0) {
+		Entity e = make_entity(entities, v2xx(0), ENTITY_DEFAULT_RADIUS, EK_NIC, arena, temp_arena);
+		if (!load_entity_from_data(&e, &sv)) {
+			free((void*)file);
+			return false;
+		}
+		init_entity(&e, arena, temp_arena);
+		add_entity(e);
+	}
+
+	free((void*)file);
+	return true;
+}

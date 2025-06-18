@@ -88,11 +88,12 @@ void free_switch(Entity *e);
 bool connect_entity(Entities *entities, Entity *a, Entity *b);
 
 // I/O
-#define CURRENT_ENTITY_SAVE_FORMAT 1
 bool is_entities_saved(Entities *entities);
 const char *save_entity_to_data(Entity *e, Arena *temp_arena, int version);
-bool load_entity_from_data(Entity *e, const char *data, int version);
+bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena);
 bool load_entity_from_file(Entity *e, const char *filepath);
 bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int version);
+bool save_entities(Entities *entities, const char *filepath);
+bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena);
 
 #endif // _ENTITY_H_

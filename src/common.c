@@ -38,3 +38,16 @@ Texture2D load_texture_checked(const char *filepath) {
 
 	return tex;
 }
+
+void add_entity(Entity e) {
+	if (free_entity_indices.count == 0) {
+		arr_append(entities, e);
+	} else {
+		int free_index = -1;
+		darr_remove(free_entity_indices, int, &free_index, free_entity_indices.count-1);
+		ASSERT(free_index >= 0, "This shouldn't happen!");
+		entities.items[free_index] = e;
+	}
+	entities_count++;
+	log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
+}
