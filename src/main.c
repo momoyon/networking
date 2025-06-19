@@ -136,9 +136,9 @@ int main(void) {
 		// Load entities
 		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
 			if (load_entities(&entities, entities_save_path, &entity_arena, &temp_arena)) {
-				log_debug("Successfully loadd entities to `%s`", entities_save_path);
+				log_debug("Successfully loaded entities from `%s`", entities_save_path);
 			} else {
-				log_debug("Failed to load entities to `%s`", entities_save_path);
+				log_debug("Failed to load entities from `%s`", entities_save_path);
 			}
 			/// DEBUG
 			

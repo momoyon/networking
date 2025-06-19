@@ -269,8 +269,8 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
         case EK_NIC: {
             e->nic = (Nic *)arena_alloc(arena, sizeof(Nic));
 			make_nic(e->nic, arena);
-			// e->tex = load_texture_checked("resources/gfx/nic.png");
-			// ASSERT(IsTextureReady(e->tex), "Failed to load network interface image!");
+			e->tex = load_texture_checked("resources/gfx/nic.png");
+			ASSERT(IsTextureReady(e->tex), "Failed to load network interface image!");
         } break;
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
@@ -606,10 +606,13 @@ bool save_entities(Entities *entities, const char *filepath) {
 	return true;
 }
 
+// TODO: Loading will mess up the free_mac_address thing
 bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena) {
 	// Reset before loading new entities
 	entities_count = 0;
 	entities->count = 0;
+	void *was = arena->ptr;
+	arena_reset(arena);
 
 	int file_size = -1;
 	const char *file = read_file(filepath, &file_size);
