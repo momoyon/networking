@@ -29,8 +29,7 @@ typedef struct {
     size_t capacity;
 } Mac_addresses;
 
-extern Mac_addresses assigned_mac_addresses;
-
+extern Mac_addresses free_mac_addresses;
 void get_unique_mac_address(uint8 *mac_address);
 
 #endif // _NIC_H_

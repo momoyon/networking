@@ -269,8 +269,8 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
         case EK_NIC: {
             e->nic = (Nic *)arena_alloc(arena, sizeof(Nic));
 			make_nic(e->nic, arena);
-			e->tex = load_texture_checked("resources/gfx/nic.png");
-			ASSERT(IsTextureReady(e->tex), "Failed to load network interface image!");
+			// e->tex = load_texture_checked("resources/gfx/nic.png");
+			// ASSERT(IsTextureReady(e->tex), "Failed to load network interface image!");
         } break;
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
@@ -308,7 +308,9 @@ void make_nic(Nic *nic, Arena *arena) {
 	nic->subnet_mask[3] = 0;
 	nic->nic_entity = NULL;
 	nic->switch_entity = NULL;
+	float64 tp1 = GetTime();
 	get_unique_mac_address(nic->mac_address);
+	log_debug("get_unique_mac_address() took %.2lfs", GetTime() - tp1);
 }
 
 void make_switch(Switch *switch_out, Arena *arena, size_t nic_count) {
@@ -391,6 +393,16 @@ void free_nic(Entity *e) {
 		}
 		e->nic->nic_entity = NULL;
 	}
+	
+	// Add free mac_address so it can be reused
+	Mac_address m = {0};
+	m.addr[0] = e->nic->mac_address[0];
+	m.addr[1] = e->nic->mac_address[1];
+	m.addr[2] = e->nic->mac_address[2];
+	m.addr[3] = e->nic->mac_address[3];
+	m.addr[4] = e->nic->mac_address[4];
+	m.addr[5] = e->nic->mac_address[5];
+	darr_append(free_mac_addresses, m);
 
 	if (e->nic->switch_entity != NULL) {
 		Entity *e_switch = e->nic->switch_entity;
@@ -402,6 +414,7 @@ void free_nic(Entity *e) {
 			}
 		}
 	}
+
 }
 
 void free_switch(Entity *e) {

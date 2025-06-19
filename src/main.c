@@ -164,7 +164,9 @@ int main(void) {
 
                 // Add Entity
                 if (IsKeyPressed(KEY_SPACE)) {
+					float64 tp1 = GetTime();
                     Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS, selected_entity_kind, &entity_arena, &temp_arena);
+					log_debug("make_entity() took %.2lfs", GetTime() - tp1);
 					add_entity(e);
                 }
 
@@ -390,6 +392,14 @@ int main(void) {
 						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 					}
 				}
+
+                const char *e_arena_count_str = arena_alloc_str(temp_arena, "entity_arena.count: %zu", (size_t)((char*)entity_arena.ptr - (char*)entity_arena.buff));
+                draw_text(GetFontDefault(), e_arena_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, RED);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
+                const char *free_mac_count_str = arena_alloc_str(temp_arena, "Freed MacAddr count: %zu", free_mac_addresses.count);
+                draw_text(GetFontDefault(), free_mac_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, RED);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
             }
 
             // Mode-specific Draw

@@ -7,4 +7,6 @@
 #define ENTITY_SIZE_IN_PIXELS 16
 #define ENTITY_SAVE_VERSION 1
 
+#define MAC_ADDRESS_LENGTH 6
+
 #endif // _CONFIG_H_
