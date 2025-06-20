@@ -12,6 +12,7 @@ extern RenderTexture2D ren_tex;
 extern Arena entity_arena;
 extern Arena temp_arena;
 extern Texture_manager tex_man;
+extern size_t entity_save_version;
 
 void cleanup(void);
 void crash(void);

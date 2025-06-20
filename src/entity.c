@@ -549,7 +549,9 @@ static bool load_entity_from_data_v1(Entity *e, String_view *sv) {
 		return false;
 	}
 
+	log_debug("--------------------------------------------------");
 	log_debug("Loading %s[%d] @ %.2f %.2f", entity_kind_as_str(kind), id, pos_x, pos_y);
+	log_debug("--------------------------------------------------");
 
 	e->pos.x = pos_x;
 	e->pos.y = pos_y;
@@ -780,7 +782,7 @@ bool save_entities(Entities *entities, const char *filepath) {
 		Entity *e = &entities->items[i];
 		if (e->state & (1<<ESTATE_DEAD)) continue;
 
-		if (!save_entity_to_data(e, &entities_arena, &temp_arena, ENTITY_SAVE_VERSION)) {
+		if (!save_entity_to_data(e, &entities_arena, &temp_arena, entity_save_version)) {
 			arena_free(&entities_arena);
 			arena_free(&temp_arena);
 			return false;
@@ -805,7 +807,6 @@ bool save_entities(Entities *entities, const char *filepath) {
 	return true;
 }
 
-// TODO: Loading will mess up the free_mac_address thing
 bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena) {
 	// Reset before loading new entities
 	entities_count = 0;

@@ -48,6 +48,7 @@ RenderTexture2D ren_tex;
 Arena entity_arena;
 Arena temp_arena;
 Texture_manager tex_man;
+size_t entity_save_version = 2;
 
 int main(void) {
     int width = 0;
@@ -130,7 +131,7 @@ int main(void) {
 			
 			/// DEBUG
 			if (hovering_entity) {
-				save_entity_to_file(hovering_entity, &temp_arena, "test.entity", ENTITY_SAVE_VERSION);
+				save_entity_to_file(hovering_entity, &temp_arena, "test.entity", entity_save_version);
 			}
 		}
 		// Load entities
@@ -147,6 +148,17 @@ int main(void) {
 			// add_entity(e);
 			// }
 		}
+
+
+#ifdef DEBUG
+		// Change entity_save_version @DEBUG
+		if (IsKeyPressed(KEY_MINUS) && entity_save_version > 0) {
+			entity_save_version--;
+		}
+		if (IsKeyPressed(KEY_EQUAL)) {
+			entity_save_version++;
+		}
+#endif
 
         // Mode-specific input
         switch (current_mode) {
@@ -400,6 +412,12 @@ int main(void) {
                 const char *free_mac_count_str = arena_alloc_str(temp_arena, "Freed MacAddr count: %zu", free_mac_addresses.count);
                 draw_text(GetFontDefault(), free_mac_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, RED);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
+				//// Right 
+				int yr = 0;
+                const char *entity_save_version_str = arena_alloc_str(temp_arena, "Entity Save Version: %zu", entity_save_version);
+                draw_text_aligned(GetFontDefault(), entity_save_version_str, v2(width, yr), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_RIGHT, YELLOW);
+                yr += ENTITY_DEFAULT_RADIUS*0.5 + 2;
             }
 
             // Mode-specific Draw
