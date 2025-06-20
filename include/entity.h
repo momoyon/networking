@@ -89,7 +89,7 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b);
 
 // I/O
 bool is_entities_saved(Entities *entities);
-const char *save_entity_to_data(Entity *e, Arena *temp_arena, int version);
+const char *save_entity_to_data(Entity *e, Arena *arena, Arena *temp_arena, int version);
 bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena);
 bool load_entity_from_file(Entity *e, const char *filepath);
 bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int version);

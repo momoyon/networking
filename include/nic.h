@@ -17,7 +17,7 @@ struct Nic {
 	Entity *switch_entity; // Switch this network interface belongs to.
 };
 
-void make_nic(struct Nic *nic, Arena *arena);
+void make_nic(Entity *e, struct Nic *nic, Arena *arena);
 
 typedef struct {
     uint8 addr[6];
