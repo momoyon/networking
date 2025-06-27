@@ -189,8 +189,7 @@ int main(void) {
 					if (hovering_entity == NULL) {
 						is_changing_ipv4 = false;
 						chars_buff_count = 0;
-					}
-					if (ipv4_from_input(hovering_entity, chars_buff, &chars_buff_count, chars_buff_cap)) {
+					} else if (ipv4_from_input(hovering_entity, chars_buff, &chars_buff_count, chars_buff_cap)) {
 						is_changing_ipv4 = false;
 					}
 				}

@@ -813,7 +813,6 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
 	// Reset before loading new entities
 	entities_count = 0;
 	entities->count = 0;
-	void *was = arena->ptr;
 	arena_reset(arena);
 
 	int file_size = -1;
@@ -840,6 +839,13 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
 }
 
 bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap) {
+	if (*chars_buff_count == 1 && chars_buff[0] == 'i') {
+		(*chars_buff_count)--;
+	}
+	if (e->kind != EK_NIC) {
+		log_debug("Can only change the ipv4 of a NIC!");
+		return true;
+	}
 	int ch = 0;
 	do {
 		ch = GetCharPressed();
@@ -850,33 +856,49 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
 			};
 			String_view oct1_sv = sv_lpop_until_char(&ipv4_sv, '.');
 			int oct1_count = -1;
-			uint8 oct1 = sv_to_uint(oct1_sv, &oct1_count, 10);
-			if (oct1_count <= 0) {
+			uint oct1 = sv_to_uint(oct1_sv, &oct1_count, 10);
+			if (oct1_count < 0) {
 				log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct1_sv));
+				return false;
+			}
+			if (oct1 > 255) {
+				log_error("Octets must be in the range 0-255!");
 				return false;
 			}
 			sv_lremove(&ipv4_sv, 1); // Remove .
 			String_view oct2_sv = sv_lpop_until_char(&ipv4_sv, '.');
 			int oct2_count = -1;
-			uint8 oct2 = sv_to_uint(oct2_sv, &oct2_count, 10);
-			if (oct2_count <= 0) {
+			uint oct2 = sv_to_uint(oct2_sv, &oct2_count, 10);
+			if (oct2_count < 0) {
 				log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct2_sv));
+				return false;
+			}
+			if (oct1 > 255) {
+				log_error("Octets must be in the range 0-255!");
 				return false;
 			}
 			sv_lremove(&ipv4_sv, 1); // Remove .
 			String_view oct3_sv = sv_lpop_until_char(&ipv4_sv, '.');
 			int oct3_count = -1;
-			uint8 oct3 = sv_to_uint(oct3_sv, &oct3_count, 10);
-			if (oct3_count <= 0) {
+			uint oct3 = sv_to_uint(oct3_sv, &oct3_count, 10);
+			if (oct3_count < 0) {
 				log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct3_sv));
+				return false;
+			}
+			if (oct1 > 255) {
+				log_error("Octets must be in the range 0-255!");
 				return false;
 			}
 			sv_lremove(&ipv4_sv, 1); // Remove .
 			String_view oct4_sv = ipv4_sv;
 			int oct4_count = -1;
-			uint8 oct4 = sv_to_uint(oct4_sv, &oct4_count, 10);
-			if (oct4_count <= 0) {
+			uint oct4 = sv_to_uint(oct4_sv, &oct4_count, 10);
+			if (oct4_count < 0) {
 				log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct4_sv));
+				return false;
+			}
+			if (oct1 > 255) {
+				log_error("Octets must be in the range 0-255!");
 				return false;
 			}
 
@@ -892,7 +914,7 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
 		if ((IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) && (*chars_buff_count) > 0) {
 			(*chars_buff_count)--;
 		}
-		if (ch > 0) {
+		if (('0' <= ch && ch <= '9') || ch == '.') {
 			if (*chars_buff_count >= chars_buff_cap) {
 				log_error("Exhausted chars buff!");
 				exit(1);
