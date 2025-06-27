@@ -477,7 +477,16 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
 					e->nic->mac_address[5]);
 		} break;
 		case EK_SWITCH: {
-			ASSERT(false, "UNIMPLEMENTED!");
+			// TODO: Somehow make the arena string work with multiple strings.
+			size_t a_count = (size_t)((char*)temp_arena->ptr - (char*)temp_arena->buff);
+			void *res = arena_alloc_str(*temp_arena, "");
+			for (size_t i = 0; i < e->switchh->ports.count; ++i) {
+				Entity nic_e = {
+					.nic = e->switchh->ports.items[i];
+				};
+				char *port_fmt = entity_kind_save_format(&nic_e, temp_arena);
+			}
+			return res;
 		} break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
@@ -854,6 +863,7 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
 				.data  = chars_buff,
 				.count = *chars_buff_count,
 			};
+			// TODO: Refactor to a func
 			String_view oct1_sv = sv_lpop_until_char(&ipv4_sv, '.');
 			int oct1_count = -1;
 			uint oct1 = sv_to_uint(oct1_sv, &oct1_count, 10);
