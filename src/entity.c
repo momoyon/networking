@@ -94,20 +94,22 @@ void draw_entity(Entity *e, bool debug) {
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
 
-				draw_info_text(&p, arena_alloc_str(*e->temp_arena, "(%zu)", e->switchh->ports.capacity), ENTITY_DEFAULT_RADIUS*0.5, YELLOW);
-				for (size_t i = 0; i < e->switchh->ports.count; ++i) {
-					Nic nic = e->switchh->ports.items[i];
-					draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-								"eth%zu: %d.%d.%d.%d | %d.%d.%d.%d", i, 
-								nic.ipv4_address[0],
-								nic.ipv4_address[1],
-								nic.ipv4_address[2],
-								nic.ipv4_address[3],
-								nic.subnet_mask[0],
-								nic.subnet_mask[1],
-								nic.subnet_mask[2],
-								nic.subnet_mask[3]),
-							ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+				for (size_t i = 0; i < ARRAY_LEN(e->switchh->fa); ++i) {
+					for (size_t j = 0; j < ARRAY_LEN(e->switchh->fa[i]); ++j) {
+						Nic *nic = e->switchh->fa[i][j].nic;
+						if (!nic) continue;
+						draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+									"eth%zu/%zu: %d.%d.%d.%d | %d.%d.%d.%d", i, j,
+									nic->ipv4_address[0],
+									nic->ipv4_address[1],
+									nic->ipv4_address[2],
+									nic->ipv4_address[3],
+									nic->subnet_mask[0],
+									nic->subnet_mask[1],
+									nic->subnet_mask[2],
+									nic->subnet_mask[3]),
+								ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+					}
 				}
             }
         } break;
@@ -195,15 +197,17 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 
 			bool found = false;
 
-			for (size_t i = 0; i < other->switchh->ports.count; ++i) {
-				Nic n = other->switchh->ports.items[i];
-				if (n.nic_entity == nic) {
-					found = true;
-					break;
+			for (size_t i = 0; i < ARRAY_LEN(other->switchh->fa); ++i) {
+				for (size_t j = 0; j < ARRAY_LEN(other->switchh->fa[i]); ++j) {
+					Nic *n = other->switchh->fa[i][j].nic;
+					if (n == nic->nic) {
+						found = true;
+						break;
+					}
 				}
 			}
 			if (!found) { 
-				arr_append(other->switchh->ports, *nic->nic);
+				ASSERT(false, "UNIMPLEMENTED: Connect to the next free port");
 			} else {
 				log_debug("RAH");
 			}
@@ -337,13 +341,6 @@ void make_switch(Switch *switch_out, Arena *arena, size_t nic_count) {
 	(void)arena;
 	Switch s = {0};
 
-	// TODO: Alloc this in the arena
-	arr_heap_init(s.ports, nic_count);
-
-	memset(s.ports.items, 0, sizeof(Nic*) * nic_count);
-
-	log_debug("Switch.ports.capacity: %zu | nic_count: %zu", s.ports.capacity, nic_count);
-
 	*switch_out = s;
 }
 
@@ -367,16 +364,19 @@ void disconnect_nic(Entity *e) {
 	}
 	e->nic->nic_entity = NULL;
 	if (e->nic->switch_entity) {
-		for (size_t i = 0; i < e->nic->switch_entity->switchh->ports.count; ++i) {
-			Nic nic = e->nic->switch_entity->switchh->ports.items[i];
-			if (nic.nic_entity == e) {
-				arr_delete(e->nic->switch_entity->switchh->ports, Nic, i);
-				break; // We shouldn't have duplicate entries
+		for (size_t i = 0; i < ARRAY_LEN(e->switchh->fa); ++i) {
+			for (size_t j = 0; j < ARRAY_LEN(e->switchh->fa[i]); ++j) {
+				Nic *nic = e->nic->switch_entity->switchh->fa[i][j].nic;
+				if (nic->nic_entity == e) {
+					nic->nic_entity = NULL;
+					break; // We shouldn't have duplicate entries
+				}
 			}
 		}
 	}
 	e->nic->switch_entity = NULL;
 }
+
 void disconnect_switch(Entity *e) {
 	ASSERT(e->kind == EK_SWITCH, "BRO");
 	// for (size_t i = 0; i < e->switchh->ports.count; ++i) {
@@ -385,7 +385,7 @@ void disconnect_switch(Entity *e) {
 	// 		nic_ptr->switch_entity = NULL;
 	// 	}
 	// }
-	e->switchh->ports.count = 0;
+	// e->switchh->ports.count = 0;
 }
 
 // Free-ers
@@ -426,11 +426,12 @@ void free_nic(Entity *e) {
 
 	if (e->nic->switch_entity != NULL) {
 		Entity *e_switch = e->nic->switch_entity;
-		for (size_t i = 0; i < e_switch->switchh->ports.count; ++i) {
-			Nic nic = e_switch->switchh->ports.items[i];
-			if (nic.nic_entity == e) {
-				arr_delete(e_switch->switchh->ports, Nic, i);
-				break; // We shouldn't have duplicate entries
+		for (size_t i = 0; i < ARRAY_LEN(e->switchh->fa); ++i) {
+			for (size_t j = 0; j < ARRAY_LEN(e->switchh->fa[i]); ++j) {
+				Nic *nic = e_switch->switchh->fa[i][j].nic;
+				if (nic == e->nic) {
+					nic->switch_entity = NULL;
+				}
 			}
 		}
 	}
@@ -440,13 +441,14 @@ void free_switch(Entity *e) {
 	ASSERT(e->kind == EK_SWITCH, "Br");
 
 	// Remove any reference to this switch from the connected NICs
-	// for (size_t i = 0; i < e->switchh->ports.count; ++i) {
-	// 	Nic nic = e->switchh->ports.items[i];
-	// 	if (nic_ptr && nic_ptr->switch_entity == e) {
-	// 		nic_ptr->switch_entity = NULL;
-	// 	}
-	// }
-	arr_free(e->switchh->ports);
+	for (size_t i = 0; i < ARRAY_LEN(e->switchh->fa); ++i) {
+		for (size_t j = 0; j < ARRAY_LEN(e->switchh->fa[i]); ++j) {
+			Nic *nic = e->switchh->fa[i][j].nic;
+			if (nic && nic->switch_entity == e) {
+				nic->switch_entity = NULL;
+			}
+		}
+	}
 }
 
 // I/O
@@ -477,16 +479,7 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
 					e->nic->mac_address[5]);
 		} break;
 		case EK_SWITCH: {
-			// TODO: Somehow make the arena string work with multiple strings.
-			size_t a_count = (size_t)((char*)temp_arena->ptr - (char*)temp_arena->buff);
-			void *res = arena_alloc_str(*temp_arena, "");
-			for (size_t i = 0; i < e->switchh->ports.count; ++i) {
-				Entity nic_e = {
-					.nic = e->switchh->ports.items[i];
-				};
-				char *port_fmt = entity_kind_save_format(&nic_e, temp_arena);
-			}
-			return res;
+			ASSERT(false, "UNIMPLEMENTED!");
 		} break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
