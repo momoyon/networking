@@ -7,14 +7,14 @@
 #include <commonlib.h>
 
 typedef struct {
-	Nic **items;
+	Nic *items;
 	size_t count;
 	size_t capacity;
-} Nic_ptrs; // Arr
+} Nics; // Arr
 
 typedef struct Switch Switch;
 struct Switch {
-	Nic_ptrs nic_ptrs;
+	Nics ports;
 };
 
 void make_switch(Switch *switch_out, Arena *arena, size_t nic_count);

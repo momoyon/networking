@@ -94,16 +94,19 @@ void draw_entity(Entity *e, bool debug) {
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
 
-				for (size_t i = 0; i < e->switchh->nic_ptrs.count; ++i) {
-					Nic *nic = e->switchh->nic_ptrs.items[i];
-					if (nic == NULL) continue;
+				draw_info_text(&p, arena_alloc_str(*e->temp_arena, "(%zu)", e->switchh->ports.capacity), ENTITY_DEFAULT_RADIUS*0.5, YELLOW);
+				for (size_t i = 0; i < e->switchh->ports.count; ++i) {
+					Nic nic = e->switchh->ports.items[i];
 					draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-								"eth%zu: %d.%d.%d.%d (%p)", i, 
-								nic->ipv4_address[0],
-								nic->ipv4_address[1],
-								nic->ipv4_address[2],
-								nic->ipv4_address[3],
-								nic),
+								"eth%zu: %d.%d.%d.%d | %d.%d.%d.%d", i, 
+								nic.ipv4_address[0],
+								nic.ipv4_address[1],
+								nic.ipv4_address[2],
+								nic.ipv4_address[3],
+								nic.subnet_mask[0],
+								nic.subnet_mask[1],
+								nic.subnet_mask[2],
+								nic.subnet_mask[3]),
 							ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 				}
             }
@@ -192,15 +195,15 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 
 			bool found = false;
 
-			for (size_t i = 0; i < other->switchh->nic_ptrs.count; ++i) {
-				Nic *nic_ptr = other->switchh->nic_ptrs.items[i];
-				if (nic_ptr == nic->nic) {
+			for (size_t i = 0; i < other->switchh->ports.count; ++i) {
+				Nic n = other->switchh->ports.items[i];
+				if (n.nic_entity == nic) {
 					found = true;
 					break;
 				}
 			}
 			if (!found) { 
-				arr_append(other->switchh->nic_ptrs, nic->nic);
+				arr_append(other->switchh->ports, *nic->nic);
 			} else {
 				log_debug("RAH");
 			}
@@ -335,11 +338,11 @@ void make_switch(Switch *switch_out, Arena *arena, size_t nic_count) {
 	Switch s = {0};
 
 	// TODO: Alloc this in the arena
-	arr_heap_init(s.nic_ptrs, nic_count);
+	arr_heap_init(s.ports, nic_count);
 
-	memset(s.nic_ptrs.items, 0, sizeof(Nic*) * nic_count);
+	memset(s.ports.items, 0, sizeof(Nic*) * nic_count);
 
-	log_debug("Switch.nic_ptrs.capacity: %zu | nic_count: %zu", s.nic_ptrs.capacity, nic_count);
+	log_debug("Switch.ports.capacity: %zu | nic_count: %zu", s.ports.capacity, nic_count);
 
 	*switch_out = s;
 }
@@ -364,10 +367,10 @@ void disconnect_nic(Entity *e) {
 	}
 	e->nic->nic_entity = NULL;
 	if (e->nic->switch_entity) {
-		for (size_t i = 0; i < e->nic->switch_entity->switchh->nic_ptrs.count; ++i) {
-			Nic *nic_ptr = e->nic->switch_entity->switchh->nic_ptrs.items[i];
-			if (nic_ptr == e->nic) {
-				arr_delete(e->nic->switch_entity->switchh->nic_ptrs, Nic *, i);
+		for (size_t i = 0; i < e->nic->switch_entity->switchh->ports.count; ++i) {
+			Nic nic = e->nic->switch_entity->switchh->ports.items[i];
+			if (nic.nic_entity == e) {
+				arr_delete(e->nic->switch_entity->switchh->ports, Nic, i);
 				break; // We shouldn't have duplicate entries
 			}
 		}
@@ -376,13 +379,13 @@ void disconnect_nic(Entity *e) {
 }
 void disconnect_switch(Entity *e) {
 	ASSERT(e->kind == EK_SWITCH, "BRO");
-	for (size_t i = 0; i < e->switchh->nic_ptrs.count; ++i) {
-		Nic *nic_ptr = e->switchh->nic_ptrs.items[i];
-		if (nic_ptr && nic_ptr->switch_entity == e) {
-			nic_ptr->switch_entity = NULL;
-		}
-	}
-	e->switchh->nic_ptrs.count = 0;
+	// for (size_t i = 0; i < e->switchh->ports.count; ++i) {
+	// 	Nic *nic_ptr = e->switchh->ports.items[i];
+	// 	if (nic_ptr && nic_ptr->switch_entity == e) {
+	// 		nic_ptr->switch_entity = NULL;
+	// 	}
+	// }
+	e->switchh->ports.count = 0;
 }
 
 // Free-ers
@@ -423,28 +426,27 @@ void free_nic(Entity *e) {
 
 	if (e->nic->switch_entity != NULL) {
 		Entity *e_switch = e->nic->switch_entity;
-		for (size_t i = 0; i < e_switch->switchh->nic_ptrs.count; ++i) {
-			Nic *nic_ptr = e_switch->switchh->nic_ptrs.items[i];
-			if (nic_ptr == e->nic) {
-				arr_delete(e_switch->switchh->nic_ptrs, Nic *, i);
+		for (size_t i = 0; i < e_switch->switchh->ports.count; ++i) {
+			Nic nic = e_switch->switchh->ports.items[i];
+			if (nic.nic_entity == e) {
+				arr_delete(e_switch->switchh->ports, Nic, i);
 				break; // We shouldn't have duplicate entries
 			}
 		}
 	}
-
 }
 
 void free_switch(Entity *e) {
 	ASSERT(e->kind == EK_SWITCH, "Br");
 
 	// Remove any reference to this switch from the connected NICs
-	for (size_t i = 0; i < e->switchh->nic_ptrs.count; ++i) {
-		Nic *nic_ptr = e->switchh->nic_ptrs.items[i];
-		if (nic_ptr && nic_ptr->switch_entity == e) {
-			nic_ptr->switch_entity = NULL;
-		}
-	}
-	arr_free(e->switchh->nic_ptrs);
+	// for (size_t i = 0; i < e->switchh->ports.count; ++i) {
+	// 	Nic nic = e->switchh->ports.items[i];
+	// 	if (nic_ptr && nic_ptr->switch_entity == e) {
+	// 		nic_ptr->switch_entity = NULL;
+	// 	}
+	// }
+	arr_free(e->switchh->ports);
 }
 
 // I/O
@@ -835,4 +837,70 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
 
 	free((void*)file);
 	return true;
+}
+
+bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap) {
+	int ch = 0;
+	do {
+		ch = GetCharPressed();
+		if (IsKeyPressed(KEY_ENTER)) {
+			String_view ipv4_sv = (String_view) {
+				.data  = chars_buff,
+				.count = *chars_buff_count,
+			};
+			String_view oct1_sv = sv_lpop_until_char(&ipv4_sv, '.');
+			int oct1_count = -1;
+			uint8 oct1 = sv_to_uint(oct1_sv, &oct1_count, 10);
+			if (oct1_count <= 0) {
+				log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct1_sv));
+				return false;
+			}
+			sv_lremove(&ipv4_sv, 1); // Remove .
+			String_view oct2_sv = sv_lpop_until_char(&ipv4_sv, '.');
+			int oct2_count = -1;
+			uint8 oct2 = sv_to_uint(oct2_sv, &oct2_count, 10);
+			if (oct2_count <= 0) {
+				log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct2_sv));
+				return false;
+			}
+			sv_lremove(&ipv4_sv, 1); // Remove .
+			String_view oct3_sv = sv_lpop_until_char(&ipv4_sv, '.');
+			int oct3_count = -1;
+			uint8 oct3 = sv_to_uint(oct3_sv, &oct3_count, 10);
+			if (oct3_count <= 0) {
+				log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct3_sv));
+				return false;
+			}
+			sv_lremove(&ipv4_sv, 1); // Remove .
+			String_view oct4_sv = ipv4_sv;
+			int oct4_count = -1;
+			uint8 oct4 = sv_to_uint(oct4_sv, &oct4_count, 10);
+			if (oct4_count <= 0) {
+				log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct4_sv));
+				return false;
+			}
+
+			e->nic->ipv4_address[0] = oct1;
+			e->nic->ipv4_address[1] = oct2;
+			e->nic->ipv4_address[2] = oct3;
+			e->nic->ipv4_address[3] = oct4;
+
+			*chars_buff_count = 0;
+			return true;
+		}
+
+		if ((IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) && (*chars_buff_count) > 0) {
+			(*chars_buff_count)--;
+		}
+		if (ch > 0) {
+			if (*chars_buff_count >= chars_buff_cap) {
+				log_error("Exhausted chars buff!");
+				exit(1);
+			}
+			chars_buff[(*chars_buff_count)++] = (char)ch;
+			// log_debug("CHAR: %c(%d)", (char)ch, ch);
+		}
+	} while (ch > 0);
+	return false;
+	// log_debug("TYPED %zu chars!", chars_count);
 }

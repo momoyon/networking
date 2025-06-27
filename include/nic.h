@@ -18,6 +18,7 @@ struct Nic {
 };
 
 void make_nic(Entity *e, struct Nic *nic, Arena *arena);
+bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap);
 
 typedef struct {
     uint8 addr[6];

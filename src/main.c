@@ -89,6 +89,12 @@ int main(void) {
 	};
 	Vector2 mpos_from = {0};
 
+	bool is_changing_ipv4 = false;
+
+#define chars_buff_cap (1024)
+	char chars_buff[chars_buff_cap] = {0};
+	size_t chars_buff_count = 0;
+
     while (!WindowShouldClose()) {
         arena_reset(&temp_arena);
 
@@ -173,6 +179,21 @@ int main(void) {
                     else
                         selected_entity_kind--;
                 }
+
+				// Change ipv4 of hovering NIC
+				if (IsKeyPressed(KEY_I)) {
+					is_changing_ipv4 = hovering_entity != NULL;
+				}
+
+				if (is_changing_ipv4) {
+					if (hovering_entity == NULL) {
+						is_changing_ipv4 = false;
+						chars_buff_count = 0;
+					}
+					if (ipv4_from_input(hovering_entity, chars_buff, &chars_buff_count, chars_buff_cap)) {
+						is_changing_ipv4 = false;
+					}
+				}
 
                 // Add Entity
                 if (IsKeyPressed(KEY_SPACE)) {
@@ -364,7 +385,6 @@ int main(void) {
             if (debug_draw) {
                 draw_text_aligned(GetFontDefault(), mode_as_str(current_mode), v2(2, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_LEFT, WHITE);
 
-
                 int y = (ENTITY_DEFAULT_RADIUS*0.5) * 2 + (2*2);
                 const char *hovering_entity_str = arena_alloc_str(temp_arena, "Hovering: %p", hovering_entity);
                 const char *connecting_from_str = arena_alloc_str(temp_arena, "From: %p", connecting_from);
@@ -405,6 +425,16 @@ int main(void) {
 					}
 				}
 
+                const char *changing_ip_str = arena_alloc_str(temp_arena, "%s", is_changing_ipv4 ? "Chaning IPv4 of hovering entity" : "");
+                draw_text(GetFontDefault(), changing_ip_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
+				if (is_changing_ipv4) {
+					const char *changing_ipv4_str = arena_alloc_str(temp_arena, "%.*s", (int)chars_buff_count, (const char *)chars_buff);
+					draw_text(GetFontDefault(), changing_ipv4_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+					y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+				}
+
                 const char *e_arena_count_str = arena_alloc_str(temp_arena, "entity_arena.count: %zu", (size_t)((char*)entity_arena.ptr - (char*)entity_arena.buff));
                 draw_text(GetFontDefault(), e_arena_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, RED);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
@@ -412,6 +442,7 @@ int main(void) {
                 const char *free_mac_count_str = arena_alloc_str(temp_arena, "Freed MacAddr count: %zu", free_mac_addresses.count);
                 draw_text(GetFontDefault(), free_mac_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, RED);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
 
 				//// Right 
 				int yr = 0;
