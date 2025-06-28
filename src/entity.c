@@ -193,7 +193,6 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 				return false;
 			}
 
-			nic->nic->switch_entity = other;
 
 			bool found = false;
 
@@ -207,10 +206,14 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 				}
 			}
 			if (!found) { 
-				ASSERT(false, "UNIMPLEMENTED: Connect to the next free port");
+				if (!connect_to_next_free_port(nic, other)) {
+					log_error("No free port available!");
+					return false;
+				}
 			} else {
 				log_debug("RAH");
 			}
+			nic->nic->switch_entity = other;
 			return true;
 	    } break;
 		case EK_COUNT:
@@ -928,4 +931,27 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
 	} while (ch > 0);
 	return false;
 	// log_debug("TYPED %zu chars!", chars_count);
+}
+
+bool connect_to_next_free_port(Entity *nic_e, Entity *switch_e) {
+
+	if (!nic_e || nic_e->kind != EK_NIC) {
+		log_error("Cannot connect to port: the NIC is not valid!");
+		return false;
+	}
+	if (!switch_e || switch_e->kind != EK_SWITCH) {
+		log_error("Cannot connect to port: the Switch is not valid!");
+		return false;
+	}
+
+	for (size_t i = 0; i < ARRAY_LEN(switch_e->switchh->fa); ++i) {
+		for (size_t j = 0; j < ARRAY_LEN(switch_e->switchh->fa[i]); ++j) {
+			Port *port = &switch_e->switchh->fa[i][j];
+			if (port->nic == NULL) {
+				port->nic = nic_e->nic;
+				return true;
+			}
+		}
+	}
+	return false;
 }
