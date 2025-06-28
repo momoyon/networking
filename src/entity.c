@@ -369,9 +369,9 @@ void disconnect_nic(Entity *e) {
 	if (e->nic->switch_entity) {
 		for (size_t i = 0; i < ARRAY_LEN(e->switchh->fa); ++i) {
 			for (size_t j = 0; j < ARRAY_LEN(e->switchh->fa[i]); ++j) {
-				Nic *nic = e->nic->switch_entity->switchh->fa[i][j].nic;
-				if (nic->nic_entity == e) {
-					nic->nic_entity = NULL;
+				Port *port = &e->nic->switch_entity->switchh->fa[i][j];
+				if (port->nic && port->nic == e->nic) {
+					port->nic = NULL;
 					break; // We shouldn't have duplicate entries
 				}
 			}
@@ -382,13 +382,18 @@ void disconnect_nic(Entity *e) {
 
 void disconnect_switch(Entity *e) {
 	ASSERT(e->kind == EK_SWITCH, "BRO");
-	// for (size_t i = 0; i < e->switchh->ports.count; ++i) {
-	// 	Nic *nic_ptr = e->switchh->ports.items[i];
-	// 	if (nic_ptr && nic_ptr->switch_entity == e) {
-	// 		nic_ptr->switch_entity = NULL;
-	// 	}
-	// }
-	// e->switchh->ports.count = 0;
+	for (size_t i = 0; i < ARRAY_LEN(e->switchh->fa); ++i) {
+		for (size_t j = 0; j < ARRAY_LEN(e->switchh->fa[i]); ++j) {
+			Port *port = &e->switchh->fa[i][j];
+			if (port->nic) {
+				if (port->nic->switch_entity == e) {
+					port->nic->switch_entity = NULL;
+				}
+				port->nic = NULL;
+			}
+		}
+	}
+	log_debug("Disconnected switch with ID: %zu", e->id);
 }
 
 // Free-ers
