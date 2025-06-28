@@ -6,6 +6,8 @@
 
 #include <switch.h>
 
+#include <misc.h>
+
 size_t entity_id_counter = 0;
 Entity_ids free_entity_ids = {0};
 size_t entities_count = 0;
@@ -337,7 +339,8 @@ void make_nic(Entity *e, Nic *nic, Arena *arena) {
 	nic->subnet_mask[2] = 255;
 	nic->subnet_mask[3] = 0;
 
-	nic->self_entity = e;
+	nic->id = e->id;
+	// nic->self_entity = e;
 	nic->nic_entity = NULL;
 	nic->switch_entity = NULL;
 	do {
@@ -367,6 +370,7 @@ void disconnect_entity(Entity *e) {
 		default: ASSERT(false, "UNREACHABLE!");
 	}
 }
+
 void disconnect_nic(Entity *e) {
 	ASSERT(e->kind == EK_NIC, "BRO");
 	if (e->nic->nic_entity && e->nic->nic_entity->nic->nic_entity == e) {
@@ -466,6 +470,17 @@ void free_switch(Entity *e) {
 	}
 }
 
+Entity *get_entity_ptr_by_id(Entities *entities, int id) {
+	for (size_t i = 0; i < entities->count; ++i) {
+		Entity *e = &entities->items[i];
+		if (e->id == id) {
+			return e;
+		}
+	}
+
+	return NULL;
+}
+
 // I/O
 // NOTE: Yea so we can't just dump the entities array and load it directly from the filesystem cuz the entities have memebers alloced on Arena memory... :(
 bool is_entities_saved(Entities *entities) {
@@ -498,14 +513,15 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
 			for (size_t i = 0; i < ARRAY_LEN(e->switchh->fa); ++i) {
 				for (size_t j = 0; j < ARRAY_LEN(e->switchh->fa[i]); ++j) {
 					Port *port = &e->switchh->fa[i][j];
-					arena_alloc_str(*temp_arena, "%zu/%zu: %d ", i, j, (port->nic ? (int)(port->nic->self_entity->id) : -1));
+					arena_alloc_str(*temp_arena, "%zu/%zu: %d ", i, j, (port->nic ? (int)(port->nic->id) : -1));
 					temp_arena->ptr--;
 
 					if (port->nic) {
-						log_debug("Port %zu/%zu nic entity: %p (%d)", i, j, port->nic->self_entity, port->nic->self_entity->id);
+						log_debug("Port %zu/%zu nic entity: (%d)", i, j, port->nic->id);
 					}
 				}
 			}
+			arena_alloc_str(*temp_arena, "%s", "|");
 			log_debug("SWITCH KIND SAVE FMT: %s", res);
 			return res;
 		} break;
@@ -590,6 +606,8 @@ static bool load_entity_from_data_v1(Entity *e, String_view *sv) {
 	e->kind = kind;
 	e->id = id;
 	e->state = state;
+
+	init_entity(e, e->arena, e->temp_arena);
 
 	return true;
 }
@@ -731,7 +749,52 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
 			return true;
 		} break;
 		case EK_SWITCH: {
-			ASSERT(false, "UNIMPLEMENTED!");
+			if (e->switchh == NULL) {
+				log_error("Please allocate the switch before trying to load from data!");
+				ASSERT(false, "DEBUG");
+				return false;
+			}
+
+			sv_ltrim(sv);
+
+			String_view switch_sv = sv_lpop_until_char(sv, '|');
+			sv_lremove(sv, 1); // Remove |
+
+			while (switch_sv.count > 0) {
+				int i = -1;
+				int j = -1;
+
+				if (!parse_i_j_from_sv(&switch_sv, &i, &j)) {
+					return false;
+				}
+				sv_ltrim(&switch_sv);
+
+				String_view port_nic_id_sv = sv_lpop_until_char(&switch_sv, ' ');
+				sv_ltrim(&switch_sv);
+
+				int port_nic_id_count = -1;
+				int port_nic_id = sv_to_int(port_nic_id_sv, &port_nic_id_count, 10);
+				if (port_nic_id_count < 0) {
+					log_error("Failed to convert port nic id `"SV_FMT"` to int!", SV_ARG(port_nic_id_sv));
+					return false;
+				}
+				log_debug("Parsed port %d/%d: %d", i, j, port_nic_id);
+				if (i < 0 || i > ARRAY_LEN(e->switchh->fa)-1) {
+					log_error("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, ARRAY_LEN(e->switchh->fa));
+				}
+				if (j < 0 || j > ARRAY_LEN(e->switchh->fa[0])-1) {
+					log_error("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, ARRAY_LEN(e->switchh->fa[0]));
+				}
+				if (port_nic_id >= 0) {
+					Entity *nic_e = get_entity_ptr_by_id(e->entities, port_nic_id);
+					if (nic_e == NULL) {
+						log_error("Couldn't find nic with port number: %d", port_nic_id);
+						return false;
+					}
+				}
+				log_debug("OK");
+			}
+			return true;
 		} break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
@@ -747,7 +810,7 @@ bool load_entity_from_data(Entity *e, String_view *data_sv) {
 	int version_count = -1;
 	int version = sv_to_int(version_sv, &version_count, 10);
 	if (version_count < 0) {
-		log_error("Failed to convert `"SV_FMT"` to int!", SV_ARG(version_sv));
+		log_error("Failed to convert version `"SV_FMT"` to int!", SV_ARG(version_sv));
 		return false;
 	}
 

@@ -85,6 +85,7 @@ void free_entity(Entity *e);
 void free_nic(Entity *e);
 void free_switch(Entity *e);
 
+Entity *get_entity_ptr_by_id(Entities *entities, int id);
 
 bool connect_to_next_free_port(Entity *nic_e, Entity *switch_e);
 bool connect_entity(Entities *entities, Entity *a, Entity *b);
