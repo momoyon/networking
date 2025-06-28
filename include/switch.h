@@ -16,6 +16,6 @@ struct Switch {
 	Port fa[1][4];
 };
 
-void make_switch(Switch *switch_out, Arena *arena, size_t nic_count);
+void make_switch(Switch *switch_out, Arena *arena);
 
 #endif // _SWITCH_H_

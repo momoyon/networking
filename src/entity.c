@@ -284,7 +284,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
         } break;
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
-			make_switch(e->switchh, arena, 4);
+			make_switch(e->switchh, arena);
 			e->tex = load_texture_checked("resources/gfx/switch.png");
         } break;
         case EK_COUNT:
@@ -294,6 +294,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
 
 // Makers
 Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena) {
+	// TODO: We need to make nic->self_entity point to the parent entity of the nic, but if i used a pointer to it, it will be invalid after this func cuz its on the stack... Maybe try to alloc on the arena or use the ID of the entity.
     Entity e = (Entity) {
         .pos = pos,
         .radius = radius,
@@ -327,10 +328,16 @@ static bool is_mac_address_assigned(Entities *entities, uint8 *mac_address) {
 
 void make_nic(Entity *e, Nic *nic, Arena *arena) {
 	(void)arena;
+	nic->ipv4_address[0] = 0;
+	nic->ipv4_address[1] = 0;
+	nic->ipv4_address[2] = 0;
+	nic->ipv4_address[3] = 0;
 	nic->subnet_mask[0] = 255;
 	nic->subnet_mask[1] = 255;
 	nic->subnet_mask[2] = 255;
 	nic->subnet_mask[3] = 0;
+
+	nic->self_entity = e;
 	nic->nic_entity = NULL;
 	nic->switch_entity = NULL;
 	do {
@@ -340,7 +347,7 @@ void make_nic(Entity *e, Nic *nic, Arena *arena) {
 	} while (is_mac_address_assigned(e->entities, nic->mac_address));
 }
 
-void make_switch(Switch *switch_out, Arena *arena, size_t nic_count) {
+void make_switch(Switch *switch_out, Arena *arena) {
 	(void)arena;
 	Switch s = {0};
 
@@ -487,7 +494,20 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
 					e->nic->mac_address[5]);
 		} break;
 		case EK_SWITCH: {
-			ASSERT(false, "UNIMPLEMENTED!");
+			const char *res = (const char *)temp_arena->ptr;
+			for (size_t i = 0; i < ARRAY_LEN(e->switchh->fa); ++i) {
+				for (size_t j = 0; j < ARRAY_LEN(e->switchh->fa[i]); ++j) {
+					Port *port = &e->switchh->fa[i][j];
+					arena_alloc_str(*temp_arena, "%zu/%zu: %d ", i, j, (port->nic ? (int)(port->nic->self_entity->id) : -1));
+					temp_arena->ptr--;
+
+					if (port->nic) {
+						log_debug("Port %zu/%zu nic entity: %p (%d)", i, j, port->nic->self_entity, port->nic->self_entity->id);
+					}
+				}
+			}
+			log_debug("SWITCH KIND SAVE FMT: %s", res);
+			return res;
 		} break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
