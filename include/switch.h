@@ -9,6 +9,7 @@
 typedef struct {
 	int vlan;
 	Nic *nic;
+	int nic_id; // NOTE: Only used when loading switches.
 } Port;
 
 typedef struct Switch Switch;

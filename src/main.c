@@ -398,7 +398,7 @@ int main(void) {
                     draw_text(GetFontDefault(), hovering_id, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                     y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
-                    const char *hovering_pos = arena_alloc_str(temp_arena, "Hovering ID: %.2f, %.2f", hovering_entity->pos.x, hovering_entity->pos.y);
+                    const char *hovering_pos = arena_alloc_str(temp_arena, "Hovering pos: %.2f, %.2f", hovering_entity->pos.x, hovering_entity->pos.y);
                     draw_text(GetFontDefault(), hovering_pos, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                     y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
                 }

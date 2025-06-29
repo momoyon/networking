@@ -16,7 +16,7 @@ bool parse_i_j_from_sv(String_view *sv, int *i_out, int *j_out) {
 	String_view j_sv = sv_lpop_until_char(sv, ':');
 	sv_lremove(sv, 1); // Remove :
 	int j_count = -1;
-	int j = sv_to_int(*sv, &j_count, 10);
+	int j = sv_to_int(j_sv, &j_count, 10);
 	if (j_count < 0) {
 		log_error("Failed to parse j: cannot convert `"SV_FMT"` to int!", SV_ARG(j_sv));
 		return false;
