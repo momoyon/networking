@@ -218,6 +218,11 @@ int main(void) {
 								entities_count--;
 							}
 						}
+						if (entities_count == 0) {
+							log_debug("Resetting entity_arena");
+							arena_reset(&entity_arena);
+						}
+
 					} else {
 						// Disconnect connections of Selected entities
 						for (int i = (int)entities.count-1; i >= 0; --i) {
@@ -408,12 +413,21 @@ int main(void) {
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+                const char *entities_array_count_str = arena_alloc_str(temp_arena, "Entities.count: %zu", entities.count);
+                draw_text(GetFontDefault(), entities_array_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
                 const char *entities_count_str = arena_alloc_str(temp_arena, "Entities count: %zu", entities_count);
                 draw_text(GetFontDefault(), entities_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
+                const char *free_entity_indices_count_str = arena_alloc_str(temp_arena, "Free entity indices count: %zu", free_entity_indices.count);
+                draw_text(GetFontDefault(), free_entity_indices_count_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
 				if (hovering_entity) {
 					if (hovering_entity->kind == EK_NIC) {
+						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 						const char *dst_str = arena_alloc_str(temp_arena, "Hovering dst: %p", hovering_entity->nic->nic_entity);
 						draw_text(GetFontDefault(), dst_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;

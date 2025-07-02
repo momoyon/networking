@@ -39,9 +39,11 @@ Texture2D load_texture_checked(const char *filepath) {
 	return tex;
 }
 
+// TODO: The logic for adding or deleting entities is messed up. entities.count and entities_count have to be the same when loading.
 void add_entity(Entity e) {
 	if (free_entity_indices.count == 0) {
 		arr_append(entities, e);
+		log_debug("THIS HAPPENEDEDEDEDED");
 	} else {
 		int free_index = -1;
 		darr_remove(free_entity_indices, int, &free_index, free_entity_indices.count-1);

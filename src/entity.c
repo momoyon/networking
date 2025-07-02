@@ -922,6 +922,8 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
 		// init_entity(&e, arena, temp_arena);
 		add_entity(e);
 	}
+
+	log_debug("Entities.count after loading: %zu", entities->count);
 	
 
 	// Assign the nic pointers to the switch ports using the parsed nic_id
