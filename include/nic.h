@@ -20,6 +20,9 @@ enum Ipv4_class {
 
 const char *ipv4_class_as_str(const Ipv4_class ic);
 Ipv4_class determine_ipv4_class(uint8 *ipv4);
+const char *ipv4_class_additional_info(const Ipv4_class ic);
+
+// TODO: Determine if private/public ip
 
 struct Nic {
     uint8 ipv4_address[4];
@@ -48,7 +51,6 @@ typedef struct {
 
 extern Mac_addresses free_mac_addresses;
 void get_unique_mac_address(uint8 *mac_address);
-
 
 #endif // _NIC_H_
 
