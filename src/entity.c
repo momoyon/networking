@@ -51,11 +51,12 @@ void draw_entity(Entity *e, bool debug) {
                 ASSERT(e->temp_arena, "BRUH");
 
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                            "ipv4: %d.%d.%d.%d",
+                            "ipv4: %d.%d.%d.%d (%s)",
                             e->nic->ipv4_address[0],
                             e->nic->ipv4_address[1],
                             e->nic->ipv4_address[2],
-                            e->nic->ipv4_address[3]),
+                            e->nic->ipv4_address[3],
+							ipv4_class_as_str(determine_ipv4_class(e->nic->ipv4_address))),
                         ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "subnet mask: %d.%d.%d.%d",

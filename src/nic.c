@@ -28,3 +28,26 @@ void get_unique_mac_address(uint8 *mac_address) {
 	}
 }
 
+const char *ipv4_class_as_str(const Ipv4_class ic) {
+	switch (ic) {
+		case IPV4_CLASS_A: return "A";
+		case IPV4_CLASS_B: return "B";
+		case IPV4_CLASS_C: return "C";
+		case IPV4_CLASS_D: return "D";
+		case IPV4_CLASS_E: return "E";
+		case IPV4_CLASS_UNKNOWN: return "U";
+		case IPV4_CLASS_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+	return "BRUH YOU ARE NOT ABLE TO SEE THIS!!!!!!!!!!!!!!!!";
+}
+
+Ipv4_class determine_ipv4_class(uint8 *ipv4) {
+	ASSERT(ipv4 != NULL, "Bro please pass a valid ipv4...");
+	if ((int)ipv4[0] >= 1 && (int)ipv4[0] <= 127) return IPV4_CLASS_A;
+	if ((int)ipv4[0] >= 128 && ((int)ipv4[0] <= 191 && (int)ipv4[1] <= 255)) return IPV4_CLASS_B;
+	if ((int)ipv4[0] >= 192 && ((int)ipv4[0] <= 223 && (int)ipv4[1] <= 255 && (int)ipv4[2] <= 255)) return IPV4_CLASS_C;
+	if ((int)ipv4[0] >= 224 && ((int)ipv4[0] <= 239 && (int)ipv4[1] <= 255 && (int)ipv4[2] <= 255 && (int)ipv4[3] <= 255)) return IPV4_CLASS_D;
+	if ((int)ipv4[0] >= 240 && ((int)ipv4[0] <= 255 && (int)ipv4[1] <= 255 && (int)ipv4[2] <= 255 && (int)ipv4[3] <= 255)) return IPV4_CLASS_D;
+	return IPV4_CLASS_UNKNOWN;
+}

@@ -6,6 +6,20 @@
 
 typedef struct Entity Entity;
 typedef struct Switch Switch;
+typedef enum Ipv4_class Ipv4_class;
+
+enum Ipv4_class {
+	IPV4_CLASS_A,
+	IPV4_CLASS_B,
+	IPV4_CLASS_C,
+	IPV4_CLASS_D,
+	IPV4_CLASS_E,
+	IPV4_CLASS_UNKNOWN,
+	IPV4_CLASS_COUNT,
+};
+
+const char *ipv4_class_as_str(const Ipv4_class ic);
+Ipv4_class determine_ipv4_class(uint8 *ipv4);
 
 struct Nic {
     uint8 ipv4_address[4];
@@ -34,6 +48,7 @@ typedef struct {
 
 extern Mac_addresses free_mac_addresses;
 void get_unique_mac_address(uint8 *mac_address);
+
 
 #endif // _NIC_H_
 
