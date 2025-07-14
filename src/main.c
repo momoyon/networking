@@ -50,6 +50,22 @@ Arena temp_arena;
 Texture_manager tex_man;
 size_t entity_save_version = 2;
 
+typedef enum {
+	CHANGE_IPV4,
+	CHANGE_SUBNET_MASK,
+	CHANGE_COUNT,
+} Changing_type;
+
+const char *changing_type_as_str(const Changing_type ch) {
+	switch (ch) {
+		case CHANGE_IPV4: return "ipv4";
+		case CHANGE_SUBNET_MASK: return "subnet mask";
+		case CHANGE_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+	return "NOPE";
+}
+
 int main(void) {
     int width = 0;
     int height = 0;
@@ -89,7 +105,8 @@ int main(void) {
 	};
 	Vector2 mpos_from = {0};
 
-	bool is_changing_ipv4 = false;
+	bool is_changing = false;
+	Changing_type changing_type = CHANGE_IPV4;
 
 #define chars_buff_cap (1024)
 	char chars_buff[chars_buff_cap] = {0};
@@ -126,6 +143,13 @@ int main(void) {
 		}
 
 		// Zoom camera
+		float scroll = GetMouseWheelMove();
+		cam.zoom += scroll * 100.f * GetFrameTime();
+		if (cam.zoom <= 0.1f) cam.zoom = 0.1f;
+
+		if (IsKeyPressed(KEY_ZERO)) {
+			cam.zoom = 1.f;
+		}
 		
 		// Save entities
 		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
@@ -181,16 +205,37 @@ int main(void) {
                 }
 
 				// Change ipv4 of hovering NIC
-				if (IsKeyPressed(KEY_I)) {
-					is_changing_ipv4 = hovering_entity != NULL;
+				if (IsKeyDown(KEY_C)) {
+					bool p = false;
+					if (IsKeyPressed(KEY_ONE)) {
+						changing_type = CHANGE_IPV4;
+						p = true;
+					} else if (IsKeyPressed(KEY_TWO)) {
+						changing_type = CHANGE_SUBNET_MASK;
+						p = true;
+					}
+					if (p) is_changing = hovering_entity != NULL;
 				}
 
-				if (is_changing_ipv4) {
+				if (is_changing) {
 					if (hovering_entity == NULL) {
-						is_changing_ipv4 = false;
+						is_changing = false;
 						chars_buff_count = 0;
-					} else if (ipv4_from_input(hovering_entity, chars_buff, &chars_buff_count, chars_buff_cap)) {
-						is_changing_ipv4 = false;
+					} else {
+						switch (changing_type) {
+							case CHANGE_IPV4: {
+								if (ipv4_from_input(hovering_entity, chars_buff, &chars_buff_count, chars_buff_cap)) {
+									is_changing = false;
+								}
+							} break;
+							case CHANGE_SUBNET_MASK: {
+								if (subnet_mask_from_input(hovering_entity, chars_buff, &chars_buff_count, chars_buff_cap)) {
+									is_changing = false;
+								}
+							} break;
+							case CHANGE_COUNT:
+							default: ASSERT(false, "UNREACHABLE!");
+						}
 					}
 				}
 
@@ -438,13 +483,13 @@ int main(void) {
 					}
 				}
 
-                const char *changing_ip_str = arena_alloc_str(temp_arena, "%s", is_changing_ipv4 ? "Chaning IPv4 of hovering entity" : "");
-                draw_text(GetFontDefault(), changing_ip_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                const char *changing_str = arena_alloc_str(temp_arena, "%s %s %s", is_changing ? "Changing" : "",  is_changing ? changing_type_as_str(changing_type) : "", is_changing ? "of hovering entity" : "");
+                draw_text(GetFontDefault(), changing_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 
-				if (is_changing_ipv4) {
-					const char *changing_ipv4_str = arena_alloc_str(temp_arena, "%.*s", (int)chars_buff_count, (const char *)chars_buff);
-					draw_text(GetFontDefault(), changing_ipv4_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+				if (is_changing) {
+					const char *changing_input_str = arena_alloc_str(temp_arena, "%s: %.*s", changing_type_as_str(changing_type), (int)chars_buff_count, (const char *)chars_buff);
+					draw_text(GetFontDefault(), changing_input_str, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 					y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
 				}
 

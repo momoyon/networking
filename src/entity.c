@@ -951,24 +951,20 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
 	return true;
 }
 
-bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap) {
-	if (*chars_buff_count == 1 && chars_buff[0] == 'i') {
-		(*chars_buff_count)--;
-	}
-	if (e->kind != EK_NIC) {
-		log_debug("Can only change the ipv4 of a NIC!");
-		return true;
-	}
+static bool four_octect_from_input(uint8 *four_octect, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap) {
+	// if (*chars_buff_count == 1) {
+	// 	(*chars_buff_count)--;
+	// }
 	int ch = 0;
 	do {
 		ch = GetCharPressed();
 		if (IsKeyPressed(KEY_ENTER)) {
-			String_view ipv4_sv = (String_view) {
+			String_view four_octect_sv = (String_view) {
 				.data  = chars_buff,
 				.count = *chars_buff_count,
 			};
 			// TODO: Refactor to a func
-			String_view oct1_sv = sv_lpop_until_char(&ipv4_sv, '.');
+			String_view oct1_sv = sv_lpop_until_char(&four_octect_sv, '.');
 			int oct1_count = -1;
 			uint oct1 = sv_to_uint(oct1_sv, &oct1_count, 10);
 			if (oct1_count < 0) {
@@ -979,8 +975,8 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
 				log_error("Octets must be in the range 0-255!");
 				return false;
 			}
-			sv_lremove(&ipv4_sv, 1); // Remove .
-			String_view oct2_sv = sv_lpop_until_char(&ipv4_sv, '.');
+			sv_lremove(&four_octect_sv, 1); // Remove .
+			String_view oct2_sv = sv_lpop_until_char(&four_octect_sv, '.');
 			int oct2_count = -1;
 			uint oct2 = sv_to_uint(oct2_sv, &oct2_count, 10);
 			if (oct2_count < 0) {
@@ -991,8 +987,8 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
 				log_error("Octets must be in the range 0-255!");
 				return false;
 			}
-			sv_lremove(&ipv4_sv, 1); // Remove .
-			String_view oct3_sv = sv_lpop_until_char(&ipv4_sv, '.');
+			sv_lremove(&four_octect_sv, 1); // Remove .
+			String_view oct3_sv = sv_lpop_until_char(&four_octect_sv, '.');
 			int oct3_count = -1;
 			uint oct3 = sv_to_uint(oct3_sv, &oct3_count, 10);
 			if (oct3_count < 0) {
@@ -1003,8 +999,8 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
 				log_error("Octets must be in the range 0-255!");
 				return false;
 			}
-			sv_lremove(&ipv4_sv, 1); // Remove .
-			String_view oct4_sv = ipv4_sv;
+			sv_lremove(&four_octect_sv, 1); // Remove .
+			String_view oct4_sv = four_octect_sv;
 			int oct4_count = -1;
 			uint oct4 = sv_to_uint(oct4_sv, &oct4_count, 10);
 			if (oct4_count < 0) {
@@ -1016,10 +1012,10 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
 				return false;
 			}
 
-			e->nic->ipv4_address[0] = oct1;
-			e->nic->ipv4_address[1] = oct2;
-			e->nic->ipv4_address[2] = oct3;
-			e->nic->ipv4_address[3] = oct4;
+			four_octect[0] = oct1;
+			four_octect[1] = oct2;
+			four_octect[2] = oct3;
+			four_octect[3] = oct4;
 
 			*chars_buff_count = 0;
 			return true;
@@ -1039,6 +1035,25 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
 	} while (ch > 0);
 	return false;
 	// log_debug("TYPED %zu chars!", chars_count);
+
+}
+
+bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap) {
+	if (e->kind != EK_NIC) {
+		log_debug("Can only change the ipv4 of a NIC!");
+		return true;
+	}
+
+	return four_octect_from_input(e->nic->ipv4_address, chars_buff, chars_buff_count, chars_buff_cap);
+}
+
+bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap) {
+	if (e->kind != EK_NIC) {
+		log_debug("Can only change the ipv4 of a NIC!");
+		return true;
+	}
+
+	return four_octect_from_input(e->nic->subnet_mask, chars_buff, chars_buff_count, chars_buff_cap);
 }
 
 bool connect_to_next_free_port(Entity *nic_e, Entity *switch_e) {
