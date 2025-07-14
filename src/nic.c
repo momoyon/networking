@@ -1,5 +1,6 @@
 #include <nic.h>
 #include <config.h>
+#include <ethernet_frame.h>
 
 Mac_addresses free_mac_addresses = {0};
 
@@ -64,4 +65,21 @@ const char *ipv4_class_additional_info(const Ipv4_class ic) {
 		default: ASSERT(false, "UNREACHABLE!");
 	}
 	return "BRUH YOU ARE NOT ABLE TO SEE THIS!!!!!!!!!!!!!!!!";
+}
+
+
+// Data-transfer
+bool ping_to_ipv4(Nic *dst, Nic *src) {
+	Ethernet_frame eframe = {
+		.ether_type_or_length = ETHER_TYPE_ARP,
+		.payload = (uint8 *)"BRUH",
+		.crc = 0,
+	};
+
+	memcpy(eframe.dst, dst->mac_address, sizeof(uint8)*6);
+	memcpy(eframe.src, src->mac_address, sizeof(uint8)*6);
+
+	log_debug("PING FROM "MAC_FMT" TO "MAC_FMT, MAC_ARG(dst->mac_address), MAC_ARG(src->mac_address));
+
+	return false;
 }

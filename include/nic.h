@@ -6,7 +6,13 @@
 
 typedef struct Entity Entity;
 typedef struct Switch Switch;
+typedef struct Nic Nic;
 typedef enum Ipv4_class Ipv4_class;
+
+#define IPV4_FMT "%d.%d.%d.%d"
+#define IPV4_ARG(ipv4) ipv4[0], ipv4[1], ipv4[2], ipv4[3]
+#define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
+#define MAC_ARG(arg) arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]
 
 enum Ipv4_class {
 	IPV4_CLASS_A,
@@ -38,6 +44,9 @@ struct Nic {
 void make_nic(Entity *e, struct Nic *nic, Arena *arena);
 bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap);
 bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap);
+
+// Data-transfer
+bool ping_to_ipv4(Nic *dst, Nic *src);
 
 typedef struct {
     uint8 addr[6];

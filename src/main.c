@@ -204,6 +204,30 @@ int main(void) {
                         selected_entity_kind--;
                 }
 
+
+				// @DEBUG
+				if (IsKeyPressed(KEY_J)) {
+					Nic *dst = NULL;
+					Nic *src = NULL;
+					for (int i = (int)entities.count-1; i >= 0; --i) {
+						Entity *e = &entities.items[i];
+						if (e->state & (1<<ESTATE_DEAD)) continue;
+						if (e->kind == EK_NIC) {
+							if (dst == NULL) {
+								dst = e->nic;
+							} else {
+								if (e->nic != dst) {
+									src = e->nic;
+								}
+							}
+						}
+					}
+
+					if (dst && src) {
+						ping_to_ipv4(dst, src);
+					}
+				}
+
 				// Change ipv4 of hovering NIC
 				if (IsKeyDown(KEY_C)) {
 					bool p = false;
