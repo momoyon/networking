@@ -30,14 +30,17 @@
   ((byte) & 0x02 ? '1' : '0'), \
   ((byte) & 0x01 ? '1' : '0')
 
+// TODO: Implement a func to change modes and keep track of the last mode
 typedef enum {
     MODE_NORMAL,
+    MODE_COPY,
     MODE_COUNT,
 } Mode;
 
 const char *mode_as_str(const Mode m) {
     switch (m) {
-        case MODE_NORMAL: return  "Normal";
+        case MODE_NORMAL: return "Normal";
+        case MODE_COPY: return   "Copy";
         case MODE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -78,6 +81,7 @@ int main(void) {
 
     const char *window_name = "Networking";
     ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, window_name, &width, &height);
+	SetExitKey(0);
 
     // Font font = GetFontDefault();
     //
@@ -193,6 +197,15 @@ int main(void) {
         // Mode-specific input
         switch (current_mode) {
             case MODE_NORMAL: {
+				// Copy mode
+				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
+					if (hovering_entity) {
+						current_mode = MODE_COPY;
+					} else {
+						log_debug("Please hover over the entity you want to copy!");
+					}
+				}
+
                 // Change Entity kind
                 if (IsKeyPressed(KEY_E)) {
                     selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
@@ -205,7 +218,7 @@ int main(void) {
                 }
 
 
-				// @DEBUG
+				// @DEBUG: Test ethernet frame transfer
 				if (IsKeyPressed(KEY_J)) {
 					Entity *dst = NULL;
 					Entity *src = NULL;
@@ -231,7 +244,7 @@ int main(void) {
 				}
 
 				// Change ipv4 of hovering NIC
-				if (IsKeyDown(KEY_C)) {
+				if (!IsKeyDown(KEY_LEFT_CONTROL) && IsKeyDown(KEY_C)) {
 					bool p = false;
 					if (IsKeyPressed(KEY_ONE)) {
 						changing_type = CHANGE_IPV4;
@@ -371,6 +384,30 @@ int main(void) {
                 }
 
             } break;
+			case MODE_COPY: {
+				if (IsKeyPressed(KEY_ONE)) {
+					const char *ipv4_str = arena_alloc_str(temp_arena, IPV4_FMT, IPV4_ARG(hovering_entity->nic->ipv4_address));
+					log_debug("COPIED IPV4: %s", ipv4_str);
+					SetClipboardText(ipv4_str);
+					current_mode = MODE_NORMAL;
+				}
+				if (IsKeyPressed(KEY_TWO)) {
+					const char *str = arena_alloc_str(temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(hovering_entity->nic->subnet_mask));
+					log_debug("COPIED SUBNET_MASK: %s", str);
+					SetClipboardText(str);
+					current_mode = MODE_NORMAL;
+				}
+				if (IsKeyPressed(KEY_THREE)) {
+					const char *str = arena_alloc_str(temp_arena, MAC_FMT, MAC_ARG(hovering_entity->nic->mac_address));
+					log_debug("COPIED MAC_ADDRESS: %s", str);
+					SetClipboardText(str);
+					current_mode = MODE_NORMAL;
+				}
+
+				if (IsKeyPressed(KEY_ESCAPE)) {
+					current_mode = MODE_NORMAL;
+				}
+			} break;
             case MODE_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
         }
@@ -378,7 +415,7 @@ int main(void) {
         BeginTextureMode(ren_tex);
             ClearBackground(BLACK);
 
-            // Edit
+            // Update
             // Find hovering entity
             hovering_entity = NULL;
             for (int i = (int)entities.count-1; i >= 0; --i) {
@@ -396,7 +433,7 @@ int main(void) {
                     hovering_entity->state |= (1<<ESTATE_HOVERING);
                 }
             }
-            // Mode-specific edit
+            // Mode-specific Update
             switch (current_mode) {
                 case MODE_NORMAL: {
                     // Select entities
@@ -438,6 +475,8 @@ int main(void) {
                     }
 
                 } break;
+                case MODE_COPY: {
+				} break;
                 case MODE_COUNT:
                 default: ASSERT(false, "UNREACHABLE!");
             }
@@ -457,10 +496,10 @@ int main(void) {
 				// }
 			EndMode2D();
 
+			int y = (ENTITY_DEFAULT_RADIUS*0.5) * 2 + (2*2);
             if (debug_draw) {
-                draw_text_aligned(GetFontDefault(), mode_as_str(current_mode), v2(2, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_LEFT, WHITE);
+                draw_text_aligned(GetFontDefault(), mode_as_str(current_mode), v2(2, 2), ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_LEFT, GOLD);
 
-                int y = (ENTITY_DEFAULT_RADIUS*0.5) * 2 + (2*2);
                 const char *hovering_entity_str = arena_alloc_str(temp_arena, "Hovering: %p", hovering_entity);
                 const char *connecting_from_str = arena_alloc_str(temp_arena, "From: %p", connecting_from);
                 const char *connecting_to_str = arena_alloc_str(temp_arena, "To: %p", connecting_to);
@@ -549,6 +588,33 @@ int main(void) {
 							DrawRectangleLinesEx(selection, 1.0, WHITE);
 					EndMode2D();
                 } break;
+                case MODE_COPY: {
+					draw_text(GetFontDefault(), "-- COPY KEYS --", v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, YELLOW);
+					y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+
+					{
+						const char *a = arena_alloc_str(temp_arena, "%s", "[1]: Copy ipv4");
+						draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, YELLOW);
+						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+					}
+					{
+						const char *a = arena_alloc_str(temp_arena, "%s", "[2]: Copy subnet mask");
+						draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, YELLOW);
+						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+					}
+					{
+						const char *a = arena_alloc_str(temp_arena, "%s", "[3]: Copy mac address");
+						draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, YELLOW);
+						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+					}
+					{
+						const char *a = arena_alloc_str(temp_arena, "%s", "[Esc]: Go back to previous mode");
+						draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, YELLOW);
+						y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+					}
+					draw_text(GetFontDefault(), "-----------------", v2(2, y), ENTITY_DEFAULT_RADIUS*0.5, YELLOW);
+					y += ENTITY_DEFAULT_RADIUS*0.5 + 2;
+				} break;
                 case MODE_COUNT:
                 default: ASSERT(false, "UNREACHABLE!");
             }

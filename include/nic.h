@@ -11,6 +11,8 @@ typedef enum Ipv4_class Ipv4_class;
 
 #define IPV4_FMT "%d.%d.%d.%d"
 #define IPV4_ARG(ipv4) ipv4[0], ipv4[1], ipv4[2], ipv4[3]
+#define SUBNET_MASK_FMT IPV4_FMT
+#define SUBNET_MASK_ARG(sb) IPV4_ARG(sb)
 #define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
 #define MAC_ARG(arg) arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]
 

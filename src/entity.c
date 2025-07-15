@@ -573,6 +573,7 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
 	return "NOPE";
 }
 
+// TODO: Save the connected NIC/Switch too in v3
 const char *save_entity_to_data(Entity *e, Arena *arena, Arena *temp_arena, int version) {
 	char *s = "";
 	switch (version) {
