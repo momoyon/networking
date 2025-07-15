@@ -207,24 +207,26 @@ int main(void) {
 
 				// @DEBUG
 				if (IsKeyPressed(KEY_J)) {
-					Nic *dst = NULL;
-					Nic *src = NULL;
+					Entity *dst = NULL;
+					Entity *src = NULL;
 					for (int i = (int)entities.count-1; i >= 0; --i) {
 						Entity *e = &entities.items[i];
 						if (e->state & (1<<ESTATE_DEAD)) continue;
-						if (e->kind == EK_NIC) {
-							if (dst == NULL) {
-								dst = e->nic;
-							} else {
-								if (e->nic != dst) {
-									src = e->nic;
+						if (e->state & (1<<ESTATE_SELECTED)) {
+							if (e->kind == EK_NIC) {
+								if (dst == NULL) {
+									dst = e;
+								} else {
+									if (e != dst) {
+										src = e;
+									}
 								}
 							}
 						}
 					}
 
 					if (dst && src) {
-						ping_to_ipv4(dst, src);
+						send_arp_ethernet_frame(dst, src);
 					}
 				}
 

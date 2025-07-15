@@ -4,6 +4,8 @@
 #include <switch.h>
 #include <engine.h>
 #include <nic.h>
+#include <ethernet_frame.h>
+
 
 typedef enum {
     EK_NIC,
@@ -84,6 +86,10 @@ void disconnect_switch(Entity *e);
 void free_entity(Entity *e);
 void free_nic(Entity *e);
 void free_switch(Entity *e);
+
+// Data-transfer
+bool send_arp_ethernet_frame(Entity *dst, Entity *src);
+bool recieve(Entity *dst, Entity *src, Ethernet_frame frame);
 
 Entity *get_entity_ptr_by_id(Entities *entities, int id);
 

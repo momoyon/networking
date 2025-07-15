@@ -474,6 +474,44 @@ void free_switch(Entity *e) {
 	}
 }
 
+// Data-transfer
+bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
+	Ethernet_frame eframe = {
+		.ether_type_or_length = ETHER_TYPE_ARP,
+		.payload = (uint8 *)"ARP PING TEST",
+		.crc = 0,
+	};
+
+	memcpy(eframe.dst, dst->nic->mac_address, sizeof(uint8)*6);
+	memcpy(eframe.src, src->nic->mac_address, sizeof(uint8)*6);
+
+	return recieve(dst, src, eframe);
+}
+
+bool recieve(Entity *dst, Entity *src, Ethernet_frame frame) {
+	(void)src;
+	switch (dst->kind) {
+		case EK_NIC: {
+			if (dst->nic->nic_entity != src) {
+				log_error("The dst NIC is not connected to the src NIC!");
+				return false;
+			}
+
+			if (memcmp(frame.dst, dst->nic->mac_address, sizeof(uint8)*6) != 0) {
+				log_warning("Ethernet Frame destined for "MAC_FMT" is dropped at src's connected NIC "MAC_FMT, MAC_ARG(frame.dst), MAC_ARG(dst->nic->mac_address));
+				return false;
+			}
+			log_debug("Received Ethernet Frame from "MAC_FMT" to "MAC_FMT, MAC_ARG(frame.src), MAC_ARG(frame.dst));
+			return true;
+		} break;
+		case EK_SWITCH: {
+			ASSERT(false, "UNIMPLEMENTED!");
+		} break;
+		case EK_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+}
+
 Entity *get_entity_ptr_by_id(Entities *entities, int id) {
 	for (size_t i = 0; i < entities->count; ++i) {
 		Entity *e = &entities->items[i];
