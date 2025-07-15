@@ -123,6 +123,7 @@ void usage(const char *program) {
 	log_info("	-max_count <max_count:int>				- Specify the maximum number of ips to check. (Increments from 0.0.0.0)");
 	log_info("	-range <min:ip> <max:ip>				- Specify the range of ips to check.");
 	log_info("	-expect <class> <type>     				- Expect the ip to be this class and type. SEE BELOW FOR FORMAT");
+	log_info("	-nolog     				                - Don't log excessively.");
 	log_valid_ipv4_class_and_type();
 }
 
@@ -132,10 +133,13 @@ int main(int argc, char **argv) {
 	const char *program = shift_args(argv, argc);
 
 	int expected_class = -1;
-	int  expected_type  = -1;
+	int expected_type  = -1;
 
 	uint min = 0;
 	uint max = UINT_MAX;
+
+	bool log = true;
+
 	while (argc > 0) {
 		const char *arg = shift_args(argv, argc);
 
@@ -185,6 +189,8 @@ int main(int argc, char **argv) {
 
 			expected_class = c;
 			expected_type  = t;
+		} else if (strcmp(arg, "-nolog") == 0) {
+			log = false;
 		} else {
 			log_error("Invalid subcommand `%s`", arg);
 			return 1;
@@ -211,7 +217,8 @@ int main(int argc, char **argv) {
 			exit(1);
 		}
 
-		log_debug(IPV4_FMT" -> %s %s", IPV4_ARG(ipv4_), ipv4_class_as_str(class), ipv4_type_as_str(type));
+		if (log)
+			log_debug(IPV4_FMT" -> %s %s", IPV4_ARG(ipv4_), ipv4_class_as_str(class), ipv4_type_as_str(type));
 	}
 
 	return 0;
