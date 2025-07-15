@@ -28,6 +28,7 @@ enum Ipv4_class {
 };
 
 const char *ipv4_class_as_str(const Ipv4_class ic);
+Ipv4_class ipv4_class_from_str(const char *str);
 Ipv4_class determine_ipv4_class(uint8 *ipv4);
 const char *ipv4_class_additional_info(const Ipv4_class ic);
 
@@ -41,8 +42,7 @@ enum Ipv4_type {
 #define IPV4_TYPE_LOCAL IPV4_TYPE_PRIVATE
 
 const char *ipv4_type_as_str(const Ipv4_type it);
-
-// TODO: Determine if private/public ip/reserved
+Ipv4_type ipv4_type_from_str(const char *str);
 Ipv4_type determine_ipv4_type(uint8 ipv4[4]);
 
 struct Nic {
