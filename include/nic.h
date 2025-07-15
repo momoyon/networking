@@ -8,6 +8,7 @@ typedef struct Entity Entity;
 typedef struct Switch Switch;
 typedef struct Nic Nic;
 typedef enum Ipv4_class Ipv4_class;
+typedef enum Ipv4_type Ipv4_type;
 
 #define IPV4_FMT "%d.%d.%d.%d"
 #define IPV4_ARG(ipv4) ipv4[0], ipv4[1], ipv4[2], ipv4[3]
@@ -30,7 +31,19 @@ const char *ipv4_class_as_str(const Ipv4_class ic);
 Ipv4_class determine_ipv4_class(uint8 *ipv4);
 const char *ipv4_class_additional_info(const Ipv4_class ic);
 
-// TODO: Determine if private/public ip
+enum Ipv4_type {
+	IPV4_TYPE_PRIVATE,
+	IPV4_TYPE_PUBLIC,
+	IPV4_TYPE_RESERVED,
+	IPV4_TYPE_LOOPBACK,
+	IPV4_TYPE_COUNT,
+};
+#define IPV4_TYPE_LOCAL IPV4_TYPE_PRIVATE
+
+const char *ipv4_type_as_str(const Ipv4_type it);
+
+// TODO: Determine if private/public ip/reserved
+Ipv4_type determine_ipv4_type(uint8 ipv4[4]);
 
 struct Nic {
     uint8 ipv4_address[4];
@@ -46,9 +59,6 @@ struct Nic {
 void make_nic(Entity *e, struct Nic *nic, Arena *arena);
 bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap);
 bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap);
-
-// Data-transfer
-bool ping_to_ipv4(Nic *dst, Nic *src);
 
 typedef struct {
     uint8 addr[6];

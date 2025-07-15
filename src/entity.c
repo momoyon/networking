@@ -53,13 +53,14 @@ void draw_entity(Entity *e, bool debug) {
 				Ipv4_class ipv4_class = determine_ipv4_class(e->nic->ipv4_address);
 				const char *ipv4_class_info = ipv4_class_additional_info(ipv4_class);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                            "ipv4: %d.%d.%d.%d (%s | %s)",
+                            "ipv4: %d.%d.%d.%d (%s | %s) [%s]",
                             e->nic->ipv4_address[0],
                             e->nic->ipv4_address[1],
                             e->nic->ipv4_address[2],
                             e->nic->ipv4_address[3],
 							ipv4_class_as_str(ipv4_class),
-							ipv4_class_info),
+							ipv4_class_info,
+							is_ipv4_private(e->nic->ipv4_address) ? "Private" : "Public"),
                         ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "subnet mask: %d.%d.%d.%d",

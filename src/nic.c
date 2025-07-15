@@ -45,11 +45,11 @@ const char *ipv4_class_as_str(const Ipv4_class ic) {
 
 Ipv4_class determine_ipv4_class(uint8 *ipv4) {
 	ASSERT(ipv4 != NULL, "Bro please pass a valid ipv4...");
-	if ((int)ipv4[0] >= 1 && (int)ipv4[0] <= 126) return IPV4_CLASS_A;
-	if ((int)ipv4[0] >= 127 && ((int)ipv4[0] <= 191 && (int)ipv4[1] <= 255)) return IPV4_CLASS_B;
-	if ((int)ipv4[0] >= 192 && ((int)ipv4[0] <= 223 && (int)ipv4[1] <= 255 && (int)ipv4[2] <= 255)) return IPV4_CLASS_C;
-	if ((int)ipv4[0] >= 224 && ((int)ipv4[0] <= 239 && (int)ipv4[1] <= 255 && (int)ipv4[2] <= 255 && (int)ipv4[3] <= 255)) return IPV4_CLASS_D;
-	if ((int)ipv4[0] >= 240 && ((int)ipv4[0] <= 255 && (int)ipv4[1] <= 255 && (int)ipv4[2] <= 255 && (int)ipv4[3] <= 255)) return IPV4_CLASS_D;
+	if (ipv4[0] >= 0   && ipv4[0] <= 127) return IPV4_CLASS_A;
+	if (ipv4[0] >= 128 && ipv4[0] <= 191) return IPV4_CLASS_B;
+	if (ipv4[0] >= 192 && ipv4[0] <= 223) return IPV4_CLASS_C;
+	if (ipv4[0] >= 224 && ipv4[0] <= 239) return IPV4_CLASS_D;
+	if (ipv4[0] >= 240 && ipv4[0] <= 255) return IPV4_CLASS_E;
 	return IPV4_CLASS_UNKNOWN;
 }
 
@@ -67,19 +67,50 @@ const char *ipv4_class_additional_info(const Ipv4_class ic) {
 	return "BRUH YOU ARE NOT ABLE TO SEE THIS!!!!!!!!!!!!!!!!";
 }
 
+const char *ipv4_type_as_str(const Ipv4_type it) {
+	switch (it) {
+		case IPV4_TYPE_PRIVATE: return "Private";
+		case IPV4_TYPE_PUBLIC: return "Public";
+		case IPV4_TYPE_RESERVED: return "Reserved";
+		case IPV4_TYPE_LOOPBACK: return "Loopback";
+		case IPV4_TYPE_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
+	return "UNVIEWABLE!";
+}
 
-bool ping_to_ipv4(Nic *dst, Nic *src) {
-	Ethernet_frame eframe = {
-		.ether_type_or_length = ETHER_TYPE_ARP,
-		.payload = (uint8 *)"BRUH",
-		.crc = 0,
-	};
-
-	memcpy(eframe.dst, dst->mac_address, sizeof(uint8)*6);
-	memcpy(eframe.src, src->mac_address, sizeof(uint8)*6);
-
-	// log_debug("MAC PING FROM "MAC_FMT" TO "MAC_FMT, MAC_ARG(dst->mac_address), MAC_ARG(src->mac_address));
-
-
+Ipv4_type determine_ipv4_type(uint8 ipv4[4]) {
+	Ipv4_class class = determine_ipv4_class(ipv4);
+	switch (class) {
+		case IPV4_CLASS_A: {
+			if (ipv4[0] == 10) {
+				return IPV4_TYPE_PRIVATE;
+			} else {
+				return IPV4_TYPE_PUBLIC;
+			}
+	    } break;
+		case IPV4_CLASS_B: {
+			log_debug("IPV4_CLASS_B is_ipv4_private is UNIMPLEMENTED!");
+	    } break;
+		case IPV4_CLASS_C: {
+			log_debug("IPV4_CLASS_C is_ipv4_private is UNIMPLEMENTED!");
+	    } break;
+		case IPV4_CLASS_D: {
+			log_debug("IPV4_CLASS_D is_ipv4_private is UNIMPLEMENTED!");
+	    } break;
+		case IPV4_CLASS_E: {
+			log_debug("IPV4_CLASS_E is_ipv4_private is UNIMPLEMENTED!");
+	    } break;
+		case IPV4_CLASS_UNKNOWN: {
+			log_debug("IPV4_CLASS_UNKNOWN is_ipv4_private is UNIMPLEMENTED!");
+	    } break;
+		case IPV4_CLASS_COUNT:
+		default: ASSERT(false, "UNREACHABLE!");
+	}
 	return false;
+}
+
+bool is_ipv4_public(uint8 ipv4[4]) {
+	(void)ipv4;
+	ASSERT(false, "UNIMPLEMENTED!");
 }
