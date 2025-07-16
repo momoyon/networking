@@ -122,9 +122,10 @@ void usage(const char *program) {
 	log_info("	-help                    				- Prints this help message.");
 	log_info("	-max_count <max_count:int>				- Specify the maximum number of ips to check. (Increments from 0.0.0.0)");
 	log_info("	-range <min:ip> <max:ip>				- Specify the range of ips to check.");
-	log_info("	-expect <class> <type>     				- Expect the ip to be this class and type. SEE BELOW FOR FORMAT");
-	log_info("	-nolog     				                - Don't log excessively.");
+	log_info("	-expect_class <class>     				- Expect the ip to be this class. SEE BELOW FOR FORMAT");
+	log_info("	-expect_type <type>     				- Expect the ip to be this type. SEE BELOW FOR FORMAT");
 	log_valid_ipv4_class_and_type();
+	log_info("	-nolog     				                - Don't log excessively.");
 }
 
 int main(int argc, char **argv) {
@@ -172,23 +173,32 @@ int main(int argc, char **argv) {
 		} else if (strcmp(arg, "-help") == 0) {
 			usage(program);
 			return 0;
-		} else if (strcmp(arg, "-expect") == 0) {
-			if (argc < 2) {
-				log_error("%s needs two argument!", arg);
+		} else if (strcmp(arg, "-expect_class") == 0) {
+			if (argc < 1) {
+				log_error("%s needs one argument!", arg);
 				return 1;
 			}
 			const char *class = shift_args(argv, argc);
-			const char *type  = shift_args(argv, argc);
 
 			check_ipv4_class(class);
-			check_ipv4_type(type);
 
 			Ipv4_class c = ipv4_class_from_str(class);
-			Ipv4_type t = ipv4_type_from_str(type);
-			ASSERT(t != -1 && c != -1, "THIS SHOULDN'T HAPPEN BECAUSE WE CHECK IN ABOVE!");
+			ASSERT(c != -1, "THIS SHOULDN'T HAPPEN BECAUSE WE CHECK IN ABOVE!");
 
 			expected_class = c;
-			expected_type  = t;
+		} else if (strcmp(arg, "-expect_type") == 0) {
+			if (argc < 1) {
+				log_error("%s needs one argument!", arg);
+				return 1;
+			}
+			const char *type = shift_args(argv, argc);
+
+			check_ipv4_type(type);
+
+			Ipv4_type c = ipv4_type_from_str(type);
+			ASSERT(c != -1, "THIS SHOULDN'T HAPPEN BECAUSE WE CHECK IN ABOVE!");
+
+			expected_type = c;
 		} else if (strcmp(arg, "-nolog") == 0) {
 			log = false;
 		} else {
