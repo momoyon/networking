@@ -120,8 +120,9 @@ void usage(const char *program) {
 	log_info("");
 	log_info("Subcommands: ");
 	log_info("	-help                    				- Prints this help message.");
+	log_info("	-ip <ip:ipv4>							- Specify a single ipv4 address to check.");
 	log_info("	-max_count <max_count:int>				- Specify the maximum number of ips to check. (Increments from 0.0.0.0)");
-	log_info("	-range <min:ip> <max:ip>				- Specify the range of ips to check.");
+	log_info("	-range <min:ipv4> <max:ipv4>			- Specify the range of ips to check.");
 	log_info("	-expect_class <class>     				- Expect the ip to be this class. SEE BELOW FOR FORMAT");
 	log_info("	-expect_type <type>     				- Expect the ip to be this type. SEE BELOW FOR FORMAT");
 	log_valid_ipv4_class_and_type();
@@ -158,6 +159,17 @@ int main(int argc, char **argv) {
 			}
 
 			max = max_ipv4_converted;
+		} else if (strcmp(arg, "-ip") == 0) {
+			if (argc <= 0) {
+				log_error("%s needs one argument!", arg);
+				return 1;
+			}
+			const char *ip_str = shift_args(argv, argc);
+			uint ip = parse_ipv4(SV(ip_str));
+
+			min = ip;
+			max = ip;
+
 		} else if (strcmp(arg, "-range") == 0) {
 			if (argc < 2) {
 				log_error("%s needs two argument!", arg);
