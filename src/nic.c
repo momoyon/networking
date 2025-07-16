@@ -8,6 +8,21 @@ Mac_addresses free_mac_addresses = {0};
 
 static int fmb = 0;
 
+void flip_bytes4(uint8 *bytes, uint8 *bytes_flipped) {
+	uint8 res[4] = {
+		bytes[3],
+		bytes[2],
+		bytes[1],
+		bytes[0],
+	};
+
+	bytes_flipped[0] = res[0];
+	bytes_flipped[1] = res[1];
+	bytes_flipped[2] = res[2];
+	bytes_flipped[3] = res[3];
+}
+
+
 void get_unique_mac_address(uint8 *mac_address) {
 	if (free_mac_addresses.count > 0) {
 		Mac_address m = {0};
@@ -93,6 +108,7 @@ const char *ipv4_type_as_str(const Ipv4_type it) {
 		case IPV4_TYPE_PUBLIC: return "Public";
 		case IPV4_TYPE_RESERVED: return "Reserved";
 		case IPV4_TYPE_LOOPBACK: return "Loopback";
+		case IPV4_TYPE_LINK_LOCAL: return "Link Local";
 		case IPV4_TYPE_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
 	}
@@ -110,6 +126,8 @@ Ipv4_type ipv4_type_from_str(const char *str) {
 		return IPV4_TYPE_RESERVED;
 	} else if (strcmp(str, "loopback") == 0) {
 		return IPV4_TYPE_LOOPBACK;
+	} else if (strcmp(str, "link_local") == 0) {
+		return IPV4_TYPE_LINK_LOCAL;
 	}
 	return -1;
 }
@@ -118,26 +136,40 @@ Ipv4_type determine_ipv4_type(uint8 ipv4[4]) {
 	Ipv4_class class = determine_ipv4_class(ipv4);
 	switch (class) {
 		case IPV4_CLASS_A: {
-			if (ipv4[0] == 10) {
+			if (is_ipv4_in_range(ipv4, (uint8[4]){0, 0, 0, 0}, (uint8[4]){0, 255, 255, 255}) ||
+			    is_ipv4_in_range(ipv4, (uint8[4]){10, 0, 0, 0}, (uint8[4]){10, 255, 255, 255}) ||
+				is_ipv4_in_range(ipv4, (uint8[4]){100, 64, 0, 0}, (uint8[4]){100, 127, 255, 255})) {
 				return IPV4_TYPE_PRIVATE;
+			} else if (is_ipv4_in_range(ipv4, (uint8[4]){127, 0, 0, 0}, (uint8[4]){127, 255, 255, 255})) {
+				return IPV4_TYPE_LOOPBACK;
 			} else {
 				return IPV4_TYPE_PUBLIC;
 			}
 	    } break;
 		case IPV4_CLASS_B: {
-			log_debug("IPV4_CLASS_B is_ipv4_private is UNIMPLEMENTED!");
+			if (is_ipv4_in_range(ipv4, (uint8[4]){169, 254, 0, 0}, (uint8[4]){169, 254, 255, 255})) {
+				return IPV4_TYPE_LINK_LOCAL;
+			} else if (is_ipv4_in_range(ipv4, (uint8[4]){172, 16, 0, 0}, (uint8[4]){172, 31, 255, 255})) {
+				return IPV4_TYPE_PRIVATE;
+			} else {
+				return IPV4_TYPE_PUBLIC;
+			}
 	    } break;
 		case IPV4_CLASS_C: {
-			log_debug("IPV4_CLASS_C is_ipv4_private is UNIMPLEMENTED!");
+			if (is_ipv4_in_range(ipv4, (uint8[4]){192, 0, 0, 0}, (uint8[4]){192, 0, 0, 255})) {
+				return IPV4_TYPE_PRIVATE;
+			} else {
+				return IPV4_TYPE_PUBLIC;
+			}
 	    } break;
 		case IPV4_CLASS_D: {
-			log_debug("IPV4_CLASS_D is_ipv4_private is UNIMPLEMENTED!");
+			log_debug("IPV4_CLASS_D determine_ipv4_type is UNIMPLEMENTED!");
 	    } break;
 		case IPV4_CLASS_E: {
-			log_debug("IPV4_CLASS_E is_ipv4_private is UNIMPLEMENTED!");
+			log_debug("IPV4_CLASS_E determine_ipv4_type is UNIMPLEMENTED!");
 	    } break;
 		case IPV4_CLASS_UNKNOWN: {
-			log_debug("IPV4_CLASS_UNKNOWN is_ipv4_private is UNIMPLEMENTED!");
+			log_debug("IPV4_CLASS_UNKNOWN determine_ipv4_type is UNIMPLEMENTED!");
 	    } break;
 		case IPV4_CLASS_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
@@ -145,7 +177,21 @@ Ipv4_type determine_ipv4_type(uint8 ipv4[4]) {
 	return false;
 }
 
-bool is_ipv4_public(uint8 ipv4[4]) {
-	(void)ipv4;
-	ASSERT(false, "UNIMPLEMENTED!");
+bool is_ipv4_in_range(uint8 *ipv4, uint8 *min, uint8 *max) {
+	flip_bytes4(min, min);
+	uint32 min_uint = *((uint *)min);
+	flip_bytes4(min, min);
+
+	flip_bytes4(max, max);
+	uint32 max_uint = *((uint *)max);
+	flip_bytes4(max, max);
+
+
+	flip_bytes4(ipv4, ipv4);
+	uint32 ipv4_uint = *((uint *)ipv4);
+	flip_bytes4(ipv4, ipv4);
+
+	// log_debug("CHECKING %u >= %u && %u <= %u", ipv4_uint, min_uint, ipv4_uint, max_uint);
+
+	return ipv4_uint >= min_uint && ipv4_uint <= max_uint;
 }

@@ -60,7 +60,7 @@ void draw_entity(Entity *e, bool debug) {
                             e->nic->ipv4_address[3],
 							ipv4_class_as_str(ipv4_class),
 							ipv4_class_info,
-							is_ipv4_private(e->nic->ipv4_address) ? "Private" : "Public"),
+							ipv4_type_as_str(determine_ipv4_type(e->nic->ipv4_address))),
                         ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                             "subnet mask: %d.%d.%d.%d",

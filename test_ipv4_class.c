@@ -14,22 +14,8 @@ int str_to_int(const char *str) {
 	return converted;
 }
 
-void flip_bytes4(uint8 *bytes, uint8 *bytes_flipped) {
-	uint8 res[4] = {
-		bytes[3],
-		bytes[2],
-		bytes[1],
-		bytes[0],
-	};
-
-	bytes_flipped[0] = res[0];
-	bytes_flipped[1] = res[1];
-	bytes_flipped[2] = res[2];
-	bytes_flipped[3] = res[3];
-}
-
 static void log_valid_ipv4_class_and_type(void) {
-	log_info("	<class:[A,B,C,D,E,UNKNOWN]> <type:private,public,reserved,loopback>");
+	log_info("	<class:[A,B,C,D,E,UNKNOWN]> <type:private,public,reserved,loopback,link_local>");
 }
 
 void validate_str(const char *str, const char **array, size_t array_len, const char *type_name, void (*error_func)(void)) {
@@ -55,7 +41,7 @@ void check_ipv4_class(const char *class) {
 }
 
 void check_ipv4_type(const char *type) {
-	const char *valid_types[] = { "private", "public", "reserved" };
+	const char *valid_types[] = { "private", "public", "reserved", "loopback", "link_local" };
 	validate_str(type, valid_types, ARRAY_LEN(valid_types), "ipv4 type", log_valid_ipv4_class_and_type);
 }
 
@@ -242,6 +228,7 @@ int main(int argc, char **argv) {
 		if (log)
 			log_debug(IPV4_FMT" -> %s %s", IPV4_ARG(ipv4_), ipv4_class_as_str(class), ipv4_type_as_str(type));
 	}
+	log_info("DONE");
 
 	return 0;
 }

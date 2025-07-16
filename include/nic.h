@@ -27,6 +27,8 @@ enum Ipv4_class {
 	IPV4_CLASS_COUNT,
 };
 
+void flip_bytes4(uint8 *bytes, uint8 *bytes_flipped);
+
 const char *ipv4_class_as_str(const Ipv4_class ic);
 Ipv4_class ipv4_class_from_str(const char *str);
 Ipv4_class determine_ipv4_class(uint8 *ipv4);
@@ -37,6 +39,7 @@ enum Ipv4_type {
 	IPV4_TYPE_PUBLIC,
 	IPV4_TYPE_RESERVED,
 	IPV4_TYPE_LOOPBACK,
+	IPV4_TYPE_LINK_LOCAL,
 	IPV4_TYPE_COUNT,
 };
 #define IPV4_TYPE_LOCAL IPV4_TYPE_PRIVATE
@@ -44,6 +47,8 @@ enum Ipv4_type {
 const char *ipv4_type_as_str(const Ipv4_type it);
 Ipv4_type ipv4_type_from_str(const char *str);
 Ipv4_type determine_ipv4_type(uint8 ipv4[4]);
+
+bool is_ipv4_in_range(uint8 *ipv4, uint8 *min, uint8 *max);
 
 struct Nic {
     uint8 ipv4_address[4];
