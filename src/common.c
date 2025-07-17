@@ -4,7 +4,7 @@
 #include <commonlib.h>
 #include <engine.h>
 
-void cleanup(void) { 
+void cleanup(void) {
     arena_free(&entity_arena);
     arena_free(&temp_arena);
     close_window(ren_tex);
@@ -39,7 +39,6 @@ Texture2D load_texture_checked(const char *filepath) {
 	return tex;
 }
 
-// TODO: The logic for adding or deleting entities is messed up. entities.count and entities_count have to be the same when loading.
 void add_entity(Entity e) {
 	if (free_entity_indices.count == 0) {
 		arr_append(entities, e);
@@ -50,5 +49,6 @@ void add_entity(Entity e) {
 		entities.items[free_index] = e;
 	}
 	entities_count++;
+    if (entities.count < entities_count) entities.count = entities_count;
 	log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
 }

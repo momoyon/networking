@@ -214,7 +214,7 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 					}
 				}
 			}
-			if (!found) { 
+			if (!found) {
 				if (!connect_to_next_free_port(nic, other)) {
 					log_error("No free port available!");
 					return false;
@@ -240,7 +240,7 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
 
 	switch (other->kind) {
 		case EK_NIC: {
-			return connect_nic_to(other, switchh); // We can do this 
+			return connect_nic_to(other, switchh); // We can do this
 	    } break;
 		case EK_SWITCH: {
 			log_debug("We can't connect two switched directly!");
@@ -439,7 +439,7 @@ void free_nic(Entity *e) {
 		}
 		e->nic->nic_entity = NULL;
 	}
-	
+
 	// Add free mac_address so it can be reused
 	Mac_address m = {0};
 	m.addr[0] = e->nic->mac_address[0];
@@ -537,7 +537,7 @@ bool is_entities_saved(Entities *entities) {
 const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
 	switch (e->kind) {
 		case EK_NIC: {
-			return arena_alloc_str(*temp_arena, "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d.%d.%d", 
+			return arena_alloc_str(*temp_arena, "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d.%d.%d",
 					e->nic->ipv4_address[0],
 					e->nic->ipv4_address[1],
 					e->nic->ipv4_address[2],
@@ -907,7 +907,7 @@ bool load_entity_from_file(Entity *e, const char *filepath) {
 		return false;
 	}
 	String_view sv = SV(file);
-	
+
 	if (!load_entity_from_data(e, &sv)) {
 		return false;
 	}
@@ -919,7 +919,7 @@ bool load_entity_from_file(Entity *e, const char *filepath) {
 bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int version) {
 	FILE *f = fopen(filepath, "w");
 
-	if (!f) { 
+	if (!f) {
 		return false;
 	}
 
