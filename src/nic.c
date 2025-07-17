@@ -109,6 +109,9 @@ const char *ipv4_type_as_str(const Ipv4_type it) {
 		case IPV4_TYPE_RESERVED: return "Reserved";
 		case IPV4_TYPE_LOOPBACK: return "Loopback";
 		case IPV4_TYPE_LINK_LOCAL: return "Link Local";
+		case IPV4_TYPE_DOCUMENTATION: return "Documentation";
+		case IPV4_TYPE_INTERNET: return "Internet";
+		case IPV4_TYPE_LIMITED_BROADCAST: return "Limited Broadcast";
 		case IPV4_TYPE_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
 	}
@@ -128,6 +131,12 @@ Ipv4_type ipv4_type_from_str(const char *str) {
 		return IPV4_TYPE_LOOPBACK;
 	} else if (strcmp(str, "link_local") == 0) {
 		return IPV4_TYPE_LINK_LOCAL;
+	} else if (strcmp(str, "documentation") == 0) {
+		return IPV4_TYPE_DOCUMENTATION;
+	} else if (strcmp(str, "internet") == 0) {
+		return IPV4_TYPE_INTERNET;
+	} else if (strcmp(str, "limited_broadcast") == 0) {
+		return IPV4_TYPE_LIMITED_BROADCAST;
 	}
 	return -1;
 }
@@ -156,17 +165,28 @@ Ipv4_type determine_ipv4_type(uint8 ipv4[4]) {
 			}
 	    } break;
 		case IPV4_CLASS_C: {
-			if (is_ipv4_in_range(ipv4, (uint8[4]){192, 0, 0, 0}, (uint8[4]){192, 0, 0, 255})) {
+			if (is_ipv4_in_range(ipv4, (uint8[4]){192, 0, 0, 0}, (uint8[4]){192, 0, 0, 255}) ||
+				is_ipv4_in_range(ipv4, (uint8[4]){192, 168, 0, 0}, (uint8[4]){192, 168, 255, 255}) ||
+				is_ipv4_in_range(ipv4, (uint8[4]){198, 18, 0, 0}, (uint8[4]){198, 19, 255, 255}))  {
 				return IPV4_TYPE_PRIVATE;
+			} else if (is_ipv4_in_range(ipv4, (uint8[4]){ 192, 0, 2, 0}, (uint8[4]){ 192, 0, 2, 255}) ||
+					   is_ipv4_in_range(ipv4, (uint8[4]){ 198, 51, 100, 0}, (uint8[4]){ 198, 51, 100, 255}) ||
+					   is_ipv4_in_range(ipv4, (uint8[4]){ 203, 0, 113, 0}, (uint8[4]){ 203, 0, 113, 255})) {
+				return IPV4_TYPE_DOCUMENTATION;
+			} else if (is_ipv4_in_range(ipv4, (uint8[4]){ 192, 88, 99, 0}, (uint8[4]){ 192, 88, 99, 255})) {
+				return IPV4_TYPE_INTERNET;
 			} else {
 				return IPV4_TYPE_PUBLIC;
 			}
 	    } break;
 		case IPV4_CLASS_D: {
-			log_debug("IPV4_CLASS_D determine_ipv4_type is UNIMPLEMENTED!");
+			return IPV4_TYPE_INTERNET; // MULTICAST
 	    } break;
 		case IPV4_CLASS_E: {
-			log_debug("IPV4_CLASS_E determine_ipv4_type is UNIMPLEMENTED!");
+			if (is_ipv4_in_range(ipv4, (uint8[4]){ 240, 0, 0, 0}, (uint8[4]){ 255, 255, 255, 254 })) {
+				return IPV4_TYPE_RESERVED;
+		    }
+			return IPV4_TYPE_LIMITED_BROADCAST;
 	    } break;
 		case IPV4_CLASS_UNKNOWN: {
 			log_debug("IPV4_CLASS_UNKNOWN determine_ipv4_type is UNIMPLEMENTED!");

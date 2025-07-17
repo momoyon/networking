@@ -15,7 +15,7 @@ int str_to_int(const char *str) {
 }
 
 static void log_valid_ipv4_class_and_type(void) {
-	log_info("	<class:[A,B,C,D,E,UNKNOWN]> <type:private,public,reserved,loopback,link_local>");
+	log_info("	<class:[A,B,C,D,E,UNKNOWN]> <type:private,public,reserved,loopback,link_local,documentation,internet,limited_broadcast>");
 }
 
 void validate_str(const char *str, const char **array, size_t array_len, const char *type_name, void (*error_func)(void)) {
@@ -41,7 +41,7 @@ void check_ipv4_class(const char *class) {
 }
 
 void check_ipv4_type(const char *type) {
-	const char *valid_types[] = { "private", "public", "reserved", "loopback", "link_local" };
+	const char *valid_types[] = { "private", "public", "reserved", "loopback", "link_local", "documentation", "internet", "limited_broadcast", };
 	validate_str(type, valid_types, ARRAY_LEN(valid_types), "ipv4 type", log_valid_ipv4_class_and_type);
 }
 
@@ -227,6 +227,10 @@ int main(int argc, char **argv) {
 
 		if (log)
 			log_debug(IPV4_FMT" -> %s %s", IPV4_ARG(ipv4_), ipv4_class_as_str(class), ipv4_type_as_str(type));
+
+		if (ipv4 == UINT_MAX) {
+			break;
+		}
 	}
 	log_info("DONE");
 
