@@ -63,6 +63,7 @@ struct Nic {
     Entity *nic_entity; // Other nic connected to
 	Entity *switch_entity; // Switch this network interface belongs to.
 
+	int nic_entity_id;
 	bool drawing_connection;
 };
 

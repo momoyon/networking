@@ -290,6 +290,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
 			make_nic(e, e->nic, arena);
 			e->tex = load_texture_checked("resources/gfx/nic.png");
 			ASSERT(IsTextureReady(e->tex), "Failed to load network interface image!");
+			e->nic->nic_entity_id = -1;
         } break;
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
@@ -303,7 +304,6 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
 
 // Makers
 Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena) {
-	// TODO: We need to make nic->self_entity point to the parent entity of the nic, but if i used a pointer to it, it will be invalid after this func cuz its on the stack... Maybe try to alloc on the arena or use the ID of the entity.
     Entity e = (Entity) {
         .pos = pos,
         .radius = radius,
@@ -576,15 +576,18 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
 	return "NOPE";
 }
 
-// TODO: Save the connected NIC/Switch too in v3
 const char *save_entity_to_data(Entity *e, Arena *arena, Arena *temp_arena, int version) {
 	char *s = "";
 	switch (version) {
 		case 1: {
-			s = arena_alloc_str(*arena, "v1 %.2f %.2f %d %zu %d ", e->pos.x, e->pos.y, e->kind, e->id, e->state);
+			s = arena_alloc_str(*arena, "v%d %.2f %.2f %d %zu %d ", version, e->pos.x, e->pos.y, e->kind, e->id, e->state);
 		} break;
 		case 2: {
-			s = arena_alloc_str(*arena, "v2 %.2f %.2f %d %zu %d %s ", e->pos.x, e->pos.y, e->kind, e->id, e->state, entity_kind_save_format(e, temp_arena));
+			s = arena_alloc_str(*arena, "v%d %.2f %.2f %d %zu %d %s ", version, e->pos.x, e->pos.y, e->kind, e->id, e->state, entity_kind_save_format(e, temp_arena));
+		} break;
+		case 3: {
+			s = arena_alloc_str(*arena, "v%d %.2f %.2f %d %zu %d %s %d ",
+					version, e->pos.x, e->pos.y, e->kind, e->id, e->state, entity_kind_save_format(e, temp_arena), e->nic && e->nic->nic_entity ? (int)e->nic->nic_entity->id : -1);
 		} break;
 		default: ASSERT(false, "UNREACHABLE!");
 	}
@@ -658,6 +661,137 @@ static bool load_entity_from_data_v1(Entity *e, String_view *sv) {
 	return true;
 }
 
+static bool parse_nic_from_data(Nic *nic, String_view *sv) {
+	sv_ltrim(sv);
+	String_view ipv4_oct1_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view ipv4_oct2_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view ipv4_oct3_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view ipv4_oct4_sv = sv_lpop_until_char(sv, ' ');
+	sv_lremove(sv, 1); // Remove SPACE
+
+	String_view subnet_mask_oct1_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+					   //
+	String_view subnet_mask_oct2_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view subnet_mask_oct3_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view subnet_mask_oct4_sv = sv_lpop_until_char(sv, ' ');
+	sv_lremove(sv, 1); // Remove SPACE
+
+	String_view mac_address_oct1_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view mac_address_oct2_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view mac_address_oct3_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view mac_address_oct4_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view mac_address_oct5_sv = sv_lpop_until_char(sv, '.');
+	sv_lremove(sv, 1); // Remove .
+	String_view mac_address_oct6_sv = sv_lpop_until_char(sv, ' ');
+	sv_lremove(sv, 1); // Remove SPACE
+
+	uint8 ipv4[4] = {0};
+	int   ipv4_counts[4] = { -1, -1, -1, -1 };
+	ipv4[0] = sv_to_uint(ipv4_oct1_sv, &ipv4_counts[0], 10);
+	if (ipv4_counts[0] <= 0) {
+		log_debug("Failed to convert ipv4 oct1`"SV_FMT"` to int!", SV_ARG(ipv4_oct1_sv));
+		return false;
+	}
+	ipv4[1] = sv_to_uint(ipv4_oct2_sv, &ipv4_counts[1], 10);
+	if (ipv4_counts[1] <= 0) {
+		log_debug("Failed to convert ipv4 oct2`"SV_FMT"` to int!", SV_ARG(ipv4_oct2_sv));
+		return false;
+	}
+	ipv4[2] = sv_to_uint(ipv4_oct3_sv, &ipv4_counts[2], 10);
+	if (ipv4_counts[2] <= 0) {
+		log_debug("Failed to convert ipv4 oct3`"SV_FMT"` to int!", SV_ARG(ipv4_oct3_sv));
+		return false;
+	}
+	ipv4[3] = sv_to_uint(ipv4_oct4_sv, &ipv4_counts[3], 10);
+	if (ipv4_counts[3] <= 0) {
+		log_debug("Failed to convert ipv4 oct4`"SV_FMT"` to int!", SV_ARG(ipv4_oct4_sv));
+		return false;
+	}
+
+	log_debug("--------------------------------------------------");
+	log_debug("Parsed ipv4: %d.%d.%d.%d", ipv4[0], ipv4[1], ipv4[2], ipv4[3]);
+
+	uint8 subnet_mask[4] = {0};
+	int   subnet_mask_counts[4] = { -1, -1, -1, -1 };
+	subnet_mask[0] = sv_to_uint(subnet_mask_oct1_sv, &subnet_mask_counts[0], 10);
+	if (subnet_mask_counts[0] <= 0) {
+		log_debug("Failed to convert subnet_mask oct1`"SV_FMT"` to int!", SV_ARG(subnet_mask_oct1_sv));
+		return false;
+	}
+	subnet_mask[1] = sv_to_uint(subnet_mask_oct2_sv, &subnet_mask_counts[1], 10);
+	if (subnet_mask_counts[1] <= 0) {
+		log_debug("Failed to convert subnet_mask oct2`"SV_FMT"` to int!", SV_ARG(subnet_mask_oct2_sv));
+		return false;
+	}
+	subnet_mask[2] = sv_to_uint(subnet_mask_oct3_sv, &subnet_mask_counts[2], 10);
+	if (subnet_mask_counts[2] <= 0) {
+		log_debug("Failed to convert subnet_mask oct3`"SV_FMT"` to int!", SV_ARG(subnet_mask_oct3_sv));
+		return false;
+	}
+	subnet_mask[3] = sv_to_uint(subnet_mask_oct4_sv, &subnet_mask_counts[3], 10);
+	if (subnet_mask_counts[3] <= 0) {
+		log_debug("Failed to convert subnet_mask oct4`"SV_FMT"` to int!", SV_ARG(subnet_mask_oct4_sv));
+		return false;
+	}
+
+	log_debug("Parsed subnet_mask: %d.%d.%d.%d", subnet_mask[0], subnet_mask[1], subnet_mask[2], subnet_mask[3]);
+
+	uint8 mac_address[6] = {0};
+	int   mac_address_counts[6] = { -1, -1, -1, -1, -1, -1 };
+	mac_address[0] = sv_to_uint(mac_address_oct1_sv, &mac_address_counts[0], 10);
+	if (mac_address_counts[0] <= 0) {
+		log_debug("Failed to convert mac_address oct1`"SV_FMT"` to int!", SV_ARG(mac_address_oct1_sv));
+		return false;
+	}
+	mac_address[1] = sv_to_uint(mac_address_oct2_sv, &mac_address_counts[1], 10);
+	if (mac_address_counts[1] <= 0) {
+		log_debug("Failed to convert mac_address oct2`"SV_FMT"` to int!", SV_ARG(mac_address_oct2_sv));
+		return false;
+	}
+	mac_address[2] = sv_to_uint(mac_address_oct3_sv, &mac_address_counts[2], 10);
+	if (mac_address_counts[2] <= 0) {
+		log_debug("Failed to convert mac_address oct3`"SV_FMT"` to int!", SV_ARG(mac_address_oct3_sv));
+		return false;
+	}
+	mac_address[3] = sv_to_uint(mac_address_oct4_sv, &mac_address_counts[3], 10);
+	if (mac_address_counts[3] <= 0) {
+		log_debug("Failed to convert mac_address oct4`"SV_FMT"` to int!", SV_ARG(mac_address_oct4_sv));
+		return false;
+	}
+	mac_address[4] = sv_to_uint(mac_address_oct5_sv, &mac_address_counts[4], 10);
+	if (mac_address_counts[4] <= 0) {
+		log_debug("Failed to convert mac_address oct5`"SV_FMT"` to int!", SV_ARG(mac_address_oct5_sv));
+		return false;
+	}
+	mac_address[5] = sv_to_uint(mac_address_oct6_sv, &mac_address_counts[5], 10);
+	if (mac_address_counts[5] <= 0) {
+		log_debug("Failed to convert mac_address oct6`"SV_FMT"` to int!", SV_ARG(mac_address_oct6_sv));
+		return false;
+	}
+
+
+	log_debug("Parsed mac_address: %d.%d.%d.%d.%d.%d", mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
+	log_debug("--------------------------------------------------");
+
+	sv_ltrim(sv);
+
+	memcpy(nic->ipv4_address, ipv4, sizeof(uint8) * 4);
+	memcpy(nic->subnet_mask, subnet_mask, sizeof(uint8) * 4);
+	memcpy(nic->mac_address, mac_address, sizeof(uint8) * 6);
+
+	return true;
+}
+
 static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
 	if (!load_entity_from_data_v1(e, sv)) {
 		return false;
@@ -665,133 +799,7 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
 
 	switch (e->kind) {
 		case EK_NIC: {
-			sv_ltrim(sv);
-			String_view ipv4_oct1_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view ipv4_oct2_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view ipv4_oct3_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view ipv4_oct4_sv = sv_lpop_until_char(sv, ' ');
-			sv_lremove(sv, 1); // Remove SPACE
-
-			String_view subnet_mask_oct1_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-							   //
-			String_view subnet_mask_oct2_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view subnet_mask_oct3_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view subnet_mask_oct4_sv = sv_lpop_until_char(sv, ' ');
-			sv_lremove(sv, 1); // Remove SPACE
-
-			String_view mac_address_oct1_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view mac_address_oct2_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view mac_address_oct3_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view mac_address_oct4_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view mac_address_oct5_sv = sv_lpop_until_char(sv, '.');
-			sv_lremove(sv, 1); // Remove .
-			String_view mac_address_oct6_sv = sv_lpop_until_char(sv, ' ');
-			sv_lremove(sv, 1); // Remove SPACE
-							
-			uint8 ipv4[4] = {0};
-			int   ipv4_counts[4] = { -1, -1, -1, -1 };
-			ipv4[0] = sv_to_uint(ipv4_oct1_sv, &ipv4_counts[0], 10);
-			if (ipv4_counts[0] <= 0) {
-				log_debug("Failed to convert ipv4 oct1`"SV_FMT"` to int!", SV_ARG(ipv4_oct1_sv));
-				return false;
-			}
-			ipv4[1] = sv_to_uint(ipv4_oct2_sv, &ipv4_counts[1], 10);
-			if (ipv4_counts[1] <= 0) {
-				log_debug("Failed to convert ipv4 oct2`"SV_FMT"` to int!", SV_ARG(ipv4_oct2_sv));
-				return false;
-			}
-			ipv4[2] = sv_to_uint(ipv4_oct3_sv, &ipv4_counts[2], 10);
-			if (ipv4_counts[2] <= 0) {
-				log_debug("Failed to convert ipv4 oct3`"SV_FMT"` to int!", SV_ARG(ipv4_oct3_sv));
-				return false;
-			}
-			ipv4[3] = sv_to_uint(ipv4_oct4_sv, &ipv4_counts[3], 10);
-			if (ipv4_counts[3] <= 0) {
-				log_debug("Failed to convert ipv4 oct4`"SV_FMT"` to int!", SV_ARG(ipv4_oct4_sv));
-				return false;
-			}
-
-			log_debug("--------------------------------------------------");
-			log_debug("Parsed ipv4: %d.%d.%d.%d", ipv4[0], ipv4[1], ipv4[2], ipv4[3]);
-
-			uint8 subnet_mask[4] = {0};
-			int   subnet_mask_counts[4] = { -1, -1, -1, -1 };
-			subnet_mask[0] = sv_to_uint(subnet_mask_oct1_sv, &subnet_mask_counts[0], 10);
-			if (subnet_mask_counts[0] <= 0) {
-				log_debug("Failed to convert subnet_mask oct1`"SV_FMT"` to int!", SV_ARG(subnet_mask_oct1_sv));
-				return false;
-			}
-			subnet_mask[1] = sv_to_uint(subnet_mask_oct2_sv, &subnet_mask_counts[1], 10);
-			if (subnet_mask_counts[1] <= 0) {
-				log_debug("Failed to convert subnet_mask oct2`"SV_FMT"` to int!", SV_ARG(subnet_mask_oct2_sv));
-				return false;
-			}
-			subnet_mask[2] = sv_to_uint(subnet_mask_oct3_sv, &subnet_mask_counts[2], 10);
-			if (subnet_mask_counts[2] <= 0) {
-				log_debug("Failed to convert subnet_mask oct3`"SV_FMT"` to int!", SV_ARG(subnet_mask_oct3_sv));
-				return false;
-			}
-			subnet_mask[3] = sv_to_uint(subnet_mask_oct4_sv, &subnet_mask_counts[3], 10);
-			if (subnet_mask_counts[3] <= 0) {
-				log_debug("Failed to convert subnet_mask oct4`"SV_FMT"` to int!", SV_ARG(subnet_mask_oct4_sv));
-				return false;
-			}
-
-			log_debug("Parsed subnet_mask: %d.%d.%d.%d", subnet_mask[0], subnet_mask[1], subnet_mask[2], subnet_mask[3]);
-
-			uint8 mac_address[6] = {0};
-			int   mac_address_counts[6] = { -1, -1, -1, -1, -1, -1 };
-			mac_address[0] = sv_to_uint(mac_address_oct1_sv, &mac_address_counts[0], 10);
-			if (mac_address_counts[0] <= 0) {
-				log_debug("Failed to convert mac_address oct1`"SV_FMT"` to int!", SV_ARG(mac_address_oct1_sv));
-				return false;
-			}
-			mac_address[1] = sv_to_uint(mac_address_oct2_sv, &mac_address_counts[1], 10);
-			if (mac_address_counts[1] <= 0) {
-				log_debug("Failed to convert mac_address oct2`"SV_FMT"` to int!", SV_ARG(mac_address_oct2_sv));
-				return false;
-			}
-			mac_address[2] = sv_to_uint(mac_address_oct3_sv, &mac_address_counts[2], 10);
-			if (mac_address_counts[2] <= 0) {
-				log_debug("Failed to convert mac_address oct3`"SV_FMT"` to int!", SV_ARG(mac_address_oct3_sv));
-				return false;
-			}
-			mac_address[3] = sv_to_uint(mac_address_oct4_sv, &mac_address_counts[3], 10);
-			if (mac_address_counts[3] <= 0) {
-				log_debug("Failed to convert mac_address oct4`"SV_FMT"` to int!", SV_ARG(mac_address_oct4_sv));
-				return false;
-			}
-			mac_address[4] = sv_to_uint(mac_address_oct5_sv, &mac_address_counts[4], 10);
-			if (mac_address_counts[4] <= 0) {
-				log_debug("Failed to convert mac_address oct5`"SV_FMT"` to int!", SV_ARG(mac_address_oct5_sv));
-				return false;
-			}
-			mac_address[5] = sv_to_uint(mac_address_oct6_sv, &mac_address_counts[5], 10);
-			if (mac_address_counts[5] <= 0) {
-				log_debug("Failed to convert mac_address oct6`"SV_FMT"` to int!", SV_ARG(mac_address_oct6_sv));
-				return false;
-			}
-
-
-			log_debug("Parsed mac_address: %d.%d.%d.%d.%d.%d", mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
-			log_debug("--------------------------------------------------");
-
-			sv_ltrim(sv);
-
-			memcpy(e->nic->ipv4_address, ipv4, sizeof(uint8) * 4);
-			memcpy(e->nic->subnet_mask, subnet_mask, sizeof(uint8) * 4);
-			memcpy(e->nic->mac_address, mac_address, sizeof(uint8) * 6);
-
+			if (!parse_nic_from_data(e->nic, sv)) return false;
 			return true;
 		} break;
 		case EK_SWITCH: {
@@ -843,6 +851,31 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
 	return false;
 }
 
+static bool load_entity_from_data_v3(Entity *e, String_view *sv) {
+	if (!load_entity_from_data_v2(e, sv)) {
+		return false;
+	}
+
+	sv_ltrim(sv);
+	String_view nic_id_sv = sv_lpop_until_char(sv, ' ');
+	sv_ltrim(sv);
+
+	int nic_id_count = -1;
+	int nic_id = sv_to_int(nic_id_sv, &nic_id_count, 10);
+	if (nic_id_count < 0) {
+		log_error("Failed to convert nic id `"SV_FMT"` to int!", SV_ARG(nic_id_sv));
+		return false;
+	}
+
+	log_debug("Parsed nic_entity_id %d", nic_id);
+
+	ASSERT(e->nic, "We should have parsed and allocated nic in v2 or v1");
+	e->nic->nic_entity_id = nic_id;
+
+	return true;
+}
+
+
 bool load_entity_from_data(Entity *e, String_view *data_sv) {
 	sv_ltrim(data_sv);
 	String_view version_sv = sv_lpop_until_char(data_sv, ' ');
@@ -858,6 +891,7 @@ bool load_entity_from_data(Entity *e, String_view *data_sv) {
 	switch (version) {
 		case 1: return load_entity_from_data_v1(e, data_sv);
 		case 2: return load_entity_from_data_v2(e, data_sv);
+		case 3: return load_entity_from_data_v3(e, data_sv);
 		default: {
 			log_debug("Got version %d", version);
 			ASSERT(false, "UNREACHABLE!");
@@ -865,7 +899,6 @@ bool load_entity_from_data(Entity *e, String_view *data_sv) {
 	}
 	return false;
 }
-
 
 bool load_entity_from_file(Entity *e, const char *filepath) {
 	int file_size = -1;
@@ -910,7 +943,7 @@ bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int
 	return true;
 }
 
-bool save_entities(Entities *entities, const char *filepath) {
+bool save_entities(Entities *entities, const char *filepath, size_t save_version) {
 	Arena entities_arena = arena_make(0);
 	Arena temp_arena = arena_make(0);
 
@@ -918,7 +951,7 @@ bool save_entities(Entities *entities, const char *filepath) {
 		Entity *e = &entities->items[i];
 		if (e->state & (1<<ESTATE_DEAD)) continue;
 
-		if (!save_entity_to_data(e, &entities_arena, &temp_arena, entity_save_version)) {
+		if (!save_entity_to_data(e, &entities_arena, &temp_arena, save_version)) {
 			arena_free(&entities_arena);
 			arena_free(&temp_arena);
 			return false;
@@ -970,7 +1003,6 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
 	}
 
 	log_debug("Entities.count after loading: %zu", entities->count);
-	
 
 	// Assign the nic pointers to the switch ports using the parsed nic_id
 	for (size_t i = 0; i < entities->count; ++i) {
@@ -989,6 +1021,21 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
 						port_nic_e->nic->switch_entity = e;
 					}
 				}
+			}
+		}
+	}
+
+	// Assign the nic pointers to the nic_entity using the parsed nic_id
+	for (size_t i = 0; i < entities->count; ++i) {
+		Entity *e = &entities->items[i];
+		if (e->kind == EK_NIC) {
+			if (e->nic->nic_entity_id >= 0) {
+				Entity *nic_entity = get_entity_ptr_by_id(entities, e->nic->nic_entity_id);
+				if (!e) {
+					log_error("Failed to get entity from nic_id %d that NIC %zu was connected to...", e->nic->nic_entity_id, e->id);
+					return false;
+				}
+				e->nic->nic_entity = nic_entity;
 			}
 		}
 	}

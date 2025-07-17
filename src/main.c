@@ -59,7 +59,7 @@ RenderTexture2D ren_tex;
 Arena entity_arena;
 Arena temp_arena;
 Texture_manager tex_man;
-size_t entity_save_version = 2;
+size_t entity_save_version = 3;
 
 typedef enum {
 	CHANGE_IPV4,
@@ -166,7 +166,7 @@ int main(void) {
 		
 		// Save entities
 		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
-			if (save_entities(&entities, entities_save_path)) {
+			if (save_entities(&entities, entities_save_path, entity_save_version)) {
 				log_debug("Successfully saved entities to `%s`", entities_save_path);
 			} else {
 				log_debug("Failed to save entities to `%s`", entities_save_path);
