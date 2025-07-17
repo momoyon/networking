@@ -15,7 +15,10 @@ mac_address_list.c: generate_mac_addr_list
 generate_mac_addr_list: generate_mac_addr_list.c
 	$(CC) -o $@ $<
 
-test_ipv4_class: test_ipv4_class.c
+test_ipv4: test_ipv4.c
 	$(CC) $(CFLAGS) -ggdb -DDEBUG -I./include -o $@ $< src/nic.c
 
-all: networking debug test_ipv4_class
+all: networking debug test_ipv4
+
+clean:
+	rm *.exe

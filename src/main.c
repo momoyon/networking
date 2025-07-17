@@ -1,5 +1,5 @@
 #include<predecls.h>
-#include <config.h>
+#include <config.h
 #include <nic.h>
 #include <entity.h>
 #include <common.h>
@@ -30,12 +30,20 @@
   ((byte) & 0x02 ? '1' : '0'), \
   ((byte) & 0x01 ? '1' : '0')
 
-// TODO: Implement a func to change modes and keep track of the last mode
 typedef enum {
     MODE_NORMAL,
     MODE_COPY,
     MODE_COUNT,
 } Mode;
+
+void change_mode(Mode *last_mode, Mode *current_mode, Mode mode_to) {
+	*last_mode = *current_mode;
+	*current_mode = mode_to;
+}
+
+#define CHANGE_MODE(mode_to) do {\
+		change_mode(&last_mode, &current_mode, (mode_to));\
+	} while (0);
 
 const char *mode_as_str(const Mode m) {
     switch (m) {
@@ -89,6 +97,7 @@ int main(void) {
 
     arr_heap_init(entities, ENTITIES_MAX_CAP);
 
+	Mode last_mode = MODE_NORMAL;
     Mode current_mode = MODE_NORMAL;
 
     Entity_kind selected_entity_kind = EK_NIC;
@@ -129,7 +138,7 @@ int main(void) {
 
         // Input
         if (IsKeyPressed(KEY_TAB)) {
-            current_mode = (current_mode + 1) % MODE_COUNT;
+			CHANGE_MODE((current_mode + 1) % MODE_COUNT);
         }
         if (IsKeyPressed(KEY_GRAVE)) {
             debug_draw = !debug_draw;
@@ -200,7 +209,7 @@ int main(void) {
 				// Copy mode
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
 					if (hovering_entity) {
-						current_mode = MODE_COPY;
+						CHANGE_MODE(MODE_COPY);
 					} else {
 						log_debug("Please hover over the entity you want to copy!");
 					}
@@ -389,19 +398,19 @@ int main(void) {
 					const char *ipv4_str = arena_alloc_str(temp_arena, IPV4_FMT, IPV4_ARG(hovering_entity->nic->ipv4_address));
 					log_debug("COPIED IPV4: %s", ipv4_str);
 					SetClipboardText(ipv4_str);
-					current_mode = MODE_NORMAL;
+					CHANGE_MODE(MODE_NORMAL);
 				}
 				if (IsKeyPressed(KEY_TWO)) {
 					const char *str = arena_alloc_str(temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(hovering_entity->nic->subnet_mask));
 					log_debug("COPIED SUBNET_MASK: %s", str);
 					SetClipboardText(str);
-					current_mode = MODE_NORMAL;
+					CHANGE_MODE(MODE_NORMAL);
 				}
 				if (IsKeyPressed(KEY_THREE)) {
 					const char *str = arena_alloc_str(temp_arena, MAC_FMT, MAC_ARG(hovering_entity->nic->mac_address));
 					log_debug("COPIED MAC_ADDRESS: %s", str);
 					SetClipboardText(str);
-					current_mode = MODE_NORMAL;
+					CHANGE_MODE(MODE_NORMAL);
 				}
 
 				if (IsKeyPressed(KEY_ESCAPE)) {
