@@ -86,8 +86,9 @@ void draw_entity(Entity *e, bool debug) {
 
 			// Draw connections
 			if (e->nic->nic_entity) {
-				// TODO: This is happen twice in a connection
-				DrawLineBezier(e->pos, e->nic->nic_entity->pos, 1, WHITE);
+				if (e->nic->drawing_connection) {
+					DrawLineBezier(e->pos, e->nic->nic_entity->pos, 1, WHITE);
+				}
 			}
 
 			if (e->nic->switch_entity) {
@@ -190,6 +191,7 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 
 			a->nic->nic_entity = b;
 			b->nic->nic_entity = a;
+			a->nic->drawing_connection = true;
 			return true;
 	    } break;
 		case EK_SWITCH: {

@@ -1,5 +1,5 @@
-#include<predecls.h>
-#include <config.h
+#include <predecls.h>
+#include <config.h>
 #include <nic.h>
 #include <entity.h>
 #include <common.h>

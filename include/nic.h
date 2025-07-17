@@ -62,6 +62,8 @@ struct Nic {
 	// Entity *self_entity; // Self entity.
     Entity *nic_entity; // Other nic connected to
 	Entity *switch_entity; // Switch this network interface belongs to.
+
+	bool drawing_connection;
 };
 
 void make_nic(Entity *e, struct Nic *nic, Arena *arena);
