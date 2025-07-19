@@ -29,18 +29,20 @@
 typedef enum {
     MODE_NORMAL,
     MODE_COPY,
+    MODE_INTERACT,
     MODE_COUNT,
 } Mode;
 
-void change_mode(Mode* last_mode, Mode* current_mode, Mode mode_to)
+void change_mode(Mode* last_mode, Mode* current_mode, bool *changed_mode_this_frame, Mode mode_to)
 {
     *last_mode = *current_mode;
     *current_mode = mode_to;
+    *changed_mode_this_frame = true;
 }
 
 #define CHANGE_MODE(mode_to)                               \
     do {                                                   \
-        change_mode(&last_mode, &current_mode, (mode_to)); \
+        change_mode(&last_mode, &current_mode, &changed_mode_this_frame, (mode_to)); \
     } while (0);
 
 const char* mode_as_str(const Mode m)
@@ -50,6 +52,8 @@ const char* mode_as_str(const Mode m)
         return "Normal";
     case MODE_COPY:
         return "Copy";
+    case MODE_INTERACT:
+        return "Interact";
     case MODE_COUNT:
     default:
         ASSERT(false, "UNREACHABLE!");
@@ -107,6 +111,7 @@ int main(void)
 
     Mode last_mode = MODE_NORMAL;
     Mode current_mode = MODE_NORMAL;
+    bool changed_mode_this_frame = false;
 
     Entity_kind selected_entity_kind = EK_NIC;
     Entity* hovering_entity = NULL;
@@ -135,10 +140,11 @@ int main(void)
 
     while (!WindowShouldClose()) {
         arena_reset(&temp_arena);
-
         const char* title_str = arena_alloc_str(temp_arena, "%s | %d FPS", window_name, GetFPS());
 
         SetWindowTitle(title_str);
+
+        changed_mode_this_frame = false;
 
         BeginDrawing();
         Vector2 m = get_mpos_scaled(SCREEN_SCALE);
@@ -222,7 +228,12 @@ int main(void)
                     log_debug("Please hover over the entity you want to copy!");
                 }
             }
-
+            
+            // Interact
+            if (IsKeyPressed(KEY_I)) {
+                CHANGE_MODE(MODE_INTERACT);
+            }
+    
             // Change Entity kind
             if (IsKeyPressed(KEY_E)) {
                 selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
@@ -433,6 +444,8 @@ int main(void)
                 current_mode = MODE_NORMAL;
             }
         } break;
+        case MODE_INTERACT: {
+        } break;
         case MODE_COUNT:
         default:
             ASSERT(false, "UNREACHABLE!");
@@ -503,6 +516,26 @@ int main(void)
             }
         } break;
         case MODE_COPY: {
+        } break;
+        case MODE_INTERACT: {
+            if (hovering_entity) {
+                switch (hovering_entity->kind) {
+                    case EK_NIC: {
+
+                    } break;
+                    case EK_SWITCH: {
+                        if (IsKeyPressed(KEY_C)) {
+                            log_debug("SHOW SWITCH CONSOLE!");
+                        }
+                    } break;
+                    case EK_COUNT:
+                    default: ASSERT(false, "UNREACHABLE!");
+                }
+            }
+            if (IsKeyPressed(KEY_ESCAPE) ||
+                    (!changed_mode_this_frame && IsKeyPressed(KEY_I))) {
+                current_mode = last_mode;
+            }
         } break;
         case MODE_COUNT:
         default:
@@ -689,6 +722,31 @@ int main(void)
             draw_text(GetFontDefault(), "-----------------", v2(2, y),
                 ENTITY_DEFAULT_RADIUS * 0.5, YELLOW);
             y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+        } break;
+        case MODE_INTERACT: {
+            {
+                const char* a = arena_alloc_str(temp_arena, "Interacting with %s", hovering_entity ? entity_kind_as_str(hovering_entity->kind) : "Nothing");
+                draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS * 0.5,
+                    WHITE);
+                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+            }
+            if (hovering_entity) {
+                switch (hovering_entity->kind) {
+                    case EK_NIC: {
+
+                    } break;
+                    case EK_SWITCH: {
+                        {
+                            const char* a = arena_alloc_str(temp_arena, "%s", "[C]: Open switch console");
+                            draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS * 0.5,
+                                YELLOW);
+                            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+                        }
+                    } break;
+                    case EK_COUNT:
+                    default: ASSERT(false, "UNREACHABLE!");
+                }
+            }
         } break;
         case MODE_COUNT:
         default:
