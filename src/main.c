@@ -29,6 +29,7 @@
 typedef enum {
     MODE_NORMAL,
     MODE_COPY,
+    MODE_CHANGE,
     MODE_INTERACT,
     MODE_COUNT,
 } Mode;
@@ -52,6 +53,8 @@ const char* mode_as_str(const Mode m)
         return "Normal";
     case MODE_COPY:
         return "Copy";
+    case MODE_CHANGE:
+        return "Change";
     case MODE_INTERACT:
         return "Interact";
     case MODE_COUNT:
@@ -271,43 +274,9 @@ int main(void)
                 }
             }
 
-            // Change ipv4 of hovering NIC
-            if (!IsKeyDown(KEY_LEFT_CONTROL) && IsKeyDown(KEY_C)) {
-                bool p = false;
-                if (IsKeyPressed(KEY_ONE)) {
-                    changing_type = CHANGE_IPV4;
-                    p = true;
-                } else if (IsKeyPressed(KEY_TWO)) {
-                    changing_type = CHANGE_SUBNET_MASK;
-                    p = true;
-                }
-                if (p)
-                    is_changing = hovering_entity != NULL;
-            }
-
-            if (is_changing) {
-                if (hovering_entity == NULL) {
-                    is_changing = false;
-                    chars_buff_count = 0;
-                } else {
-                    switch (changing_type) {
-                    case CHANGE_IPV4: {
-                        if (ipv4_from_input(hovering_entity, chars_buff,
-                                &chars_buff_count, chars_buff_cap)) {
-                            is_changing = false;
-                        }
-                    } break;
-                    case CHANGE_SUBNET_MASK: {
-                        if (subnet_mask_from_input(hovering_entity, chars_buff,
-                                &chars_buff_count, chars_buff_cap)) {
-                            is_changing = false;
-                        }
-                    } break;
-                    case CHANGE_COUNT:
-                    default:
-                        ASSERT(false, "UNREACHABLE!");
-                    }
-                }
+            // Change mode
+            if (!IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
+                CHANGE_MODE(MODE_CHANGE);
             }
 
             // Add Entity
@@ -422,7 +391,7 @@ int main(void)
                     IPV4_ARG(hovering_entity->nic->ipv4_address));
                 log_debug("COPIED IPV4: %s", ipv4_str);
                 SetClipboardText(ipv4_str);
-                CHANGE_MODE(MODE_NORMAL);
+                current_mode = last_mode;
             }
             if (IsKeyPressed(KEY_TWO)) {
                 const char* str = arena_alloc_str(
@@ -430,18 +399,36 @@ int main(void)
                     SUBNET_MASK_ARG(hovering_entity->nic->subnet_mask));
                 log_debug("COPIED SUBNET_MASK: %s", str);
                 SetClipboardText(str);
-                CHANGE_MODE(MODE_NORMAL);
+                current_mode = last_mode;
             }
             if (IsKeyPressed(KEY_THREE)) {
                 const char* str = arena_alloc_str(
                     temp_arena, MAC_FMT, MAC_ARG(hovering_entity->nic->mac_address));
                 log_debug("COPIED MAC_ADDRESS: %s", str);
                 SetClipboardText(str);
-                CHANGE_MODE(MODE_NORMAL);
+                current_mode = last_mode;
             }
 
             if (IsKeyPressed(KEY_ESCAPE)) {
-                current_mode = MODE_NORMAL;
+                current_mode = last_mode;
+            }
+        } break;
+        case MODE_CHANGE: {
+            if (!is_changing) {
+                if (IsKeyPressed(KEY_ONE)) {
+                    is_changing = true;
+                    changing_type = CHANGE_IPV4;
+                }
+                if (IsKeyPressed(KEY_TWO)) {
+                    is_changing = true;
+                    changing_type = CHANGE_SUBNET_MASK;
+                }
+            }
+
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                current_mode = last_mode;
+                is_changing = false;
+                chars_buff_count = 0;
             }
         } break;
         case MODE_INTERACT: {
@@ -473,6 +460,7 @@ int main(void)
                 hovering_entity->state |= (1 << ESTATE_HOVERING);
             }
         }
+
         // Mode-specific Update
         switch (current_mode) {
         case MODE_NORMAL: {
@@ -516,6 +504,30 @@ int main(void)
             }
         } break;
         case MODE_COPY: {
+        } break;
+        case MODE_CHANGE: {
+            if (hovering_entity == NULL) {
+                is_changing = false;
+                chars_buff_count = 0;
+            } else {
+                switch (changing_type) {
+                    case CHANGE_IPV4: {
+                        if (ipv4_from_input(hovering_entity, chars_buff,
+                                &chars_buff_count, chars_buff_cap)) {
+                            is_changing = false;
+                        }
+                    } break;
+                    case CHANGE_SUBNET_MASK: {
+                        if (subnet_mask_from_input(hovering_entity, chars_buff,
+                                &chars_buff_count, chars_buff_cap)) {
+                            is_changing = false;
+                        }
+                    } break;
+                    case CHANGE_COUNT:
+                    default:
+                        ASSERT(false, "UNREACHABLE!");
+                }
+            }
         } break;
         case MODE_INTERACT: {
             if (hovering_entity) {
@@ -632,23 +644,6 @@ int main(void)
                 }
             }
 
-            const char* changing_str = arena_alloc_str(
-                temp_arena, "%s %s %s", is_changing ? "Changing" : "",
-                is_changing ? changing_type_as_str(changing_type) : "",
-                is_changing ? "of hovering entity" : "");
-            draw_text(GetFontDefault(), changing_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-
-            if (is_changing) {
-                const char* changing_input_str = arena_alloc_str(
-                    temp_arena, "%s: %.*s", changing_type_as_str(changing_type),
-                    (int)chars_buff_count, (const char*)chars_buff);
-                draw_text(GetFontDefault(), changing_input_str, v2(2, y),
-                    ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-            }
-
             const char* e_arena_count_str = arena_alloc_str(
                 temp_arena, "entity_arena.count: %zu",
                 (size_t)((char*)entity_arena.ptr - (char*)entity_arena.buff));
@@ -722,6 +717,37 @@ int main(void)
             draw_text(GetFontDefault(), "-----------------", v2(2, y),
                 ENTITY_DEFAULT_RADIUS * 0.5, YELLOW);
             y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+        } break;
+        case MODE_CHANGE: {
+            const char* changing_str = arena_alloc_str(
+                temp_arena, "Changing %s %s", is_changing ? changing_type_as_str(changing_type) : "nothing", hovering_entity ? "of hovering entity" : "of nothing");
+            draw_text(GetFontDefault(), changing_str, v2(2, y),
+                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+
+            if (is_changing) {
+                const char* changing_input_str = arena_alloc_str(
+                    temp_arena, "%s: %.*s", changing_type_as_str(changing_type),
+                    (int)chars_buff_count, (const char*)chars_buff);
+                draw_text(GetFontDefault(), changing_input_str, v2(2, y),
+                    ENTITY_DEFAULT_RADIUS * 0.5, BLUE);
+                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+            }
+
+            {
+                const char* a = arena_alloc_str(temp_arena, "%s", "[1]: Change ipv4");
+                draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS * 0.5,
+                    YELLOW);
+                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+            }
+            {
+                const char* a = arena_alloc_str(temp_arena, "%s", "[2]: Change subnet mask");
+                draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS * 0.5,
+                    YELLOW);
+                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+            }
+
+
         } break;
         case MODE_INTERACT: {
             {
