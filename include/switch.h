@@ -13,6 +13,7 @@ typedef struct Console_lines Console_lines;
 
 struct Console_line {
 	char buff[CONSOLE_LINE_BUFF_CAP];
+    size_t count;
 };
 
 struct Console_lines {
@@ -41,5 +42,7 @@ struct Switch {
 };
 
 void make_switch(Switch *switch_out, Arena *arena);
+void make_switch_console(Switch_console *console_out, Arena *arena);
+bool input_to_console(Switch_console *console);
 
 #endif // _SWITCH_H_

@@ -141,6 +141,15 @@ int main(void)
     char chars_buff[chars_buff_cap] = { 0 };
     size_t chars_buff_count = 0;
 
+    Switch_console *active_switch_console = NULL;
+    float pad_perc = 0.15f;
+    Rectangle active_switch_console_rect = {
+        .x = 0,
+        .y = -height,
+        .width = width - (width*pad_perc*2.0f),
+        .height = height - (height*pad_perc*2.0f),
+    };
+
     while (!WindowShouldClose()) {
         arena_reset(&temp_arena);
         const char* title_str = arena_alloc_str(temp_arena, "%s | %d FPS", window_name, GetFPS());
@@ -220,7 +229,7 @@ int main(void)
         }
 #endif
 
-        // Mode-specific input
+        // Mode-specific Input
         switch (current_mode) {
         case MODE_NORMAL: {
             // Copy mode
@@ -432,6 +441,33 @@ int main(void)
             }
         } break;
         case MODE_INTERACT: {
+            if (active_switch_console) {
+                if (input_to_console(active_switch_console)) {
+                    active_switch_console = NULL;
+                }
+
+            } else if (hovering_entity) {
+                switch (hovering_entity->kind) {
+                    case EK_NIC: {
+
+                    } break;
+                    case EK_SWITCH: {
+                        if (IsKeyPressed(KEY_C)) {
+                            active_switch_console = &hovering_entity->switchh->console;
+
+                            active_switch_console_rect.x = (width * 0.5f) - active_switch_console_rect.width * 0.5f;
+                            active_switch_console_rect.y = (height * 0.5f) - active_switch_console_rect.height * 0.5f;
+                        }
+                    } break;
+                    case EK_COUNT:
+                    default: ASSERT(false, "UNREACHABLE!");
+                }
+            }
+
+            if (!active_switch_console && IsKeyPressed(KEY_ESCAPE)) {
+                current_mode = last_mode;
+                active_switch_console = NULL;
+            }
         } break;
         case MODE_COUNT:
         default:
@@ -530,24 +566,6 @@ int main(void)
             }
         } break;
         case MODE_INTERACT: {
-            if (hovering_entity) {
-                switch (hovering_entity->kind) {
-                    case EK_NIC: {
-
-                    } break;
-                    case EK_SWITCH: {
-                        if (IsKeyPressed(KEY_C)) {
-                            log_debug("SHOW SWITCH CONSOLE!");
-                        }
-                    } break;
-                    case EK_COUNT:
-                    default: ASSERT(false, "UNREACHABLE!");
-                }
-            }
-            if (IsKeyPressed(KEY_ESCAPE) ||
-                    (!changed_mode_this_frame && IsKeyPressed(KEY_I))) {
-                current_mode = last_mode;
-            }
         } break;
         case MODE_COUNT:
         default:
@@ -642,6 +660,14 @@ int main(void)
                         ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
                     y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
                 }
+            }
+
+            if (active_switch_console) {
+                const char* switch_console_str = arena_alloc_str(temp_arena, "Active Console: %p",
+                    active_switch_console);
+                draw_text(GetFontDefault(), switch_console_str, v2(2, y),
+                    ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
             }
 
             const char* e_arena_count_str = arena_alloc_str(
@@ -746,8 +772,6 @@ int main(void)
                     YELLOW);
                 y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
             }
-
-
         } break;
         case MODE_INTERACT: {
             {
@@ -763,7 +787,7 @@ int main(void)
                     } break;
                     case EK_SWITCH: {
                         {
-                            const char* a = arena_alloc_str(temp_arena, "%s", "[C]: Open switch console");
+                            const char* a = arena_alloc_str(temp_arena, "%s", "[C]: Toggle switch console");
                             draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS * 0.5,
                                 YELLOW);
                             y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
@@ -772,6 +796,24 @@ int main(void)
                     case EK_COUNT:
                     default: ASSERT(false, "UNREACHABLE!");
                 }
+            }
+            if (active_switch_console) {
+                DrawRectangleRec(active_switch_console_rect, BLACK);
+                DrawRectangleLinesEx(active_switch_console_rect, 1, WHITE);
+                float pad = 8.f;
+
+                Console_line *current_console_line = &active_switch_console->lines.items[active_switch_console->line];
+
+                draw_text(GetFontDefault(), current_console_line->buff, v2(active_switch_console_rect.x + pad, active_switch_console_rect.y + pad), ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+
+                // TODO: Get the letter width and add that to the cursor_rect.x and .width
+                Rectangle cursor_rect = {
+                    .x = active_switch_console_rect.x + pad + ((ENTITY_DEFAULT_RADIUS * 0.25) * active_switch_console->cursor + 1),
+                    .y = active_switch_console_rect.y + pad,
+                    .width = ENTITY_DEFAULT_RADIUS * 0.25,
+                    .height = ENTITY_DEFAULT_RADIUS * 0.5,
+                };
+                DrawRectangleRec(cursor_rect, WHITE);
             }
         } break;
         case MODE_COUNT:
