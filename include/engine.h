@@ -87,6 +87,7 @@ typedef struct Console_lines Console_lines;
 struct Console_line {
 	char buff[CONSOLE_LINE_BUFF_CAP];
     size_t count;
+    Color color;
 };
 
 struct Console_lines {
@@ -104,6 +105,15 @@ struct Console {
 
 bool input_to_console(Console *console);
 float get_cursor_offset(Console *console);
+void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
+
+#define log_info_console(console, fmt, ...) do {\
+        Console_line l = {\
+            .color = WHITE,\
+        };\
+        snprintf(l.buff, CONSOLE_LINE_BUFF_CAP, "[INFO] "fmt, __VA_ARGS__);\
+        darr_append(console.lines, l);\
+    } while (0)
 
 #endif // _ENGINE_H_
 
@@ -417,5 +427,15 @@ float get_cursor_offset(Console *console) {
     return offset;
 }
 
+void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) {
+    Vector2 pos = {rect.x, rect.y + (rect.height - font_size)};
+    pos = Vector2Add(pos, pad);
+    for (size_t i = 0; i < console->lines.count; ++i) {
+        Console_line *line = &console->lines.items[i];
+        draw_text(GetFontDefault(), line->buff, pos, font_size, line->color);
+
+        pos.y -= (pad.y + font_size);
+    }
+}
 
 #endif // ENGINE_IMPLEMENTATION

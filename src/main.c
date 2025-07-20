@@ -213,6 +213,7 @@ int main(void)
     bool is_in_command = false;
     char command_buff[COMMAND_BUFF_CAP] = {0};
     int command_cursor = 0;
+    Console command_hist = {0};
 
     bool quit = false;
 
@@ -285,6 +286,8 @@ int main(void)
                         } break;
                         default: ASSERT(false, "UNREACHABLE!");
                     }
+                    log_info_console(command_hist, "%s", "Test");
+                    log_debug("command_hist.count: %zu", command_hist.lines.count);
                 } else {
                     log_debug("Command `%s` matched the following:", command_buff);
                     for (size_t i = 0; i < matched_commands_indices.count; ++i) {
@@ -933,6 +936,15 @@ int main(void)
         if (is_in_command) {
             draw_text(GetFontDefault(), ":", v2(4.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
             draw_text(GetFontDefault(), command_buff, v2(8.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
+
+            Rectangle command_rect = {
+                .x = 0.f,
+                .y = height * 0.5f - ENTITY_DEFAULT_RADIUS*0.5f,
+                .width = width,
+                .height = height * 0.5f,
+            };
+            DrawRectangleRec(command_rect, RED);
+            draw_console(&command_hist, command_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
         }
 
         EndTextureMode();
