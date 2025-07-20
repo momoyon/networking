@@ -400,7 +400,8 @@ bool input_to_console(Switch_console *console) {
         }
 
         if (ch > 0) {
-            log_debug("TYPED %c AT %d:%d", (char)ch, console->line, console->cursor);
+            // log_debug("TYPED %c AT %d:%d", (char)ch, console->line, console->cursor);
+            // log_debug("CODEPOINT %c: %fx%f", ch, codepoint_rec.width, codepoint_rec.height);
             line->buff[console->cursor++] = (char)ch;
         }
 
@@ -408,6 +409,21 @@ bool input_to_console(Switch_console *console) {
 	} while (ch > 0);
 
     return false;
+}
+
+float get_cursor_offset(Switch_console *console) {
+    Font font = GetFontDefault();
+    float offset = 0.f;
+    for (int i = 0; i < console->cursor; ++i) {
+        char ch = console->lines.items[console->line].buff[i];
+        GlyphInfo ginfo = GetGlyphInfo(font, ch);
+        offset += ginfo.advanceX;
+        log_debug("Character: %c, AdvanceX: %d, Total Offset: %f", 
+                ch, ginfo.advanceX, offset);
+    }
+    // log_debug("cursor_offset: %f at %d", offset, console->cursor);
+
+    return offset;
 }
 
 // Disconnect-ers

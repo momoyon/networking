@@ -44,5 +44,6 @@ struct Switch {
 void make_switch(Switch *switch_out, Arena *arena);
 void make_switch_console(Switch_console *console_out, Arena *arena);
 bool input_to_console(Switch_console *console);
+float get_cursor_offset(Switch_console *console);
 
 #endif // _SWITCH_H_

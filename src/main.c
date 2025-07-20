@@ -807,8 +807,10 @@ int main(void)
                 draw_text(GetFontDefault(), current_console_line->buff, v2(active_switch_console_rect.x + pad, active_switch_console_rect.y + pad), ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
 
                 // TODO: Get the letter width and add that to the cursor_rect.x and .width
+                float cursor_offset = get_cursor_offset(active_switch_console);
+
                 Rectangle cursor_rect = {
-                    .x = active_switch_console_rect.x + pad + ((ENTITY_DEFAULT_RADIUS * 0.25) * active_switch_console->cursor + 1),
+                    .x = active_switch_console_rect.x + pad + cursor_offset,
                     .y = active_switch_console_rect.y + pad,
                     .width = ENTITY_DEFAULT_RADIUS * 0.25,
                     .height = ENTITY_DEFAULT_RADIUS * 0.5,
