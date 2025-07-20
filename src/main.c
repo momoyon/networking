@@ -90,6 +90,62 @@ const char* changing_type_as_str(const Changing_type ch)
     return "NOPE";
 }
 
+typedef struct {
+    int *items;
+    size_t count;
+    size_t capacity;
+} Indices; // @darr
+
+const char *commands[] = {
+    "exit",
+    "execute",
+    "normal",
+};
+
+
+/*
+ * exit
+ * execute
+ * ---
+ * ex
+ */
+
+bool str_starts_with(const char *str, const char *suffix) {
+    while (*str != 0 && *suffix != 0) {
+        if (*suffix++ != *str++) {
+            return false;
+        }
+    }
+    return true;
+}
+
+Indices match_command(const char *command) {
+    Indices matched_indices = {0};
+    for (int i = 0; i < ARRAY_LEN(commands); ++i) {
+        const char *c = commands[i];
+        if (str_starts_with(c, command)) {
+            darr_append(matched_indices, i);
+        }
+    }
+
+    return matched_indices;
+}
+
+// int main(int argc, char **argv) {
+//     shift_args(argv, argc);
+//
+//     if (argc < 2) {
+//         log_error("provide two args!");
+//         return 1;
+//     }
+//     const char *str = shift_args(argv, argc);
+//     const char *starts_with = shift_args(argv, argc);
+//
+//     log_debug("%s %sstarts with %s", str, str_starts_with(str, starts_with) ? "" : "doesn't ", starts_with);
+//
+//     return 0;
+// }
+
 int main(void)
 {
     int width = 0;
@@ -178,7 +234,19 @@ int main(void)
 
             if (input_to_buff(command_buff, COMMAND_BUFF_CAP, &command_cursor)) {
                 is_in_command = false;
-                log_debug("ISSUED COMMAND: `%s`", command_buff);
+                Indices matched_commands_indices = match_command(command_buff);
+                // TODO: Print the error message to the command "console" instead of logging to std(out|err)
+                if (matched_commands_indices.count == 0) {
+                    log_error("`%s` is not a valid command!", command_buff);
+                } else if (matched_commands_indices.count == 1) {
+                    log_debug("ISSUED command `%s`", commands[matched_commands_indices.items[0]]);
+                } else {
+                    log_debug("Command `%s` matched the following:", command_buff);
+                    for (size_t i = 0; i < matched_commands_indices.count; ++i) {
+                        int idx = matched_commands_indices.items[i];
+                        log_debug("    - %s", commands[idx]);
+                    }
+                }
             }
         } else {
             if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_SEMICOLON)) {
