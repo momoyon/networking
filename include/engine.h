@@ -62,6 +62,9 @@ void draw_text(Font font, const char *text, Vector2 pos, int font_size, Color co
 // Misc
 Vector2 get_mpos_scaled(float scl);
 
+// Input
+bool input_to_buff(char *buff, size_t buff_cap, int *cursor);
+
 // Assets Manager
 typedef struct {
 	const char *key;
@@ -284,6 +287,36 @@ Vector2 get_mpos_scaled(float scl) {
 	m.x *= scl;
 	m.y *= scl;
 	return m;
+}
+
+// Input
+bool input_to_buff(char *buff, size_t buff_cap, int *cursor) {
+    int ch = 0;
+
+    if ((*cursor) < 0) (*cursor) = 0;
+    if ((*cursor) > buff_cap-1) (*cursor) = buff_cap-1;
+
+    do {
+        // Backspace
+        if (IsKeyPressed(KEY_BACKSPACE) ||
+            IsKeyPressedRepeat(KEY_BACKSPACE)) {
+            if (*cursor > 0)
+                buff[--(*cursor)] = '\0';
+        }
+
+        // Enter
+        if (IsKeyPressed(KEY_ENTER)) {
+            return true;
+        }
+
+        ch = GetCharPressed();
+
+        if (ch > 0) {
+            buff[(*cursor)++] = (char)ch;
+        }
+
+    } while (ch > 0);
+    return false;
 }
 
 // Assets Manager
