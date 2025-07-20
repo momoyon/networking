@@ -107,13 +107,6 @@ const char *commands[] = {
     [7] = "list_cmd",
 };
 
-/*
- * exit
- * execute
- * ---
- * ex
- */
-
 bool str_starts_with(const char *str, const char *suffix) {
     while (*str != 0 && *suffix != 0) {
         if (*suffix++ != *str++) {
@@ -917,15 +910,15 @@ int main(void)
                 draw_text(GetFontDefault(), current_console_line->buff, v2(active_switch_console_rect.x + pad, active_switch_console_rect.y + pad), ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
 
                 // TODO: Get the letter width and add that to the cursor_rect.x and .width
-                float cursor_offset = get_cursor_offset(active_switch_console);
-
-                Rectangle cursor_rect = {
-                    .x = active_switch_console_rect.x + pad + cursor_offset,
-                    .y = active_switch_console_rect.y + pad,
-                    .width = ENTITY_DEFAULT_RADIUS * 0.25,
-                    .height = ENTITY_DEFAULT_RADIUS * 0.5,
-                };
-                DrawRectangleRec(cursor_rect, WHITE);
+                // float cursor_offset = get_cursor_offset(active_switch_console);
+                //
+                // Rectangle cursor_rect = {
+                //     .x = active_switch_console_rect.x + pad + cursor_offset,
+                //     .y = active_switch_console_rect.y + pad,
+                //     .width = ENTITY_DEFAULT_RADIUS * 0.25,
+                //     .height = ENTITY_DEFAULT_RADIUS * 0.5,
+                // };
+                // DrawRectangleRec(cursor_rect, WHITE);
             }
         } break;
         case MODE_COUNT:
@@ -943,8 +936,7 @@ int main(void)
                 .width = width,
                 .height = height * 0.5f,
             };
-            DrawRectangleRec(command_rect, RED);
-            draw_console(&command_hist, command_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
+            // draw_console(&command_hist, command_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
         }
 
         EndTextureMode();
