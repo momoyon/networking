@@ -248,6 +248,17 @@ int main(void)
                     }
                 }
             }
+
+            if (IsKeyPressed(KEY_TAB)) {
+                Indices matched_commands_indices = match_command(command_buff);
+                if (matched_commands_indices.count == 1) {
+                    const char *cmd = commands[matched_commands_indices.items[0]];
+                    size_t cmd_len = strlen(cmd);
+                    memcpy(command_buff, cmd, cmd_len);
+                    command_cursor = cmd_len;
+                }
+
+            }
         } else {
             if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_SEMICOLON)) {
                 is_in_command = true;
