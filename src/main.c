@@ -21,7 +21,7 @@
 
 #define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
 #define BYTE_TO_BINARY(byte)                                      \
-    ((byte) & 0x80 ? '1' : '0'), ((byte) & 0x40 ? '1' : '0'),     \
+        ((byte) & 0x80 ? '1' : '0'), ((byte) & 0x40 ? '1' : '0'), \
         ((byte) & 0x20 ? '1' : '0'), ((byte) & 0x10 ? '1' : '0'), \
         ((byte) & 0x08 ? '1' : '0'), ((byte) & 0x04 ? '1' : '0'), \
         ((byte) & 0x02 ? '1' : '0'), ((byte) & 0x01 ? '1' : '0')
@@ -97,11 +97,15 @@ typedef struct {
 } Indices; // @darr
 
 const char *commands[] = {
-    "exit",
-    "execute",
-    "normal",
+    [0] = "exit",
+    [1] = "normal",
+    [2] = "change",
+    [3] = "interact",
+    [4] = "copy",
+    [5] = "load",
+    [6] = "save",
+    [7] = "list_cmd",
 };
-
 
 /*
  * exit
@@ -210,7 +214,9 @@ int main(void)
     char command_buff[COMMAND_BUFF_CAP] = {0};
     int command_cursor = 0;
 
-    while (!WindowShouldClose()) {
+    bool quit = false;
+
+    while (!quit && !WindowShouldClose()) {
         arena_reset(&temp_arena);
         const char* title_str = arena_alloc_str(temp_arena, "%s | %d FPS", window_name, GetFPS());
 
@@ -239,7 +245,46 @@ int main(void)
                 if (matched_commands_indices.count == 0) {
                     log_error("`%s` is not a valid command!", command_buff);
                 } else if (matched_commands_indices.count == 1) {
-                    log_debug("ISSUED command `%s`", commands[matched_commands_indices.items[0]]);
+                    // Run commands
+                    switch (matched_commands_indices.items[0]) {
+                        case 0: {
+                            quit = true;
+                        } break;
+                        case 1: {
+                            CHANGE_MODE(MODE_NORMAL);
+                        } break;
+                        case 2: {
+                            CHANGE_MODE(MODE_CHANGE);
+                        } break;
+                        case 3: {
+                            CHANGE_MODE(MODE_INTERACT);
+                        } break;
+                        case 4: {
+                            CHANGE_MODE(MODE_COPY);
+                        } break;
+                        case 5: {
+                            if (load_entities(&entities, entities_save_path, &entity_arena, &temp_arena)) {
+                                log_debug("Successfully loaded entities from `%s`", entities_save_path);
+                            } else {
+                                log_debug("Failed to load entities from `%s`", entities_save_path);
+                            }
+                        } break;
+                        case 6: {
+                            if (save_entities(&entities, entities_save_path, entity_save_version)) {
+                                log_debug("Successfully saved entities to `%s`", entities_save_path);
+                            } else {
+                                log_debug("Failed to save entities to `%s`", entities_save_path);
+                            }
+                        } break;
+                        case 7: {
+                            log_info("Commands: ");
+                            for (size_t i = 0; i < ARRAY_LEN(commands); ++i) {
+                                const char *c = commands[i];
+                                log_info(" - %s", c);
+                            }
+                        } break;
+                        default: ASSERT(false, "UNREACHABLE!");
+                    }
                 } else {
                     log_debug("Command `%s` matched the following:", command_buff);
                     for (size_t i = 0; i < matched_commands_indices.count; ++i) {
@@ -256,6 +301,12 @@ int main(void)
                     size_t cmd_len = strlen(cmd);
                     memcpy(command_buff, cmd, cmd_len);
                     command_cursor = cmd_len;
+                } else if (matched_commands_indices.count > 1) {
+                    log_debug("Command `%s` matched the following:", command_buff);
+                    for (size_t i = 0; i < matched_commands_indices.count; ++i) {
+                        int idx = matched_commands_indices.items[i];
+                        log_debug("    - %s", commands[idx]);
+                    }
                 }
 
             }
@@ -285,36 +336,6 @@ int main(void)
                 cam.zoom = 1.f;
             }
 
-            // Save entities
-            if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
-                if (save_entities(&entities, entities_save_path, entity_save_version)) {
-                    log_debug("Successfully saved entities to `%s`", entities_save_path);
-                } else {
-                    log_debug("Failed to save entities to `%s`", entities_save_path);
-                }
-
-                /// DEBUG
-                if (hovering_entity) {
-                    save_entity_to_file(hovering_entity, &temp_arena, "test.entity",
-                        entity_save_version);
-                }
-            }
-            // Load entities
-            if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
-                if (load_entities(&entities, entities_save_path, &entity_arena,
-                        &temp_arena)) {
-                    log_debug("Successfully loaded entities from `%s`", entities_save_path);
-                } else {
-                    log_debug("Failed to load entities from `%s`", entities_save_path);
-                }
-                /// DEBUG
-
-                // Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS,
-                // selected_entity_kind, &entity_arena, &temp_arena); if
-                // (load_entity_from_file(&e, "test.entity")) { add_entity(e);
-                // }
-            }
-
 #ifdef DEBUG
             // Change entity_save_version @DEBUG
             if (IsKeyPressed(KEY_MINUS) && entity_save_version > 0) {
@@ -335,11 +356,6 @@ int main(void)
                     } else {
                         log_debug("Please hover over the entity you want to copy!");
                     }
-                }
-
-                // Interact
-                if (IsKeyPressed(KEY_I)) {
-                    CHANGE_MODE(MODE_INTERACT);
                 }
 
                 // Change Entity kind
@@ -377,11 +393,6 @@ int main(void)
                     if (dst && src) {
                         send_arp_ethernet_frame(dst, src);
                     }
-                }
-
-                // Change mode
-                if (!IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
-                    CHANGE_MODE(MODE_CHANGE);
                 }
 
                 // Add Entity
