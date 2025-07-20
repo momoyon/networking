@@ -150,6 +150,10 @@ int main(void)
         .height = height - (height*pad_perc*2.0f),
     };
 
+    bool is_in_command = false;
+    char command_buff[COMMAND_BUFF_CAP] = {0};
+    int command_cursor = 0;
+
     while (!WindowShouldClose()) {
         arena_reset(&temp_arena);
         const char* title_str = arena_alloc_str(temp_arena, "%s | %d FPS", window_name, GetFPS());
@@ -163,317 +167,330 @@ int main(void)
         Vector2 m_world = GetScreenToWorld2D(m, cam);
 
         // Input
-        if (IsKeyPressed(KEY_TAB)) {
-            CHANGE_MODE((current_mode + 1) % MODE_COUNT);
-        }
         if (IsKeyPressed(KEY_GRAVE)) {
             debug_draw = !debug_draw;
         }
 
-        // Move camera
-        if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
-            mpos_from = m_world;
-        }
-        if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
-            cam.target.x -= m_world.x - mpos_from.x;
-            cam.target.y -= m_world.y - mpos_from.y;
-        }
-
-        // Zoom camera
-        float scroll = GetMouseWheelMove();
-        cam.zoom += scroll * 100.f * GetFrameTime();
-        if (cam.zoom <= 0.1f)
-            cam.zoom = 0.1f;
-
-        if (IsKeyPressed(KEY_ZERO)) {
-            cam.zoom = 1.f;
-        }
-
-        // Save entities
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
-            if (save_entities(&entities, entities_save_path, entity_save_version)) {
-                log_debug("Successfully saved entities to `%s`", entities_save_path);
-            } else {
-                log_debug("Failed to save entities to `%s`", entities_save_path);
+        if (is_in_command) {
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                is_in_command = false;
             }
 
-            /// DEBUG
-            if (hovering_entity) {
-                save_entity_to_file(hovering_entity, &temp_arena, "test.entity",
-                    entity_save_version);
+            if (input_to_buff(command_buff, COMMAND_BUFF_CAP, &command_cursor)) {
+                is_in_command = false;
+                log_debug("ISSUED COMMAND: `%s`", command_buff);
             }
-        }
-        // Load entities
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
-            if (load_entities(&entities, entities_save_path, &entity_arena,
-                    &temp_arena)) {
-                log_debug("Successfully loaded entities from `%s`", entities_save_path);
-            } else {
-                log_debug("Failed to load entities from `%s`", entities_save_path);
+        } else {
+            if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_SEMICOLON)) {
+                is_in_command = true;
+                memset(command_buff, 0, COMMAND_BUFF_CAP);
+                command_cursor = 0;
             }
-            /// DEBUG
 
-            // Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS,
-            // selected_entity_kind, &entity_arena, &temp_arena); if
-            // (load_entity_from_file(&e, "test.entity")) { add_entity(e);
-            // }
-        }
+            // Move camera
+            if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+                mpos_from = m_world;
+            }
+            if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+                cam.target.x -= m_world.x - mpos_from.x;
+                cam.target.y -= m_world.y - mpos_from.y;
+            }
 
-#ifdef DEBUG
-        // Change entity_save_version @DEBUG
-        if (IsKeyPressed(KEY_MINUS) && entity_save_version > 0) {
-            entity_save_version--;
-        }
-        if (IsKeyPressed(KEY_EQUAL)) {
-            entity_save_version++;
-        }
-#endif
+            // Zoom camera
+            float scroll = GetMouseWheelMove();
+            cam.zoom += scroll * 100.f * GetFrameTime();
+            if (cam.zoom <= 0.1f)
+                cam.zoom = 0.1f;
 
-        // Mode-specific Input
-        switch (current_mode) {
-        case MODE_NORMAL: {
-            // Copy mode
-            if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
-                if (hovering_entity) {
-                    CHANGE_MODE(MODE_COPY);
+            if (IsKeyPressed(KEY_ZERO)) {
+                cam.zoom = 1.f;
+            }
+
+            // Save entities
+            if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
+                if (save_entities(&entities, entities_save_path, entity_save_version)) {
+                    log_debug("Successfully saved entities to `%s`", entities_save_path);
                 } else {
-                    log_debug("Please hover over the entity you want to copy!");
+                    log_debug("Failed to save entities to `%s`", entities_save_path);
+                }
+
+                /// DEBUG
+                if (hovering_entity) {
+                    save_entity_to_file(hovering_entity, &temp_arena, "test.entity",
+                        entity_save_version);
                 }
             }
-            
-            // Interact
-            if (IsKeyPressed(KEY_I)) {
-                CHANGE_MODE(MODE_INTERACT);
-            }
-    
-            // Change Entity kind
-            if (IsKeyPressed(KEY_E)) {
-                selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
-            }
-            if (IsKeyPressed(KEY_Q)) {
-                if (selected_entity_kind == 0)
-                    selected_entity_kind = EK_COUNT - 1;
-                else
-                    selected_entity_kind--;
+            // Load entities
+            if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
+                if (load_entities(&entities, entities_save_path, &entity_arena,
+                        &temp_arena)) {
+                    log_debug("Successfully loaded entities from `%s`", entities_save_path);
+                } else {
+                    log_debug("Failed to load entities from `%s`", entities_save_path);
+                }
+                /// DEBUG
+
+                // Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS,
+                // selected_entity_kind, &entity_arena, &temp_arena); if
+                // (load_entity_from_file(&e, "test.entity")) { add_entity(e);
+                // }
             }
 
-            // @DEBUG: Test ethernet frame transfer
-            if (IsKeyPressed(KEY_J)) {
-                Entity* dst = NULL;
-                Entity* src = NULL;
-                for (int i = (int)entities.count - 1; i >= 0; --i) {
-                    Entity* e = &entities.items[i];
-                    if (e->state & (1 << ESTATE_DEAD))
-                        continue;
-                    if (e->state & (1 << ESTATE_SELECTED)) {
-                        if (e->kind == EK_NIC) {
-                            if (dst == NULL) {
-                                dst = e;
-                            } else {
-                                if (e != dst) {
-                                    src = e;
+#ifdef DEBUG
+            // Change entity_save_version @DEBUG
+            if (IsKeyPressed(KEY_MINUS) && entity_save_version > 0) {
+                entity_save_version--;
+            }
+            if (IsKeyPressed(KEY_EQUAL)) {
+                entity_save_version++;
+            }
+#endif
+
+            // Mode-specific Input
+            switch (current_mode) {
+            case MODE_NORMAL: {
+                // Copy mode
+                if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
+                    if (hovering_entity) {
+                        CHANGE_MODE(MODE_COPY);
+                    } else {
+                        log_debug("Please hover over the entity you want to copy!");
+                    }
+                }
+
+                // Interact
+                if (IsKeyPressed(KEY_I)) {
+                    CHANGE_MODE(MODE_INTERACT);
+                }
+
+                // Change Entity kind
+                if (IsKeyPressed(KEY_E)) {
+                    selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
+                }
+                if (IsKeyPressed(KEY_Q)) {
+                    if (selected_entity_kind == 0)
+                        selected_entity_kind = EK_COUNT - 1;
+                    else
+                        selected_entity_kind--;
+                }
+
+                // @DEBUG: Test ethernet frame transfer
+                if (IsKeyPressed(KEY_J)) {
+                    Entity* dst = NULL;
+                    Entity* src = NULL;
+                    for (int i = (int)entities.count - 1; i >= 0; --i) {
+                        Entity* e = &entities.items[i];
+                        if (e->state & (1 << ESTATE_DEAD))
+                            continue;
+                        if (e->state & (1 << ESTATE_SELECTED)) {
+                            if (e->kind == EK_NIC) {
+                                if (dst == NULL) {
+                                    dst = e;
+                                } else {
+                                    if (e != dst) {
+                                        src = e;
+                                    }
                                 }
+                            }
+                        }
+                    }
+
+                    if (dst && src) {
+                        send_arp_ethernet_frame(dst, src);
+                    }
+                }
+
+                // Change mode
+                if (!IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
+                    CHANGE_MODE(MODE_CHANGE);
+                }
+
+                // Add Entity
+                if (IsKeyPressed(KEY_SPACE)) {
+                    float64 tp1 = GetTime();
+                    Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS,
+                        selected_entity_kind, &entity_arena, &temp_arena);
+                    log_debug("make_entity() took %.2lfs", GetTime() - tp1);
+                    add_entity(e);
+                }
+
+                if (IsKeyPressed(KEY_D)) {
+                    if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                        // Delete Selected entities
+                        for (int i = (int)entities.count - 1; i >= 0; --i) {
+                            Entity* e = &entities.items[i];
+                            if (e->state & (1 << ESTATE_DEAD))
+                                continue;
+                            if (e->state & (1 << ESTATE_SELECTED)) {
+                                free_entity(e);
+                                e->state |= (1 << ESTATE_DEAD);
+                                // arr_remove(entities, Entity, &d, (int)i);
+                                darr_append(free_entity_indices, i);
+                                ASSERT(entities_count > 0,
+                                    "We cant remove if there are no entities");
+                                entities_count--;
+                            }
+                        }
+                        if (entities_count == 0) {
+                            log_debug("Resetting entity_arena");
+                            arena_reset(&entity_arena);
+                        }
+                    } else {
+                        // Disconnect connections of Selected entities
+                        for (int i = (int)entities.count - 1; i >= 0; --i) {
+                            Entity* e = &entities.items[i];
+                            if (e->state & (1 << ESTATE_DEAD))
+                                continue;
+                            if (e->state & (1 << ESTATE_SELECTED)) {
+                                disconnect_entity(e);
                             }
                         }
                     }
                 }
 
-                if (dst && src) {
-                    send_arp_ethernet_frame(dst, src);
-                }
-            }
-
-            // Change mode
-            if (!IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
-                CHANGE_MODE(MODE_CHANGE);
-            }
-
-            // Add Entity
-            if (IsKeyPressed(KEY_SPACE)) {
-                float64 tp1 = GetTime();
-                Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS,
-                    selected_entity_kind, &entity_arena, &temp_arena);
-                log_debug("make_entity() took %.2lfs", GetTime() - tp1);
-                add_entity(e);
-            }
-
-            if (IsKeyPressed(KEY_D)) {
-                if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                    // Delete Selected entities
+                // Select/Deselect all
+                if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_A)) {
                     for (int i = (int)entities.count - 1; i >= 0; --i) {
                         Entity* e = &entities.items[i];
                         if (e->state & (1 << ESTATE_DEAD))
                             continue;
-                        if (e->state & (1 << ESTATE_SELECTED)) {
-                            free_entity(e);
-                            e->state |= (1 << ESTATE_DEAD);
-                            // arr_remove(entities, Entity, &d, (int)i);
-                            darr_append(free_entity_indices, i);
-                            ASSERT(entities_count > 0,
-                                "We cant remove if there are no entities");
-                            entities_count--;
+                        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                            e->state &= ~(1 << ESTATE_SELECTED);
+                        } else {
+                            e->state |= (1 << ESTATE_SELECTED);
                         }
                     }
-                    if (entities_count == 0) {
-                        log_debug("Resetting entity_arena");
-                        arena_reset(&entity_arena);
-                    }
-                } else {
-                    // Disconnect connections of Selected entities
+                }
+
+                // Move selected entities
+                if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE) || IsKeyPressed(KEY_Z)) {
                     for (int i = (int)entities.count - 1; i >= 0; --i) {
                         Entity* e = &entities.items[i];
                         if (e->state & (1 << ESTATE_DEAD))
                             continue;
-                        if (e->state & (1 << ESTATE_SELECTED)) {
-                            disconnect_entity(e);
-                        }
+                        e->offset = Vector2Subtract(e->pos, m_world);
                     }
                 }
-            }
 
-            // Select/Deselect all
-            if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_A)) {
-                for (int i = (int)entities.count - 1; i >= 0; --i) {
-                    Entity* e = &entities.items[i];
-                    if (e->state & (1 << ESTATE_DEAD))
-                        continue;
-                    if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                        e->state &= ~(1 << ESTATE_SELECTED);
+                if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsKeyDown(KEY_Z)) {
+                    if (hovering_entity) {
+                        hovering_entity->pos = Vector2Add(m_world, hovering_entity->offset);
                     } else {
-                        e->state |= (1 << ESTATE_SELECTED);
-                    }
-                }
-            }
-
-            // Move selected entities
-            if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE) || IsKeyPressed(KEY_Z)) {
-                for (int i = (int)entities.count - 1; i >= 0; --i) {
-                    Entity* e = &entities.items[i];
-                    if (e->state & (1 << ESTATE_DEAD))
-                        continue;
-                    e->offset = Vector2Subtract(e->pos, m_world);
-                }
-            }
-
-            if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsKeyDown(KEY_Z)) {
-                if (hovering_entity) {
-                    hovering_entity->pos = Vector2Add(m_world, hovering_entity->offset);
-                } else {
-                    for (int i = (int)entities.count - 1; i >= 0; --i) {
-                        Entity* e = &entities.items[i];
-                        if (e->state & (1 << ESTATE_DEAD))
-                            continue;
-                        if (e->state & (1 << ESTATE_SELECTED)) {
-                            e->pos = Vector2Add(m_world, e->offset);
+                        for (int i = (int)entities.count - 1; i >= 0; --i) {
+                            Entity* e = &entities.items[i];
+                            if (e->state & (1 << ESTATE_DEAD))
+                                continue;
+                            if (e->state & (1 << ESTATE_SELECTED)) {
+                                e->pos = Vector2Add(m_world, e->offset);
+                            }
                         }
                     }
                 }
-            }
 
-            // Connect
-            if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) || IsKeyPressed(KEY_X)) {
-                if (hovering_entity) {
-                    connecting_from = hovering_entity;
-                    connecting_from->state |= (1 << ESTATE_CONNECTING_FROM);
+                // Connect
+                if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) || IsKeyPressed(KEY_X)) {
+                    if (hovering_entity) {
+                        connecting_from = hovering_entity;
+                        connecting_from->state |= (1 << ESTATE_CONNECTING_FROM);
+                    }
                 }
-            }
 
-            if ((IsMouseButtonDown(MOUSE_BUTTON_RIGHT) || IsKeyDown(KEY_X)) && connecting_from) {
-                if (hovering_entity && hovering_entity != connecting_from) {
-                    connecting_to = hovering_entity;
-                    if (connecting_to)
-                        connecting_to->state |= (1 << ESTATE_CONNECTING_TO);
+                if ((IsMouseButtonDown(MOUSE_BUTTON_RIGHT) || IsKeyDown(KEY_X)) && connecting_from) {
+                    if (hovering_entity && hovering_entity != connecting_from) {
+                        connecting_to = hovering_entity;
+                        if (connecting_to)
+                            connecting_to->state |= (1 << ESTATE_CONNECTING_TO);
+                    }
                 }
-            }
 
-            if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT) || IsKeyReleased(KEY_X)) {
-                if (connecting_from && connecting_to) {
-                    connect_entity(&entities, connecting_from, connecting_to);
+                if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT) || IsKeyReleased(KEY_X)) {
+                    if (connecting_from && connecting_to) {
+                        connect_entity(&entities, connecting_from, connecting_to);
+                    }
+                    connecting_from = NULL;
+                    connecting_to = NULL;
                 }
-                connecting_from = NULL;
-                connecting_to = NULL;
-            }
-        } break;
-        case MODE_COPY: {
-            if (IsKeyPressed(KEY_ONE)) {
-                const char* ipv4_str = arena_alloc_str(temp_arena, IPV4_FMT,
-                    IPV4_ARG(hovering_entity->nic->ipv4_address));
-                log_debug("COPIED IPV4: %s", ipv4_str);
-                SetClipboardText(ipv4_str);
-                current_mode = last_mode;
-            }
-            if (IsKeyPressed(KEY_TWO)) {
-                const char* str = arena_alloc_str(
-                    temp_arena, SUBNET_MASK_FMT,
-                    SUBNET_MASK_ARG(hovering_entity->nic->subnet_mask));
-                log_debug("COPIED SUBNET_MASK: %s", str);
-                SetClipboardText(str);
-                current_mode = last_mode;
-            }
-            if (IsKeyPressed(KEY_THREE)) {
-                const char* str = arena_alloc_str(
-                    temp_arena, MAC_FMT, MAC_ARG(hovering_entity->nic->mac_address));
-                log_debug("COPIED MAC_ADDRESS: %s", str);
-                SetClipboardText(str);
-                current_mode = last_mode;
-            }
-
-            if (IsKeyPressed(KEY_ESCAPE)) {
-                current_mode = last_mode;
-            }
-        } break;
-        case MODE_CHANGE: {
-            if (!is_changing) {
+            } break;
+            case MODE_COPY: {
                 if (IsKeyPressed(KEY_ONE)) {
-                    is_changing = true;
-                    changing_type = CHANGE_IPV4;
+                    const char* ipv4_str = arena_alloc_str(temp_arena, IPV4_FMT,
+                        IPV4_ARG(hovering_entity->nic->ipv4_address));
+                    log_debug("COPIED IPV4: %s", ipv4_str);
+                    SetClipboardText(ipv4_str);
+                    current_mode = last_mode;
                 }
                 if (IsKeyPressed(KEY_TWO)) {
-                    is_changing = true;
-                    changing_type = CHANGE_SUBNET_MASK;
+                    const char* str = arena_alloc_str(
+                        temp_arena, SUBNET_MASK_FMT,
+                        SUBNET_MASK_ARG(hovering_entity->nic->subnet_mask));
+                    log_debug("COPIED SUBNET_MASK: %s", str);
+                    SetClipboardText(str);
+                    current_mode = last_mode;
                 }
-            }
+                if (IsKeyPressed(KEY_THREE)) {
+                    const char* str = arena_alloc_str(
+                        temp_arena, MAC_FMT, MAC_ARG(hovering_entity->nic->mac_address));
+                    log_debug("COPIED MAC_ADDRESS: %s", str);
+                    SetClipboardText(str);
+                    current_mode = last_mode;
+                }
 
-            if (IsKeyPressed(KEY_ESCAPE)) {
-                current_mode = last_mode;
-                is_changing = false;
-                chars_buff_count = 0;
-            }
-        } break;
-        case MODE_INTERACT: {
-            if (active_switch_console) {
-                if (input_to_console(active_switch_console)) {
+                if (IsKeyPressed(KEY_ESCAPE)) {
+                    current_mode = last_mode;
+                }
+            } break;
+            case MODE_CHANGE: {
+                if (!is_changing) {
+                    if (IsKeyPressed(KEY_ONE)) {
+                        is_changing = true;
+                        changing_type = CHANGE_IPV4;
+                    }
+                    if (IsKeyPressed(KEY_TWO)) {
+                        is_changing = true;
+                        changing_type = CHANGE_SUBNET_MASK;
+                    }
+                }
+
+                if (IsKeyPressed(KEY_ESCAPE)) {
+                    current_mode = last_mode;
+                    is_changing = false;
+                    chars_buff_count = 0;
+                }
+            } break;
+            case MODE_INTERACT: {
+                if (active_switch_console) {
+                    if (input_to_console(active_switch_console)) {
+                        active_switch_console = NULL;
+                    }
+
+                } else if (hovering_entity) {
+                    switch (hovering_entity->kind) {
+                        case EK_NIC: {
+
+                        } break;
+                        case EK_SWITCH: {
+                            if (IsKeyPressed(KEY_C)) {
+                                active_switch_console = &hovering_entity->switchh->console;
+
+                                active_switch_console_rect.x = (width * 0.5f) - active_switch_console_rect.width * 0.5f;
+                                active_switch_console_rect.y = (height * 0.5f) - active_switch_console_rect.height * 0.5f;
+                            }
+                        } break;
+                        case EK_COUNT:
+                        default: ASSERT(false, "UNREACHABLE!");
+                    }
+                }
+
+                if (!active_switch_console && IsKeyPressed(KEY_ESCAPE)) {
+                    current_mode = last_mode;
                     active_switch_console = NULL;
                 }
-
-            } else if (hovering_entity) {
-                switch (hovering_entity->kind) {
-                    case EK_NIC: {
-
-                    } break;
-                    case EK_SWITCH: {
-                        if (IsKeyPressed(KEY_C)) {
-                            active_switch_console = &hovering_entity->switchh->console;
-
-                            active_switch_console_rect.x = (width * 0.5f) - active_switch_console_rect.width * 0.5f;
-                            active_switch_console_rect.y = (height * 0.5f) - active_switch_console_rect.height * 0.5f;
-                        }
-                    } break;
-                    case EK_COUNT:
-                    default: ASSERT(false, "UNREACHABLE!");
-                }
+            } break;
+            case MODE_COUNT:
+            default:
+                ASSERT(false, "UNREACHABLE!");
             }
-
-            if (!active_switch_console && IsKeyPressed(KEY_ESCAPE)) {
-                current_mode = last_mode;
-                active_switch_console = NULL;
-            }
-        } break;
-        case MODE_COUNT:
-        default:
-            ASSERT(false, "UNREACHABLE!");
         }
-
         BeginTextureMode(ren_tex);
         ClearBackground(BLACK);
 
@@ -821,6 +838,11 @@ int main(void)
         case MODE_COUNT:
         default:
             ASSERT(false, "UNREACHABLE!");
+        }
+
+        if (is_in_command) {
+            draw_text(GetFontDefault(), ":", v2(4.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
+            draw_text(GetFontDefault(), command_buff, v2(8.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
         }
 
         EndTextureMode();
