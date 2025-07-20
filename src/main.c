@@ -201,7 +201,7 @@ int main(void)
     char chars_buff[chars_buff_cap] = { 0 };
     size_t chars_buff_count = 0;
 
-    Switch_console *active_switch_console = NULL;
+    Console *active_switch_console = NULL;
     float pad_perc = 0.15f;
     Rectangle active_switch_console_rect = {
         .x = 0,

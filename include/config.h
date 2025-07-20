@@ -8,8 +8,6 @@
 
 #define MAC_ADDRESS_LENGTH 6
 
-#define CONSOLE_LINE_BUFF_CAP (1024*1)
-
 #define COMMAND_BUFF_CAP (1024*1)
 
 #endif // _CONFIG_H_

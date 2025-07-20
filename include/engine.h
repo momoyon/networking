@@ -77,8 +77,33 @@ typedef struct {
 
 bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out);
 
-// UI
+// Console
+#define CONSOLE_LINE_BUFF_CAP (1024*1)
 
+typedef struct Console Console;
+typedef struct Console_line Console_line;
+typedef struct Console_lines Console_lines;
+
+struct Console_line {
+	char buff[CONSOLE_LINE_BUFF_CAP];
+    size_t count;
+};
+
+struct Console_lines {
+	Console_line *items;
+	size_t count;
+	size_t capacity;
+}; // @darr
+
+
+struct Console {
+	Console_lines lines;
+	int cursor; // offset in the line
+	int line;   // line number
+};
+
+bool input_to_console(Console *console);
+float get_cursor_offset(Console *console);
 
 #endif // _ENGINE_H_
 
@@ -336,5 +361,61 @@ bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out)
 
 	return true;
 }
+
+// Console
+bool input_to_console(Console *console) {
+	int ch = 0;
+    Console_line *line = &console->lines.items[console->line];
+
+    if (console->cursor < 0) console->cursor = 0;
+    if (console->cursor > CONSOLE_LINE_BUFF_CAP-1) console->cursor = CONSOLE_LINE_BUFF_CAP-1;
+
+	do {
+		ch = GetCharPressed();
+
+        if (IsKeyPressed(KEY_ENTER)) {
+            log_debug("%s", line->buff);
+            return true;
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE) ||
+            IsKeyPressedRepeat(KEY_BACKSPACE)) {
+            if (console->cursor > 0) {
+                line->buff[--console->cursor] = '\0';
+            }
+        }
+
+        if (line->count > CONSOLE_LINE_BUFF_CAP) {
+            log_error("Exhausted line buff!");
+            exit(1);
+        }
+
+        if (ch > 0) {
+            // log_debug("TYPED %c AT %d:%d", (char)ch, console->line, console->cursor);
+            // log_debug("CODEPOINT %c: %fx%f", ch, codepoint_rec.width, codepoint_rec.height);
+            line->buff[console->cursor++] = (char)ch;
+        }
+
+        
+	} while (ch > 0);
+
+    return false;
+}
+
+float get_cursor_offset(Console *console) {
+    Font font = GetFontDefault();
+    float offset = 0.f;
+    for (int i = 0; i < console->cursor; ++i) {
+        char ch = console->lines.items[console->line].buff[i];
+        GlyphInfo ginfo = GetGlyphInfo(font, ch);
+        offset += ginfo.advanceX;
+        log_debug("Character: %c, AdvanceX: %d, Total Offset: %f", 
+                ch, ginfo.advanceX, offset);
+    }
+    // log_debug("cursor_offset: %f at %d", offset, console->cursor);
+
+    return offset;
+}
+
 
 #endif // ENGINE_IMPLEMENTATION

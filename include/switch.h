@@ -3,31 +3,10 @@
 
 #include <predecls.h>
 #include <config.h>
+#include <engine.h>
 
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
-
-typedef struct Switch_console Switch_console;
-typedef struct Console_line Console_line;
-typedef struct Console_lines Console_lines;
-
-struct Console_line {
-	char buff[CONSOLE_LINE_BUFF_CAP];
-    size_t count;
-};
-
-struct Console_lines {
-	Console_line *items;
-	size_t count;
-	size_t capacity;
-}; // @darr
-
-
-struct Switch_console {
-	Console_lines lines;
-	int cursor; // offset in the line
-	int line;   // line number
-};
 
 typedef struct {
 	int vlan;
@@ -37,13 +16,11 @@ typedef struct {
 
 typedef struct Switch Switch;
 struct Switch {
-	Switch_console console;
+	Console console;
 	Port fa[1][4];
 };
 
 void make_switch(Switch *switch_out, Arena *arena);
-void make_switch_console(Switch_console *console_out, Arena *arena);
-bool input_to_console(Switch_console *console);
-float get_cursor_offset(Switch_console *console);
+void make_switch_console(Console *console_out, Arena *arena);
 
 #endif // _SWITCH_H_
