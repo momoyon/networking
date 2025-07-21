@@ -562,6 +562,8 @@ int main(void)
                                 active_switch_console_rect.y = (height * 0.5f) - active_switch_console_rect.height * 0.5f;
                             }
                         } break;
+                        case EK_ACCESS_POINT: {
+                        } break;
                         case EK_COUNT:
                         default: ASSERT(false, "UNREACHABLE!");
                     }
@@ -895,6 +897,9 @@ int main(void)
                                 YELLOW);
                             y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
                         }
+                    } break;
+                    case EK_ACCESS_POINT: {
+
                     } break;
                     case EK_COUNT:
                     default: ASSERT(false, "UNREACHABLE!");

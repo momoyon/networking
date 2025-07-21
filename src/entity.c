@@ -5,6 +5,7 @@
 #include <commonlib.h>
 
 #include <switch.h>
+#include <ap.h>
 
 #include <misc.h>
 
@@ -29,6 +30,7 @@ const char *entity_kind_as_str(const Entity_kind k) {
     switch (k) {
         case EK_NIC: return "NIC";
         case EK_SWITCH: return "Switch";
+        case EK_ACCESS_POINT: return "Access Point";
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -120,6 +122,13 @@ void draw_entity(Entity *e, bool debug) {
 					}
 				}
             }
+        } break;
+        case EK_ACCESS_POINT: {
+            Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
+            DrawLineV(e->pos, p, WHITE);
+            draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+                        "mgmt ipv4: "IPV4_FMT" "SUBNET_MASK_FMT, IPV4_ARG(e->ap->mgmt_ipv4), SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask)),
+                    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -225,6 +234,9 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 			nic->nic->switch_entity = other;
 			return true;
 	    } break;
+        case EK_ACCESS_POINT: {
+            ASSERT(false, "EK_ACCESS_POINT connect_nic_to is UNIMPLEMENTED!");
+        } break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
 	}
@@ -243,7 +255,11 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
 			return connect_nic_to(other, switchh); // We can do this 
 	    } break;
 		case EK_SWITCH: {
-			log_debug("We can't connect two switched directly!");
+			log_debug("We can't connect two switches directly!");
+			return false;
+	    } break;
+		case EK_ACCESS_POINT: {
+            ASSERT(false, "EK_ACCESS_POINT connect_switch_to is UNIMPLEMENTED!");
 			return false;
 	    } break;
 		case EK_COUNT:
@@ -265,6 +281,10 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b) {
 	    } break;
 		case EK_SWITCH: {
 			connected = connect_switch_to(a, b);
+			return false;
+	    } break;
+		case EK_ACCESS_POINT: {
+            ASSERT(false, "EK_ACCESS_POINT connect_entity is UNIMPLEMENTED!");
 			return false;
 	    } break;
 		case EK_COUNT:
@@ -296,6 +316,11 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
 			make_switch(e->switchh, arena);
 			e->tex = load_texture_checked("resources/gfx/switch.png");
+        } break;
+        case EK_ACCESS_POINT: {
+            e->ap = (Access_point *)arena_alloc(arena, sizeof(Access_point));
+            make_ap(e->ap, arena);
+            e->tex = load_texture_checked("resources/gfx/ap.png");
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -372,6 +397,11 @@ void make_switch_console(Console *console_out, Arena *arena) {
     darr_append(console_out->lines, l);
 }
 
+void make_ap(Access_point *ap_out, Arena *arena) {
+    (void)arena;
+    memset(ap_out, 0, sizeof(*ap_out));
+}
+
 // Disconnect-ers
 void disconnect_entity(Entity *e) {
 	switch (e->kind) {
@@ -381,6 +411,9 @@ void disconnect_entity(Entity *e) {
 		case EK_SWITCH: {
 			disconnect_switch(e);
 		} break;
+        case EK_ACCESS_POINT: {
+            ASSERT(false, "EK_ACCESS_POINT disconnect is UNIMPLEMENTED!");
+        } break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
 	}
@@ -433,6 +466,9 @@ void free_entity(Entity *e) {
 		case EK_SWITCH: {
 			free_switch(e);
 		} break;
+        case EK_ACCESS_POINT: {
+            // @Pass
+        } break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
 	}
@@ -516,7 +552,10 @@ bool recieve(Entity *dst, Entity *src, Ethernet_frame frame) {
 			return true;
 		} break;
 		case EK_SWITCH: {
-			ASSERT(false, "UNIMPLEMENTED!");
+			ASSERT(false, "EK_SWITCH recieve is UNIMPLEMENTED!");
+		} break;
+		case EK_ACCESS_POINT: {
+			ASSERT(false, "EK_ACCESS_POINT recieve is UNIMPLEMENTED!");
 		} break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
@@ -578,6 +617,9 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
 			log_debug("SWITCH KIND SAVE FMT: %s", res);
 			return res;
 		} break;
+        case EK_ACCESS_POINT: {
+			return arena_alloc_str(*temp_arena, IPV4_FMT" "SUBNET_MASK_FMT, IPV4_ARG(e->ap->mgmt_ipv4), SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask));
+        } break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
 	}
@@ -853,6 +895,9 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
 			}
 			return true;
 		} break;
+        case EK_ACCESS_POINT: {
+            ASSERT(false, "UNIMPLEMENTED!");
+        } break;
 		case EK_COUNT:
 		default: ASSERT(false, "UNREACHABLE!");
 	}

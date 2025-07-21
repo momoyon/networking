@@ -6,10 +6,12 @@
 #include <nic.h>
 #include <ethernet_frame.h>
 
+typedef struct Access_point Access_point;
 
 typedef enum {
     EK_NIC,
     EK_SWITCH,
+    EK_ACCESS_POINT,
     EK_COUNT,
 } Entity_kind;
 
@@ -74,6 +76,7 @@ struct Entity {
     // Kind specific
     Nic    *nic;
     Switch *switchh; // switch is a keyword in C
+    Access_point *ap;
 
     Entities *entities;
 };
