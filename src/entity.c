@@ -940,7 +940,30 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
         } break;
         case EK_ACCESS_POINT: {
             // @WIP
-            ASSERT(false, "UNIMPLEMENTED!");
+            uint8 ipv4[4] = {0};
+            uint8 subnet_mask[4] = {0};
+            if (!parse_four_octet_from_data(sv, ipv4)) {
+                return false;
+            }
+            if (!parse_four_octet_from_data(sv, subnet_mask)) {
+                return false;
+            }
+            sv_ltrim(sv);
+
+            String_view on_sv = sv_lpop_until_char(sv, ' ');
+            if (on_sv.data[0] == '0') {
+                e->ap->on = false;
+            } else if (on_sv.data[0] == '1') {
+                e->ap->on = true;
+            } else {
+                ASSERT(false, "WE GOT NEITHER 0 NOR 1 FOR AP POWER!");
+            }
+
+
+            memcpy(e->ap->mgmt_ipv4, ipv4, sizeof(uint8)*4);
+            memcpy(e->ap->mgmt_subnet_mask, subnet_mask, sizeof(uint8)*4);
+
+            return true;
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
