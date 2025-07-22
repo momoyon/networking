@@ -129,6 +129,10 @@ void draw_entity(Entity *e, bool debug) {
             draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                         "mgmt ipv4: "IPV4_FMT" "SUBNET_MASK_FMT, IPV4_ARG(e->ap->mgmt_ipv4), SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask)),
                     ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+            draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+                        "Power: %s", e->ap->on ? "On" : "Off"),
+                    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -168,6 +172,37 @@ void draw_entity(Entity *e, bool debug) {
 
     if (e->state & (1<<ESTATE_CONNECTING_TO)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GREEN);
+    }
+}
+
+void update_entity(Entity *e) {
+    switch (e->kind) {
+        case EK_NIC: {
+            // update_nic(e);
+        } break;
+        case EK_SWITCH: {
+            // update_switch(e);
+        } break;
+        case EK_ACCESS_POINT: {
+            update_ap(e);
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+}
+
+void update_ap(Entity *ap_e) {
+    Access_point *ap = ap_e->ap;
+    ASSERT(ap, "BRUH");
+    if (ap->on) {
+        if (on_alarm(&ap->wifi_wave_alarm, GetFrameTime())) {
+            Wifi_wave ww = {
+                .pos = ap_e->pos,
+                .color = WHITE,
+                .dead_zone = 100.f,
+            };
+            darr_append(wifi_waves, ww);
+        }
     }
 }
 
@@ -400,6 +435,7 @@ void make_switch_console(Console *console_out, Arena *arena) {
 void make_ap(Access_point *ap_out, Arena *arena) {
     (void)arena;
     memset(ap_out, 0, sizeof(*ap_out));
+    ap_out->wifi_wave_alarm.alarm_time = 1.0f;
 }
 
 // Disconnect-ers

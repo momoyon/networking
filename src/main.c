@@ -602,6 +602,9 @@ int main(void)
                             }
                         } break;
                         case EK_ACCESS_POINT: {
+                            if (IsKeyPressed(KEY_P)) {
+                                hovering_entity->ap->on = !hovering_entity->ap->on;
+                            }
                         } break;
                         case EK_COUNT:
                         default: ASSERT(false, "UNREACHABLE!");
@@ -644,7 +647,16 @@ int main(void)
         // Mode-specific Update
         switch (current_mode) {
         case MODE_NORMAL: {
-            // Wifi-waves
+            // Update entities
+            for (int i = (int)entities.count - 1; i >= 0; --i) {
+                Entity* e = &entities.items[i];
+                if (e->state & (1 << ESTATE_DEAD))
+                    continue;
+                
+                update_entity(e);
+            }
+
+            // Update Wifi-waves
             for (size_t i = 0; i < wifi_waves.count; ++i) {
                 Wifi_wave *ww = &wifi_waves.items[i];
                 if (ww->radius >= ww->dead_zone) {
@@ -923,6 +935,12 @@ int main(void)
                         }
                     } break;
                     case EK_ACCESS_POINT: {
+                        {
+                            const char* a = arena_alloc_str(temp_arena, "%s", "[P]: Toggle power");
+                            draw_text(GetFontDefault(), a, v2(2, y), ENTITY_DEFAULT_RADIUS * 0.5,
+                                YELLOW);
+                            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+                        }
 
                     } break;
                     case EK_COUNT:
@@ -959,12 +977,12 @@ int main(void)
             draw_text(GetFontDefault(), ":", v2(4.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
             draw_text(GetFontDefault(), command_buff, v2(8.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
 
-            Rectangle command_rect = {
-                .x = 0.f,
-                .y = height * 0.5f - ENTITY_DEFAULT_RADIUS*0.5f,
-                .width = width,
-                .height = height * 0.5f,
-            };
+            // Rectangle command_rect = {
+            //     .x = 0.f,
+            //     .y = height * 0.5f - ENTITY_DEFAULT_RADIUS*0.5f,
+            //     .width = width,
+            //     .height = height * 0.5f,
+            // };
             // draw_console(&command_hist, command_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
         }
 
