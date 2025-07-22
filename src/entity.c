@@ -1221,21 +1221,35 @@ static bool four_octect_from_input(uint8 *four_octect, char *chars_buff, size_t 
 }
 
 bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap) {
-	if (e->kind != EK_NIC) {
-		log_debug("Can only change the ipv4 of a NIC!");
-		return true;
-	}
-
-	return four_octect_from_input(e->nic->ipv4_address, chars_buff, chars_buff_count, chars_buff_cap);
+    switch (e->kind) {
+        case EK_NIC:
+            return four_octect_from_input(e->nic->ipv4_address, chars_buff, chars_buff_count, chars_buff_cap);
+        case EK_ACCESS_POINT:
+            return four_octect_from_input(e->ap->mgmt_ipv4, chars_buff, chars_buff_count, chars_buff_cap);
+        case EK_SWITCH: {
+            log_warning("Cannot change the ipv4 of a switch!");
+            return false;
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+    return false;
 }
 
 bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size_t chars_buff_cap) {
-	if (e->kind != EK_NIC) {
-		log_debug("Can only change the ipv4 of a NIC!");
-		return true;
-	}
-
-	return four_octect_from_input(e->nic->subnet_mask, chars_buff, chars_buff_count, chars_buff_cap);
+    switch (e->kind) {
+        case EK_NIC:
+            return four_octect_from_input(e->nic->subnet_mask, chars_buff, chars_buff_count, chars_buff_cap);
+        case EK_ACCESS_POINT:
+            return four_octect_from_input(e->ap->mgmt_subnet_mask, chars_buff, chars_buff_count, chars_buff_cap);
+        case EK_SWITCH: {
+            log_warning("Cannot change the subnet mask of a switch!");
+            return false;
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+    return false;
 }
 
 bool connect_to_next_free_port(Entity *nic_e, Entity *switch_e) {

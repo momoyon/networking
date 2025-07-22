@@ -280,8 +280,8 @@ int main(void)
                         } break;
                         default: ASSERT(false, "UNREACHABLE!");
                     }
-                    log_info_console(command_hist, "%s", "Test");
-                    log_debug("command_hist.count: %zu", command_hist.lines.count);
+                    // log_info_console(command_hist, "%s", "Test");
+                    // log_debug("command_hist.count: %zu", command_hist.lines.count);
                 } else {
                     log_debug("Command `%s` matched the following:", command_buff);
                     for (size_t i = 0; i < matched_commands_indices.count; ++i) {

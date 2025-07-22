@@ -7,6 +7,7 @@ typedef struct Access_point Access_point;
 typedef struct Wifi_wave Wifi_wave;
 typedef struct Wifi_waves Wifi_waves;
 
+// @TODO: Specific directional AP
 struct Access_point {
     uint8 mgmt_ipv4[4];
     uint8 mgmt_subnet_mask[4];
