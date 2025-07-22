@@ -9,5 +9,6 @@
 #define MAC_ADDRESS_LENGTH 6
 
 #define COMMAND_BUFF_CAP (1024*1)
+#define AP_WIFI_WAVE_ALARM_TIME 1.0
 
 #endif // _CONFIG_H_
