@@ -620,21 +620,16 @@ bool is_entities_saved(Entities *entities) {
 const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
     switch (e->kind) {
         case EK_NIC: {
-            return arena_alloc_str(*temp_arena, "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d.%d.%d", 
-                    e->nic->ipv4_address[0],
-                    e->nic->ipv4_address[1],
-                    e->nic->ipv4_address[2],
-                    e->nic->ipv4_address[3],
-                    e->nic->subnet_mask[0],
-                    e->nic->subnet_mask[1],
-                    e->nic->subnet_mask[2],
-                    e->nic->subnet_mask[3],
+            return arena_alloc_str(*temp_arena, IPV4_FMT" "SUBNET_MASK_FMT" %d.%d.%d.%d.%d.%d %d", 
+                    IPV4_ARG(e->nic->ipv4_address),
+                    SUBNET_MASK_ARG(e->nic->subnet_mask),
                     e->nic->mac_address[0],
                     e->nic->mac_address[1],
                     e->nic->mac_address[2],
                     e->nic->mac_address[3],
                     e->nic->mac_address[4],
-                    e->nic->mac_address[5]);
+                    e->nic->mac_address[5],
+                    e->nic && e->nic->nic_entity ? (int)e->nic->nic_entity->id : -1);
         } break;
         case EK_SWITCH: {
             const char *res = (const char *)temp_arena->ptr;
@@ -658,7 +653,7 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
                     IPV4_FMT" "SUBNET_MASK_FMT" %d ",
                     IPV4_ARG(e->ap->mgmt_ipv4), 
                     SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask),
-                    (int)(e->ap->on));
+                    e->ap->on ? 1 : 0);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -674,10 +669,6 @@ const char *save_entity_to_data(Entity *e, Arena *arena, Arena *temp_arena, int 
         } break;
         case 2: {
             s = arena_alloc_str(*arena, "v%d %.2f %.2f %d %zu %d %s ", version, e->pos.x, e->pos.y, e->kind, e->id, e->state, entity_kind_save_format(e, temp_arena));
-        } break;
-        case 3: {
-            s = arena_alloc_str(*arena, "v%d %.2f %.2f %d %zu %d %s %d ",
-                    version, e->pos.x, e->pos.y, e->kind, e->id, e->state, entity_kind_save_format(e, temp_arena), e->nic && e->nic->nic_entity ? (int)e->nic->nic_entity->id : -1);
         } break;
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -756,7 +747,7 @@ static bool parse_four_octet_from_data(String_view *sv, uint8 four_octet[4]) {
     int oct1_count = -1;
     uint oct1 = sv_to_uint(oct1_sv, &oct1_count, 10);
     if (oct1_count < 0) {
-        log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct1_sv));
+        log_error("Failed to convert oct1 `"SV_FMT"` to a number!", SV_ARG(oct1_sv));
         return false;
     }
     if (oct1 > 255) {
@@ -768,7 +759,7 @@ static bool parse_four_octet_from_data(String_view *sv, uint8 four_octet[4]) {
     int oct2_count = -1;
     uint oct2 = sv_to_uint(oct2_sv, &oct2_count, 10);
     if (oct2_count < 0) {
-        log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct2_sv));
+        log_error("Failed to convert oct2 `"SV_FMT"` to a number!", SV_ARG(oct2_sv));
         return false;
     }
     if (oct2 > 255) {
@@ -780,7 +771,7 @@ static bool parse_four_octet_from_data(String_view *sv, uint8 four_octet[4]) {
     int oct3_count = -1;
     uint oct3 = sv_to_uint(oct3_sv, &oct3_count, 10);
     if (oct3_count < 0) {
-        log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct3_sv));
+        log_error("Failed to convert oct3 `"SV_FMT"` to a number!", SV_ARG(oct3_sv));
         return false;
     }
     if (oct3 > 255) {
@@ -792,7 +783,7 @@ static bool parse_four_octet_from_data(String_view *sv, uint8 four_octet[4]) {
     int oct4_count = -1;
     uint oct4 = sv_to_uint(oct4_sv, &oct4_count, 10);
     if (oct4_count < 0) {
-        log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(oct4_sv));
+        log_error("Failed to convert oct4 `"SV_FMT"` to a number!", SV_ARG(oct4_sv));
         return false;
     }
     if (oct4 > 255) {
@@ -867,7 +858,6 @@ static bool parse_nic_from_data(Nic *nic, String_view *sv) {
         return false;
     }
 
-
     log_debug("Parsed mac_address: %d.%d.%d.%d.%d.%d", mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
     log_debug("--------------------------------------------------");
 
@@ -876,6 +866,21 @@ static bool parse_nic_from_data(Nic *nic, String_view *sv) {
     memcpy(nic->ipv4_address, ipv4, sizeof(uint8) * 4);
     memcpy(nic->subnet_mask, subnet_mask, sizeof(uint8) * 4);
     memcpy(nic->mac_address, mac_address, sizeof(uint8) * 6);
+
+    sv_ltrim(sv);
+    String_view nic_id_sv = sv_lpop_until_char(sv, ' ');
+    sv_ltrim(sv);
+
+    int nic_id_count = -1;
+    int nic_id = sv_to_int(nic_id_sv, &nic_id_count, 10);
+    if (nic_id_count < 0) {
+        log_error("Failed to convert nic id `"SV_FMT"` to int!", SV_ARG(nic_id_sv));
+        return false;
+    }
+
+    log_debug("Parsed nic_entity_id %d", nic_id);
+
+    nic->nic_entity_id = nic_id;
 
     return true;
 }
@@ -943,31 +948,6 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
     return false;
 }
 
-static bool load_entity_from_data_v3(Entity *e, String_view *sv) {
-    if (!load_entity_from_data_v2(e, sv)) {
-        return false;
-    }
-
-    sv_ltrim(sv);
-    String_view nic_id_sv = sv_lpop_until_char(sv, ' ');
-    sv_ltrim(sv);
-
-    int nic_id_count = -1;
-    int nic_id = sv_to_int(nic_id_sv, &nic_id_count, 10);
-    if (nic_id_count < 0) {
-        log_error("Failed to convert nic id `"SV_FMT"` to int!", SV_ARG(nic_id_sv));
-        return false;
-    }
-
-    log_debug("Parsed nic_entity_id %d", nic_id);
-
-    ASSERT(e->nic, "We should have parsed and allocated nic in v2 or v1");
-    e->nic->nic_entity_id = nic_id;
-
-    return true;
-}
-
-
 bool load_entity_from_data(Entity *e, String_view *data_sv) {
     sv_ltrim(data_sv);
     String_view version_sv = sv_lpop_until_char(data_sv, ' ');
@@ -983,7 +963,6 @@ bool load_entity_from_data(Entity *e, String_view *data_sv) {
     switch (version) {
         case 1: return load_entity_from_data_v1(e, data_sv);
         case 2: return load_entity_from_data_v2(e, data_sv);
-        case 3: return load_entity_from_data_v3(e, data_sv);
         default: {
             log_debug("Got version %d", version);
             ASSERT(false, "UNREACHABLE!");

@@ -68,7 +68,7 @@ RenderTexture2D ren_tex;
 Arena entity_arena;
 Arena temp_arena;
 Texture_manager tex_man;
-size_t entity_save_version = 3;
+size_t entity_save_version = 2;
 Wifi_waves wifi_waves = {0};
 
 typedef enum {
