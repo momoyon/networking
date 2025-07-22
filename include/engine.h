@@ -115,6 +115,26 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
         darr_append(console.lines, l);\
     } while (0)
 
+
+// Timer and Alarm
+typedef struct Timer Timer;
+typedef struct Alarm Alarm;
+
+struct Timer {
+    float time;
+};
+
+void update_timer(Timer *t, float dt);
+
+struct Alarm {
+    Timer timer;
+    float alarm_time;
+    bool once;
+    bool done;
+};
+
+bool on_alarm(Alarm *a, float dt);
+
 #endif // _ENGINE_H_
 
 // IMPLEMENTATION ////////////////////////////////
@@ -436,6 +456,31 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) 
 
         pos.y -= (pad.y + font_size);
     }
+}
+
+// Timer and Alarm
+void update_timer(Timer *t, float dt) {
+    if (dt <= 0) {
+        log_error("Timer dt is <= 0: %f", dt);
+    }
+    t->time += dt;
+}
+
+bool on_alarm(Alarm *a, float dt) {
+    update_timer(&a->timer, dt);
+
+    if (a->timer.time >= a->alarm_time) {
+        a->timer.time = 0;
+        if (a->once) {
+            if (!a->done) {
+                a->done = true;
+                return true;
+            }
+        } else {
+            return true;
+        }
+    }
+    return false;
 }
 
 #endif // ENGINE_IMPLEMENTATION
