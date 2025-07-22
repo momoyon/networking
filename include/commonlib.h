@@ -64,6 +64,7 @@
 #define clampf c_clampf
 #define randomi c_randomi
 #define randomf c_randomf
+#define mapf    c_mapf
 
 #define String_builder c_String_builder
 #define sb_append c_sb_append
@@ -174,11 +175,11 @@ typedef const wchar* wstr;
 //
 // Math
 //
-
 int   c_clampi(int v, int min, int max);
 float c_clampf(float v, float min, float max);
 float c_randomf(float from, float to);
 int   c_randomi(int from, int to);
+float c_mapf(float value, float from1, float to1, float from2, float to2);
 
 //
 // Struct pre-decls
@@ -498,6 +499,14 @@ float c_randomf(float from, float to) {
 
 int c_randomi(int from, int to) {
 	return c_randomf((float)from, (float)to);
+}
+
+float c_mapf(float value, float from1, float to1, float from2, float to2) {
+    value /= (to1 - from1);
+    value *= (to2 - from2);
+    value += from2;
+
+    return value;
 }
 
 //

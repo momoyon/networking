@@ -52,3 +52,13 @@ void add_entity(Entity e) {
     if (entities.count < entities_count) entities.count = entities_count;
 	log_debug("Added %s %zu at %f, %f", entity_kind_as_str(e.kind), e.id, e.pos.x, e.pos.y);
 }
+
+void emit_wifi(Vector2 pos, Color color, float dead_zone) {
+    Wifi_wave ww = {
+        .pos = pos,
+        .radius = 0.f,
+        .color = color,
+        .dead_zone = dead_zone,
+    };
+    darr_append(wifi_waves, ww);
+}

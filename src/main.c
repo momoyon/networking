@@ -69,6 +69,7 @@ Arena entity_arena;
 Arena temp_arena;
 Texture_manager tex_man;
 size_t entity_save_version = 3;
+Wifi_waves wifi_waves = {0};
 
 typedef enum {
     CHANGE_IPV4,
@@ -345,6 +346,44 @@ int main(void)
             // Mode-specific Input
             switch (current_mode) {
             case MODE_NORMAL: {
+                // Select entities
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    selecting = true;
+                    selection_start = m_world;
+                    selection.x = m_world.x;
+                    selection.y = m_world.y;
+                }
+                if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                    if (m_world.x < selection_start.x) {
+                        selection.x = m_world.x;
+                        selection.width = selection_start.x - m_world.x;
+                    } else {
+                        selection.width = m_world.x - selection.x;
+                    }
+                    if (m_world.y < selection_start.y) {
+                        selection.y = m_world.y;
+                        selection.height = selection_start.y - m_world.y;
+                    } else {
+                        selection.height = m_world.y - selection.y;
+                    }
+                }
+                if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+                    selecting = false;
+                    for (int i = (int)entities.count - 1; i >= 0; --i) {
+                        Entity* e = &entities.items[i];
+                        if (e->state & (1 << ESTATE_DEAD))
+                            continue;
+                        if (rect_contains_point(selection, e->pos)) {
+                            e->state |= (1 << ESTATE_SELECTED);
+                        } else {
+                            if (!IsKeyDown(KEY_LEFT_CONTROL))
+                                e->state &= !(1 << ESTATE_SELECTED);
+                        }
+                    }
+                    if (hovering_entity) {
+                        hovering_entity->state |= (1 << ESTATE_SELECTED);
+                    }
+                }
                 // Copy mode
                 if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
                     if (hovering_entity) {
@@ -605,43 +644,15 @@ int main(void)
         // Mode-specific Update
         switch (current_mode) {
         case MODE_NORMAL: {
-            // Select entities
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                selecting = true;
-                selection_start = m_world;
-                selection.x = m_world.x;
-                selection.y = m_world.y;
-            }
-            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                if (m_world.x < selection_start.x) {
-                    selection.x = m_world.x;
-                    selection.width = selection_start.x - m_world.x;
+            // Wifi-waves
+            for (size_t i = 0; i < wifi_waves.count; ++i) {
+                Wifi_wave *ww = &wifi_waves.items[i];
+                if (ww->radius >= ww->dead_zone) {
+                    darr_delete(wifi_waves, Wifi_wave, i);
                 } else {
-                    selection.width = m_world.x - selection.x;
+                    ww->radius += GetFrameTime() * 100.f;
                 }
-                if (m_world.y < selection_start.y) {
-                    selection.y = m_world.y;
-                    selection.height = selection_start.y - m_world.y;
-                } else {
-                    selection.height = m_world.y - selection.y;
-                }
-            }
-            if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-                selecting = false;
-                for (int i = (int)entities.count - 1; i >= 0; --i) {
-                    Entity* e = &entities.items[i];
-                    if (e->state & (1 << ESTATE_DEAD))
-                        continue;
-                    if (rect_contains_point(selection, e->pos)) {
-                        e->state |= (1 << ESTATE_SELECTED);
-                    } else {
-                        if (!IsKeyDown(KEY_LEFT_CONTROL))
-                            e->state &= !(1 << ESTATE_SELECTED);
-                    }
-                }
-                if (hovering_entity) {
-                    hovering_entity->state |= (1 << ESTATE_SELECTED);
-                }
+                ww->color = ColorAlpha(ww->color, mapf(ww->radius, 0, ww->dead_zone, 1, 0));
             }
         } break;
         case MODE_COPY: {
@@ -679,11 +690,18 @@ int main(void)
 
         // Draw
         BeginMode2D(cam);
+        // Draw Entities
         for (int i = (int)entities.count - 1; i >= 0; --i) {
             Entity* e = &entities.items[i];
             if (e->state & (1 << ESTATE_DEAD))
                 continue;
             draw_entity(e, debug_draw);
+        }
+
+        // Draw Wifi-waves
+        for (size_t i = 0; i < wifi_waves.count; ++i) {
+            Wifi_wave *ww = &wifi_waves.items[i];
+            DrawCircleLinesV(ww->pos, ww->radius, ww->color);
         }
 
         //// DEBUG: Draw mpos_from and m_world - mpos_from
@@ -785,6 +803,12 @@ int main(void)
             const char* free_mac_count_str = arena_alloc_str(
                 temp_arena, "Freed MacAddr count: %zu", free_mac_addresses.count);
             draw_text(GetFontDefault(), free_mac_count_str, v2(2, y),
+                ENTITY_DEFAULT_RADIUS * 0.5, RED);
+            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+
+            const char* wifi_waves_count_str = arena_alloc_str(
+                temp_arena, "Wifi waves count: %zu", wifi_waves.count);
+            draw_text(GetFontDefault(), wifi_waves_count_str, v2(2, y),
                 ENTITY_DEFAULT_RADIUS * 0.5, RED);
             y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
 
