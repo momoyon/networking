@@ -206,6 +206,97 @@ void update_ap(Entity *ap_e) {
     }
 }
 
+static bool copy_ipv4(Entity *e) {
+    const char *ipv4_str = NULL;
+    switch (e->kind) {
+        case EK_NIC: {
+            ipv4_str = arena_alloc_str(*e->temp_arena, IPV4_FMT, IPV4_ARG(e->nic->ipv4_address));
+        } break;
+        case EK_SWITCH: {
+            log_error("Cannot copy ipv4 from a Switch!");
+            return false;
+        } break;
+        case EK_ACCESS_POINT: {
+            ipv4_str = arena_alloc_str(*e->temp_arena, IPV4_FMT, IPV4_ARG(e->ap->mgmt_ipv4));
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+    ASSERT(ipv4_str != NULL, "BUH!");
+    log_debug("COPIED IPV4: %s", ipv4_str);
+    SetClipboardText(ipv4_str);
+    return true;
+}
+
+static bool copy_subnet_mask(Entity *e) {
+    const char *submask_str = NULL;
+    switch (e->kind) {
+        case EK_NIC: {
+            submask_str = arena_alloc_str(*e->temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->nic->subnet_mask));
+        } break;
+        case EK_SWITCH: {
+            log_error("Cannot copy subnet mask from a Switch!");
+            return false;
+        } break;
+        case EK_ACCESS_POINT: {
+            submask_str = arena_alloc_str(*e->temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask));
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+    ASSERT(submask_str != NULL, "BUH!");
+    log_debug("COPIED SUBNET_MASK: %s", submask_str);
+    SetClipboardText(submask_str);
+    return true;
+}
+
+static bool copy_mac_address(Entity *e) {
+    const char *mac_str = NULL;
+    switch (e->kind) {
+        case EK_NIC: {
+            mac_str = arena_alloc_str(*e->temp_arena, MAC_FMT, MAC_ARG(e->nic->mac_address));
+        } break;
+        case EK_SWITCH: {
+            log_error("Cannot copy mac address from a Switch!");
+            return false;
+        } break;
+        case EK_ACCESS_POINT: {
+            ASSERT(false, "EK_ACCESS_POINT copy_mac_address is UNIMPLEMENTED!");
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+    ASSERT(mac_str != NULL, "BUH!");
+    log_debug("COPIED MAC_ADDRESS: %s", mac_str);
+    SetClipboardText(mac_str);
+    return true;
+}
+
+bool copy_entity_info(Entity *e) {
+    if (IsKeyPressed(KEY_ONE)) {
+        if (e == NULL) {
+            log_warning("Please hover over the entity you want to copy info of!");
+            return false;
+        }
+        if (!copy_ipv4(e)) return false;
+    }
+    if (IsKeyPressed(KEY_TWO)) {
+        if (e == NULL) {
+            log_warning("Please hover over the entity you want to copy info of!");
+            return false;
+        }
+        if (!copy_subnet_mask(e)) return false;
+    }
+    if (IsKeyPressed(KEY_THREE)) {
+        if (e == NULL) {
+            log_warning("Please hover over the entity you want to copy info of!");
+            return false;
+        }
+        if (!copy_mac_address(e)) return false;
+    }
+    return true;
+}
+
 static bool connect_nic_to(Entity *nic, Entity *other) {
     if (nic->kind != EK_NIC) {
         log_debug("That isn't a NIC brotato _/\\_");
@@ -939,7 +1030,6 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
             return true;
         } break;
         case EK_ACCESS_POINT: {
-            // @WIP
             uint8 ipv4[4] = {0};
             uint8 subnet_mask[4] = {0};
             if (!parse_four_octet_from_data(sv, ipv4)) {

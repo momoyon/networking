@@ -207,7 +207,7 @@ int main(void)
     bool is_in_command = false;
     char command_buff[COMMAND_BUFF_CAP] = {0};
     int command_cursor = 0;
-    Console command_hist = {0};
+    // Console command_hist = {0};
 
     bool quit = false;
 
@@ -386,11 +386,7 @@ int main(void)
                 }
                 // Copy mode
                 if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
-                    if (hovering_entity) {
-                        CHANGE_MODE(MODE_COPY);
-                    } else {
-                        log_debug("Please hover over the entity you want to copy!");
-                    }
+                    CHANGE_MODE(MODE_COPY);
                 }
 
                 // Change Entity kind
@@ -537,28 +533,7 @@ int main(void)
                 }
             } break;
             case MODE_COPY: {
-                if (IsKeyPressed(KEY_ONE)) {
-                    const char* ipv4_str = arena_alloc_str(temp_arena, IPV4_FMT,
-                        IPV4_ARG(hovering_entity->nic->ipv4_address));
-                    log_debug("COPIED IPV4: %s", ipv4_str);
-                    SetClipboardText(ipv4_str);
-                    current_mode = last_mode;
-                }
-                if (IsKeyPressed(KEY_TWO)) {
-                    const char* str = arena_alloc_str(
-                        temp_arena, SUBNET_MASK_FMT,
-                        SUBNET_MASK_ARG(hovering_entity->nic->subnet_mask));
-                    log_debug("COPIED SUBNET_MASK: %s", str);
-                    SetClipboardText(str);
-                    current_mode = last_mode;
-                }
-                if (IsKeyPressed(KEY_THREE)) {
-                    const char* str = arena_alloc_str(
-                        temp_arena, MAC_FMT, MAC_ARG(hovering_entity->nic->mac_address));
-                    log_debug("COPIED MAC_ADDRESS: %s", str);
-                    SetClipboardText(str);
-                    current_mode = last_mode;
-                }
+                copy_entity_info(hovering_entity);
 
                 if (IsKeyPressed(KEY_ESCAPE)) {
                     current_mode = last_mode;
