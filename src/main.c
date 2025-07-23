@@ -91,21 +91,34 @@ const char* changing_type_as_str(const Changing_type ch)
     return "NOPE";
 }
 
+typedef enum {
+    CMD_ID_EXIT,
+    CMD_ID_NORMAL,
+    CMD_ID_CHANGE,
+    CMD_ID_INTERACT,
+    CMD_ID_COPY,
+    CMD_ID_LOAD,
+    CMD_ID_SAVE,
+    CMD_ID_LIST_CMDS,
+    CMD_ID_COUNT,
+} Command_id;
+
 typedef struct {
-    int *items;
+    Command_id *items;
     size_t count;
     size_t capacity;
-} Indices; // @darr
+} Command_ids; // @darr
+
 
 const char *commands[] = {
-    [0] = "exit",
-    [1] = "normal",
-    [2] = "change",
-    [3] = "interact",
-    [4] = "copy",
-    [5] = "load",
-    [6] = "save",
-    [7] = "list_cmd",
+    [CMD_ID_EXIT]      = "exit",
+    [CMD_ID_NORMAL]    = "normal",
+    [CMD_ID_CHANGE]    = "change",
+    [CMD_ID_INTERACT]  = "interact",
+    [CMD_ID_COPY]      = "copy",
+    [CMD_ID_LOAD]      = "load",
+    [CMD_ID_SAVE]      = "save",
+    [CMD_ID_LIST_CMDS] = "list_cmd",
 };
 
 bool str_starts_with(const char *str, const char *suffix) {
@@ -117,16 +130,16 @@ bool str_starts_with(const char *str, const char *suffix) {
     return true;
 }
 
-Indices match_command(const char *command) {
-    Indices matched_indices = {0};
+Command_ids match_command(const char *command) {
+    Command_ids matched_command_ids = {0};
     for (int i = 0; i < ARRAY_LEN(commands); ++i) {
         const char *c = commands[i];
         if (str_starts_with(c, command)) {
-            darr_append(matched_indices, i);
+            darr_append(matched_command_ids, i);
         }
     }
 
-    return matched_indices;
+    return matched_command_ids;
 }
 
 // int main(int argc, char **argv) {
@@ -234,74 +247,82 @@ int main(void)
             }
 
             if (input_to_buff(command_buff, COMMAND_BUFF_CAP, &command_cursor)) {
-                is_in_command = false;
-                Indices matched_commands_indices = match_command(command_buff);
+                Command_ids matched_commands_ids = match_command(command_buff);
                 // TODO: Print the error message to the command "console" instead of logging to std(out|err)
-                if (matched_commands_indices.count == 0) {
+                if (matched_commands_ids.count == 0) {
                     log_error("`%s` is not a valid command!", command_buff);
-                } else if (matched_commands_indices.count == 1) {
-                    // Run commands
-                    switch (matched_commands_indices.items[0]) {
-                        case 0: {
-                            quit = true;
-                        } break;
-                        case 1: {
-                            CHANGE_MODE(MODE_NORMAL);
-                        } break;
-                        case 2: {
-                            CHANGE_MODE(MODE_CHANGE);
-                        } break;
-                        case 3: {
-                            CHANGE_MODE(MODE_INTERACT);
-                        } break;
-                        case 4: {
-                            CHANGE_MODE(MODE_COPY);
-                        } break;
-                        case 5: {
-                            if (load_entities(&entities, entities_save_path, &entity_arena, &temp_arena)) {
-                                log_debug("Successfully loaded entities from `%s`", entities_save_path);
-                            } else {
-                                log_debug("Failed to load entities from `%s`", entities_save_path);
-                            }
-                        } break;
-                        case 6: {
-                            if (save_entities(&entities, entities_save_path, entity_save_version)) {
-                                log_debug("Successfully saved entities to `%s`", entities_save_path);
-                            } else {
-                                log_debug("Failed to save entities to `%s`", entities_save_path);
-                            }
-                        } break;
-                        case 7: {
-                            log_info("Commands: ");
-                            for (size_t i = 0; i < ARRAY_LEN(commands); ++i) {
-                                const char *c = commands[i];
-                                log_info(" - %s", c);
-                            }
-                        } break;
-                        default: ASSERT(false, "UNREACHABLE!");
+                } else if (matched_commands_ids.count == 1) {
+                    if (strcmp(command_buff, commands[matched_commands_ids.items[0]]) == 0) {
+                        // Run commands
+                        is_in_command = false;
+                        switch (matched_commands_ids.items[0]) {
+                            case CMD_ID_EXIT: {
+                                quit = true;
+                            } break;
+                            case CMD_ID_NORMAL: {
+                                CHANGE_MODE(MODE_NORMAL);
+                            } break;
+                            case CMD_ID_CHANGE: {
+                                CHANGE_MODE(MODE_CHANGE);
+                            } break;
+                            case CMD_ID_INTERACT: {
+                                CHANGE_MODE(MODE_INTERACT);
+                            } break;
+                            case CMD_ID_COPY: {
+                                CHANGE_MODE(MODE_COPY);
+                            } break;
+                            case CMD_ID_LOAD: {
+                                if (load_entities(&entities, entities_save_path, &entity_arena, &temp_arena)) {
+                                    log_debug("Successfully loaded entities from `%s`", entities_save_path);
+                                } else {
+                                    log_debug("Failed to load entities from `%s`", entities_save_path);
+                                }
+                            } break;
+                            case CMD_ID_SAVE: {
+                                if (save_entities(&entities, entities_save_path, entity_save_version)) {
+                                    log_debug("Successfully saved entities to `%s`", entities_save_path);
+                                } else {
+                                    log_debug("Failed to save entities to `%s`", entities_save_path);
+                                }
+                            } break;
+                            case CMD_ID_LIST_CMDS: {
+                                log_info("Commands: ");
+                                for (size_t i = 0; i < ARRAY_LEN(commands); ++i) {
+                                    const char *c = commands[i];
+                                    log_info(" - %s", c);
+                                }
+                            } break;
+                            case CMD_ID_COUNT:
+                            default: ASSERT(false, "UNREACHABLE!");
+                        }
+                    } else {
+                        const char *cmd = commands[matched_commands_ids.items[0]];
+                        size_t cmd_len = strlen(cmd);
+                        memcpy(command_buff, cmd, cmd_len);
+                        command_cursor = cmd_len;
                     }
                     // log_info_console(command_hist, "%s", "Test");
                     // log_debug("command_hist.count: %zu", command_hist.lines.count);
                 } else {
                     log_debug("Command `%s` matched the following:", command_buff);
-                    for (size_t i = 0; i < matched_commands_indices.count; ++i) {
-                        int idx = matched_commands_indices.items[i];
+                    for (size_t i = 0; i < matched_commands_ids.count; ++i) {
+                        int idx = matched_commands_ids.items[i];
                         log_debug("    - %s", commands[idx]);
                     }
                 }
             }
 
             if (IsKeyPressed(KEY_TAB)) {
-                Indices matched_commands_indices = match_command(command_buff);
-                if (matched_commands_indices.count == 1) {
-                    const char *cmd = commands[matched_commands_indices.items[0]];
+                Command_ids matched_commands_ids = match_command(command_buff);
+                if (matched_commands_ids.count == 1) {
+                    const char *cmd = commands[matched_commands_ids.items[0]];
                     size_t cmd_len = strlen(cmd);
                     memcpy(command_buff, cmd, cmd_len);
                     command_cursor = cmd_len;
-                } else if (matched_commands_indices.count > 1) {
+                } else if (matched_commands_ids.count > 1) {
                     log_debug("Command `%s` matched the following:", command_buff);
-                    for (size_t i = 0; i < matched_commands_indices.count; ++i) {
-                        int idx = matched_commands_indices.items[i];
+                    for (size_t i = 0; i < matched_commands_ids.count; ++i) {
+                        int idx = matched_commands_ids.items[i];
                         log_debug("    - %s", commands[idx]);
                     }
                 }
