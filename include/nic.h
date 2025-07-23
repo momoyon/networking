@@ -59,9 +59,7 @@ struct Nic {
     uint8 mac_address[6];
 
 	int id; // NOTE: This is the same ID in the entity. Just temp solution to save the Switch's ports' NIC ids.
-	// Entity *self_entity; // Self entity.
-    Entity *nic_entity; // Other nic connected to
-	Entity *switch_entity; // Switch this network interface belongs to.
+    Entity *connected_entity;
 
 	int nic_entity_id;
 	bool drawing_connection;

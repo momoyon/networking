@@ -778,18 +778,15 @@ int main(void)
 
             if (hovering_entity) {
                 if (hovering_entity->kind == EK_NIC) {
-                    y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-                    const char* dst_str = arena_alloc_str(
-                        temp_arena, "Hovering dst: %p", hovering_entity->nic->nic_entity);
-                    draw_text(GetFontDefault(), dst_str, v2(2, y),
-                        ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                    y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-
-                    const char* switch_str = arena_alloc_str(temp_arena, "Hovering switch: %p",
-                        hovering_entity->nic->switch_entity);
-                    draw_text(GetFontDefault(), switch_str, v2(2, y),
-                        ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                    y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+                    if (hovering_entity->nic->connected_entity) {
+                        y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+                        const char* dst_str = arena_alloc_str(
+                            temp_arena, "Hovering NIC connected to %s: %p", entity_kind_as_str(hovering_entity->nic->connected_entity->kind), 
+                            hovering_entity->nic->connected_entity);
+                        draw_text(GetFontDefault(), dst_str, v2(2, y),
+                            ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+                        y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+                    }
                 }
             }
 
