@@ -11,6 +11,7 @@ typedef struct Wifi_waves Wifi_waves;
 struct Access_point {
     uint8 mgmt_ipv4[4];
     uint8 mgmt_subnet_mask[4];
+    Entity *connected_entity;
 
     Alarm wifi_wave_alarm;
     bool on;

@@ -8,16 +8,18 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
+typedef struct Entity Entity;
+
 typedef struct {
 	int vlan;
-	Nic *nic;
+    Entity *conn;
 	int nic_id; // NOTE: Only used when loading switches.
 } Port;
 
 typedef struct Switch Switch;
 struct Switch {
 	Console console;
-	Port fa[1][4];
+	Port fe[1][4];
 };
 
 void make_switch(Switch *switch_out, Arena *arena);
