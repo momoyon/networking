@@ -1093,23 +1093,23 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
                 }
                 sv_ltrim(&switch_sv);
 
-                String_view port_nic_id_sv = sv_lpop_until_char(&switch_sv, ' ');
+                String_view port_conn_id_sv = sv_lpop_until_char(&switch_sv, ' ');
                 sv_ltrim(&switch_sv);
 
-                int port_nic_id_count = -1;
-                int port_nic_id = sv_to_int(port_nic_id_sv, &port_nic_id_count, 10);
-                if (port_nic_id_count < 0) {
-                    log_error("Failed to convert port nic id `"SV_FMT"` to int!", SV_ARG(port_nic_id_sv));
+                int port_conn_id_count = -1;
+                int port_conn_id = sv_to_int(port_conn_id_sv, &port_conn_id_count, 10);
+                if (port_conn_id_count < 0) {
+                    log_error("Failed to convert port conn id `"SV_FMT"` to int!", SV_ARG(port_conn_id_sv));
                     return false;
                 }
-                log_debug("Parsed port %d/%d: %d", i, j, port_nic_id);
+                log_debug("Parsed port %d/%d: %d", i, j, port_conn_id);
                 if (i < 0 || i > ARRAY_LEN(e->switchh->fe)-1) {
                     log_error("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, ARRAY_LEN(e->switchh->fe));
                 }
                 if (j < 0 || j > ARRAY_LEN(e->switchh->fe[0])-1) {
                     log_error("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, ARRAY_LEN(e->switchh->fe[0]));
                 }
-                e->switchh->fe[i][j].nic_id = port_nic_id;
+                e->switchh->fe[i][j].conn_id = port_conn_id;
             }
             return true;
         } break;
@@ -1272,22 +1272,25 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
 
     log_debug("Entities.count after loading: %zu", entities->count);
 
-    // Assign the nic pointers to the switch ports using the parsed nic_id
+    // Assign the conn pointers to the switch ports using the parsed conn_id
     for (size_t i = 0; i < entities->count; ++i) {
         Entity *e = &entities->items[i];
         if (e->kind == EK_SWITCH) {
             for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
                 for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
                     Port *port = &e->switchh->fe[i][j];
-                    if (port->nic_id >= 0) {
-                        Entity *port_nic_e = get_entity_ptr_by_id(entities, port->nic_id);
-                        if (port_nic_e == NULL) {
-                            log_error("Cannot find NIC with id %d", port->nic_id);
+                    if (port->conn_id >= 0) {
+                        Entity *conn = get_entity_ptr_by_id(entities, port->conn_id);
+                        if (conn == NULL) {
+                            log_error("Cannot find CONN with id %d", port->conn_id);
                             return false;
                         }
-                        port->conn = (Entity *)arena_alloc(arena, sizeof(Entity));
-                        port->conn->nic = port_nic_e->nic;
-                        port_nic_e->nic->connected_entity = e;
+                        port->conn = conn;
+                        if (conn->kind == EK_NIC) {
+                            conn->nic->connected_entity = e;
+                        } else if (conn->kind == EK_ACCESS_POINT) {
+                            conn->ap->connected_entity = e;
+                        }
                     }
                 }
             }
@@ -1392,7 +1395,6 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
         return false;
     }
 
-    // @WIP, @TODO: port->conn must be initialized somewhere!
     for (size_t i = 0; i < ARRAY_LEN(switch_e->switchh->fe); ++i) {
         for (size_t j = 0; j < ARRAY_LEN(switch_e->switchh->fe[i]); ++j) {
             Port *port = &switch_e->switchh->fe[i][j];
