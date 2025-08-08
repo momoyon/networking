@@ -31,6 +31,6 @@ struct Wifi_waves {
     size_t capacity;
 };
 
-void make_ap(Access_point *ap_out, Arena *arena);
+void make_ap(Entity *e, Access_point *ap_out, Arena *arena);
 
 #endif // _AP_H_

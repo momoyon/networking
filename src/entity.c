@@ -130,15 +130,9 @@ void draw_entity(Entity *e, bool debug) {
                         } else if (conn->kind == EK_ACCESS_POINT) {
                             Access_point *ap = conn->ap;
                             draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                                        "eth%zu/%zu: %d.%d.%d.%d | %d.%d.%d.%d", i, j,
-                                        ap->mgmt_ipv4[0],
-                                        ap->mgmt_ipv4[1],
-                                        ap->mgmt_ipv4[2],
-                                        ap->mgmt_ipv4[3],
-                                        ap->mgmt_subnet_mask[0],
-                                        ap->mgmt_subnet_mask[1],
-                                        ap->mgmt_subnet_mask[2],
-                                        ap->mgmt_subnet_mask[3]),
+                                        "eth%zu/%zu: "IPV4_FMT" | "SUBNET_MASK_FMT, i, j,
+                                        IPV4_ARG(ap->mgmt_ipv4),
+                                        SUBNET_MASK_ARG(ap->mgmt_subnet_mask)),
                                     ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                         }
                     }
@@ -148,6 +142,7 @@ void draw_entity(Entity *e, bool debug) {
         case EK_ACCESS_POINT: {
             Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
             DrawLineV(e->pos, p, WHITE);
+            draw_info_text(&p, arena_alloc_str(*e->temp_arena, "mac address:"MAC_FMT, MAC_ARG(e->ap->mac_address)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
             draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                         "mgmt ipv4: "IPV4_FMT" "SUBNET_MASK_FMT, IPV4_ARG(e->ap->mgmt_ipv4), SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask)),
                     ENTITY_DEFAULT_RADIUS*0.5, WHITE);
@@ -519,7 +514,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
         } break;
         case EK_ACCESS_POINT: {
             e->ap = (Access_point *)arena_alloc(arena, sizeof(Access_point));
-            make_ap(e->ap, arena);
+            make_ap(e, e->ap, arena);
             e->tex = load_texture_checked("resources/gfx/ap.png");
         } break;
         case EK_COUNT:
@@ -596,10 +591,16 @@ void make_switch_console(Console *console_out, Arena *arena) {
     darr_append(console_out->lines, l);
 }
 
-void make_ap(Access_point *ap_out, Arena *arena) {
+void make_ap(Entity *e, Access_point *ap_out, Arena *arena) {
     (void)arena;
     memset(ap_out, 0, sizeof(*ap_out));
     ap_out->wifi_wave_alarm.alarm_time = AP_WIFI_WAVE_ALARM_TIME;
+
+    do {
+        float64 tp1 = GetTime();
+        get_unique_mac_address(ap_out->mac_address);
+        log_debug("get_unique_mac_address() took %.2lfs", GetTime() - tp1);
+    } while (is_mac_address_assigned(e->entities, ap_out->mac_address));
 }
 
 // Disconnect-ers
@@ -863,7 +864,7 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
         } break;
         case EK_ACCESS_POINT: {
             return arena_alloc_str(*temp_arena, 
-                    IPV4_FMT" "SUBNET_MASK_FMT" "MAC_FMT" %d ",
+                    IPV4_FMT" "SUBNET_MASK_FMT" %d.%d.%d.%d.%d.%d %d ",
                     IPV4_ARG(e->ap->mgmt_ipv4), 
                     SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask),
                     MAC_ARG(e->ap->mac_address),
