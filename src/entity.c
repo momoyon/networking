@@ -743,6 +743,39 @@ bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
 
     return recieve(dst, src, eframe);
 }
+//
+// static bool is_frame_for_conn(Entity *conn, Ethernet_frame frame) {
+//     if (!conn) {
+//         log_error("%s: Please pass a non-NULL conn!", __func__);
+//         return false;
+//     }
+//
+//     Mac_address conn_mac_addr = {0};
+//     if (conn->kind == EK_NIC) {
+//         memcpy(conn_mac_addr.addr, conn->nic->mac_address, sizeof(uint8) * 6);
+//     } else if (conn->kind == EK_ACCESS_POINT) {
+//         memcpy(conn_mac_addr.addr, conn->ap->, sizeof(uint8) * 6);
+//     } else {
+//         log_error("%s: Invalid conn kind!", __func__);
+//     }
+//     return false;
+// }
+//
+// static bool forward_frame_via_switch(Entity *se, Ethernet_frame frame) {
+//     ASSERT(se->kind == EK_SWITCH, "brother");
+//
+//     for (size_t i = 0; i < ARRAY_LEN(se->switchh->fe); ++i) {
+//         for (size_t j = 0; j < ARRAY_LEN(se->switchh->fe[i]); ++j) {
+//             Entity *conn = e->switchh->fe[i][j].conn;
+//             if (is_frame_for_conn(conn, frame)) {
+//                 log_debug("Received Ethernet Frame from "MAC_FMT" to "MAC_FMT, MAC_ARG(frame.src), MAC_ARG(frame.dst));
+//                 return true;
+//             }
+//         }
+//     }
+//
+//     return false;
+// }
 
 bool recieve(Entity *dst, Entity *src, Ethernet_frame frame) {
     (void)src;
@@ -750,6 +783,11 @@ bool recieve(Entity *dst, Entity *src, Ethernet_frame frame) {
         case EK_NIC: {
             if (dst->nic->connected_entity != src) {
                 log_error("The dst NIC is not connected to the src NIC!");
+                // if (dst->nic->connected_entity != NULL && dst->nic->connected_entity == EK_SWITCH) {
+                //     return forward_frame_via_switch(dst->nic->connected_entity, frame);
+                // } else {
+                //     log_error("The dst NIC is not connected to a switch either");
+                // }
                 return false;
             }
 
@@ -825,9 +863,10 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
         } break;
         case EK_ACCESS_POINT: {
             return arena_alloc_str(*temp_arena, 
-                    IPV4_FMT" "SUBNET_MASK_FMT" %d ",
+                    IPV4_FMT" "SUBNET_MASK_FMT" "MAC_FMT" %d ",
                     IPV4_ARG(e->ap->mgmt_ipv4), 
                     SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask),
+                    MAC_ARG(e->ap->mac_address),
                     e->ap->on ? 1 : 0);
         } break;
         case EK_COUNT:
@@ -917,65 +956,42 @@ static bool load_entity_from_data_v1(Entity *e, String_view *sv) {
     return true;
 }
 
-static bool parse_four_octet_from_data(String_view *sv, uint8 four_octet[4]) {
-    String_view oct1_sv = sv_lpop_until_char(sv, '.');
-    int oct1_count = -1;
-    uint oct1 = sv_to_uint(oct1_sv, &oct1_count, 10);
-    if (oct1_count < 0) {
-        log_error("Failed to convert oct1 `"SV_FMT"` to a number!", SV_ARG(oct1_sv));
-        return false;
-    }
-    if (oct1 > 255) {
-        log_error("Octets must be in the range 0-255!");
-        return false;
-    }
-    sv_lremove(sv, 1); // Remove .
-    String_view oct2_sv = sv_lpop_until_char(sv, '.');
-    int oct2_count = -1;
-    uint oct2 = sv_to_uint(oct2_sv, &oct2_count, 10);
-    if (oct2_count < 0) {
-        log_error("Failed to convert oct2 `"SV_FMT"` to a number!", SV_ARG(oct2_sv));
-        return false;
-    }
-    if (oct2 > 255) {
-        log_error("Octets must be in the range 0-255!");
-        return false;
-    }
-    sv_lremove(sv, 1); // Remove .
-    String_view oct3_sv = sv_lpop_until_char(sv, '.');
-    int oct3_count = -1;
-    uint oct3 = sv_to_uint(oct3_sv, &oct3_count, 10);
-    if (oct3_count < 0) {
-        log_error("Failed to convert oct3 `"SV_FMT"` to a number!", SV_ARG(oct3_sv));
-        return false;
-    }
-    if (oct3 > 255) {
-        log_error("Octets must be in the range 0-255!");
-        return false;
-    }
-    sv_lremove(sv, 1); // Remove .
-    String_view oct4_sv = sv_lpop_until_char(sv, ' ');
-    int oct4_count = -1;
-    uint oct4 = sv_to_uint(oct4_sv, &oct4_count, 10);
-    if (oct4_count < 0) {
-        log_error("Failed to convert oct4 `"SV_FMT"` to a number!", SV_ARG(oct4_sv));
-        return false;
-    }
-    if (oct4 > 255) {
-        log_error("Octets must be in the range 0-255!");
+static bool parse_n_octet_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count) {
+    if (octets_count < n) {
+        log_error("%s: octets count passed is less than n: %zu < %d", __func__, octets_count, n);
         return false;
     }
 
-    four_octet[0] = oct1;
-    four_octet[1] = oct2;
-    four_octet[2] = oct3;
-    four_octet[3] = oct4;
+    for (int i = 0; i < n; ++i) {
+        char c = i == n-1 ? ' ' : '.';
+        String_view oct_sv = sv_lpop_until_char(sv, c);
+        int oct_count = -1;
+        uint oct = sv_to_uint(oct_sv, &oct_count, 10);
+        if (oct_count < 0) {
+            log_error("Failed to convert oct%d `"SV_FMT"` to a number!", i+1, SV_ARG(oct_sv));
+            return false;
+        }
+        if (oct > 255) {
+            log_error("Octets must be in the range 0-255!");
+            return false;
+        }
+        if (i < n-1) {
+            sv_lremove(sv, 1); // Remove .
+        }
+
+        octets[i] = oct;
+    }
     return true;
+}
+
+static bool parse_four_octet_from_data(String_view *sv, uint8 four_octet[4]) {
+    return parse_n_octet_from_data(4, sv, four_octet, 4);
 }
 
 static bool parse_nic_from_data(Nic *nic, String_view *sv) {
     uint8 ipv4[4] = {0};
     uint8 subnet_mask[4] = {0};
+    uint8 mac_address[6] = {0};
     if (!parse_four_octet_from_data(sv, ipv4)) {
         return false;
     }
@@ -984,55 +1000,13 @@ static bool parse_nic_from_data(Nic *nic, String_view *sv) {
         return false;
     }
 
+    if (!parse_n_octet_from_data(6, sv, mac_address, 6)) {
+        return false;
+    }
+
     log_debug("--------------------------------------------------");
     log_debug("Parsed ipv4: %d.%d.%d.%d", ipv4[0], ipv4[1], ipv4[2], ipv4[3]);
     log_debug("Parsed subnet_mask: %d.%d.%d.%d", subnet_mask[0], subnet_mask[1], subnet_mask[2], subnet_mask[3]);
-
-    String_view mac_address_oct1_sv = sv_lpop_until_char(sv, '.');
-    sv_lremove(sv, 1); // Remove .
-    String_view mac_address_oct2_sv = sv_lpop_until_char(sv, '.');
-    sv_lremove(sv, 1); // Remove .
-    String_view mac_address_oct3_sv = sv_lpop_until_char(sv, '.');
-    sv_lremove(sv, 1); // Remove .
-    String_view mac_address_oct4_sv = sv_lpop_until_char(sv, '.');
-    sv_lremove(sv, 1); // Remove .
-    String_view mac_address_oct5_sv = sv_lpop_until_char(sv, '.');
-    sv_lremove(sv, 1); // Remove .
-    String_view mac_address_oct6_sv = sv_lpop_until_char(sv, ' ');
-
-    uint8 mac_address[6] = {0};
-    int   mac_address_counts[6] = { -1, -1, -1, -1, -1, -1 };
-    mac_address[0] = sv_to_uint(mac_address_oct1_sv, &mac_address_counts[0], 10);
-    if (mac_address_counts[0] <= 0) {
-        log_debug("Failed to convert mac_address oct1`"SV_FMT"` to int!", SV_ARG(mac_address_oct1_sv));
-        return false;
-    }
-    mac_address[1] = sv_to_uint(mac_address_oct2_sv, &mac_address_counts[1], 10);
-    if (mac_address_counts[1] <= 0) {
-        log_debug("Failed to convert mac_address oct2`"SV_FMT"` to int!", SV_ARG(mac_address_oct2_sv));
-        return false;
-    }
-    mac_address[2] = sv_to_uint(mac_address_oct3_sv, &mac_address_counts[2], 10);
-    if (mac_address_counts[2] <= 0) {
-        log_debug("Failed to convert mac_address oct3`"SV_FMT"` to int!", SV_ARG(mac_address_oct3_sv));
-        return false;
-    }
-    mac_address[3] = sv_to_uint(mac_address_oct4_sv, &mac_address_counts[3], 10);
-    if (mac_address_counts[3] <= 0) {
-        log_debug("Failed to convert mac_address oct4`"SV_FMT"` to int!", SV_ARG(mac_address_oct4_sv));
-        return false;
-    }
-    mac_address[4] = sv_to_uint(mac_address_oct5_sv, &mac_address_counts[4], 10);
-    if (mac_address_counts[4] <= 0) {
-        log_debug("Failed to convert mac_address oct5`"SV_FMT"` to int!", SV_ARG(mac_address_oct5_sv));
-        return false;
-    }
-    mac_address[5] = sv_to_uint(mac_address_oct6_sv, &mac_address_counts[5], 10);
-    if (mac_address_counts[5] <= 0) {
-        log_debug("Failed to convert mac_address oct6`"SV_FMT"` to int!", SV_ARG(mac_address_oct6_sv));
-        return false;
-    }
-
     log_debug("Parsed mac_address: %d.%d.%d.%d.%d.%d", mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
     log_debug("--------------------------------------------------");
 
@@ -1116,10 +1090,15 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
         case EK_ACCESS_POINT: {
             uint8 ipv4[4] = {0};
             uint8 subnet_mask[4] = {0};
+            uint8 mac_address[6] = {0};
+
             if (!parse_four_octet_from_data(sv, ipv4)) {
                 return false;
             }
             if (!parse_four_octet_from_data(sv, subnet_mask)) {
+                return false;
+            }
+            if (!parse_n_octet_from_data(6, sv, mac_address, 6)) {
                 return false;
             }
             sv_ltrim(sv);
@@ -1133,7 +1112,7 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
                 ASSERT(false, "WE GOT NEITHER 0 NOR 1 FOR AP POWER!");
             }
 
-
+            memcpy(e->ap->mac_address, mac_address, sizeof(uint8)*6);
             memcpy(e->ap->mgmt_ipv4, ipv4, sizeof(uint8)*4);
             memcpy(e->ap->mgmt_subnet_mask, subnet_mask, sizeof(uint8)*4);
 
