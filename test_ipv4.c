@@ -131,6 +131,10 @@ int main(int argc, char **argv) {
     while (argc > 0) {
         const char *arg = shift_args(argv, argc);
 
+        if (*arg == '-' && (*arg+1) == '-') {
+            log_error("We don't support `--arg`, only `-arg`");
+            return 1;
+        }
         if (strcmp(arg, "-max_count") == 0) {
             if (argc <= 0) {
                 log_error("%s needs one argument!", arg);

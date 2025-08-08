@@ -1396,14 +1396,10 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
     for (size_t i = 0; i < ARRAY_LEN(switch_e->switchh->fe); ++i) {
         for (size_t j = 0; j < ARRAY_LEN(switch_e->switchh->fe[i]); ++j) {
             Port *port = &switch_e->switchh->fe[i][j];
-            if (e->kind == EK_NIC) {
-                if (port->conn && port->conn->nic == NULL) {
-                    port->conn->nic = e->nic;
-                    return true;
-                }
-            } else if (e->kind == EK_ACCESS_POINT) {
-                if (port->conn && port->conn->ap == NULL) {
-                    port->conn->ap = e->ap;
+            if (e->kind == EK_NIC || e->kind == EK_ACCESS_POINT) {
+                if (port->conn == NULL) {
+                    port->conn = (Entity *)arena_alloc(e->arena, sizeof(Entity));
+                    memcpy(port->conn, e, sizeof(Entity));
                     return true;
                 }
             }
