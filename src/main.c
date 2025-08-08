@@ -251,6 +251,7 @@ int main(void)
                 // TODO: Print the error message to the command "console" instead of logging to std(out|err)
                 if (matched_commands_ids.count == 0) {
                     log_error("`%s` is not a valid command!", command_buff);
+                    is_in_command = false;
                 } else if (matched_commands_ids.count == 1) {
                     if (strcmp(command_buff, commands[matched_commands_ids.items[0]]) == 0) {
                         // Run commands
