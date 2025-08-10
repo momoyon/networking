@@ -150,6 +150,10 @@ typedef const char*  cstr;
 typedef const wchar* wstr;
 
 
+// Static variables
+#define C_ERROR_BUFF_CAP (1024)
+static char __error_buff__[C_ERROR_BUFF_CAP] = {0};
+
 // Macros
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
 #define C_ASSERT(condition, msg) do {\
@@ -547,32 +551,36 @@ const char *c_read_file(const char* filename, int *file_size) {
     char* result = NULL;
 
     if (f == NULL){
-        // TODO: Replace every strerror with strerror_s
-        c_log_error("'%s': %s", filename, strerror(errno));
+        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
+        c_log_error("'%s': %s", filename, __error_buff__);
         defer(NULL);
     }
 
     if (fseek(f, 0, SEEK_END) < 0) {
-        c_log_error("'%s': %s", filename, strerror(errno));
+        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
+        c_log_error("'%s': %s", filename, __error_buff__);
         defer(NULL);
     }
 
     size_t fsize = ftell(f);
 
     if (fsize == (size_t)-1){
-        c_log_error("'%s': %s", filename, strerror(errno));
+        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
+        c_log_error("'%s': %s", filename, __error_buff__);
         defer(NULL);
     }
 
     result = C_MALLOC(sizeof(char)*(fsize+1));
 
     if (result == NULL){
-        c_log_error("'%s': %s", filename, strerror(errno));
+        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
+        c_log_error("'%s': %s", filename, __error_buff__);
         defer(NULL);
     }
 
     if (fseek(f, 0, SEEK_SET) < 0) {
-        c_log_error("'%s': %s", filename, strerror(errno));
+        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
+        c_log_error("'%s': %s", filename, __error_buff__);
         defer(NULL);
     }
 
