@@ -613,33 +613,83 @@ void disconnect_entity(Entity *e) {
             disconnect_switch(e);
         } break;
         case EK_ACCESS_POINT: {
-            ASSERT(false, "EK_ACCESS_POINT disconnect is UNIMPLEMENTED!");
+            disconnect_ap(e);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
 }
 
-void disconnect_nic(Entity *e) {
-    ASSERT(e->kind == EK_NIC, "BRO");
-    if (e->nic->connected_entity && 
-        e->nic->connected_entity->kind == EK_NIC &&
-        e->nic->connected_entity->nic->connected_entity == e) {
-        e->nic->connected_entity->nic->connected_entity = NULL;
+bool match_port_kind(Entity *e, Port *port) {
+    if (!port || !port->conn) return false;
+    if (e->kind == EK_NIC) return port->conn->nic == e->nic;
+    if (e->kind == EK_ACCESS_POINT) return port->conn->ap == e->ap;
+    return false;
+}
+
+void set_connected_entity(Entity *e, Entity *to) {
+    switch (e->kind) {
+        case EK_NIC: {
+            e->nic->connected_entity = to;
+        } break;
+        case EK_SWITCH: {
+            log_warning("Switch doesn't have a `connected_entity` member!");
+            // e->nic->connected_entity = to;
+        } break;
+        case EK_ACCESS_POINT: {
+            e->ap->connected_entity = to;
+        } break;
+        case EK_COUNT: 
+        default: ASSERT(false, "UNREACHABLE!");
     }
-    if (e->nic->connected_entity && 
-        e->nic->connected_entity->kind == EK_SWITCH) {
-        for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
-            for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
-                Port *port = &e->nic->connected_entity->switchh->fe[i][j];
-                if (port->conn && port->conn->kind == EK_NIC && port->conn->nic == e->nic) {
-                    port->conn = NULL;
+}
+
+Entity *get_connected_entity(Entity *e) {
+    switch (e->kind) {
+        case EK_NIC: return e->nic->connected_entity;
+        case EK_SWITCH: return NULL;
+        case EK_ACCESS_POINT: return e->ap->connected_entity;
+        case EK_COUNT: 
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+    return NULL;
+}
+
+void disconnect_port(Port *port) {
+    if (port && port->conn) {
+        set_connected_entity(port->conn, NULL);
+        port->conn = NULL;
+    }
+}
+
+static void disconnect_connected_entity(Entity *e) {
+    Entity *connected_entity = get_connected_entity(e);
+
+    if (connected_entity && 
+        connected_entity->kind == EK_NIC &&
+        connected_entity->nic->connected_entity == e) {
+        connected_entity->nic->connected_entity = NULL;
+    }
+    if (connected_entity && 
+        connected_entity->kind == EK_SWITCH) {
+        for (size_t i = 0; i < ARRAY_LEN(connected_entity->switchh->fe); ++i) {
+            for (size_t j = 0; j < ARRAY_LEN(connected_entity->switchh->fe[i]); ++j) {
+                Port *port = &connected_entity->switchh->fe[i][j];
+                if (match_port_kind(e, port)) {
+                    disconnect_port(port);
                     break; // We shouldn't have duplicate entries
                 }
             }
         }
     }
-    e->nic->connected_entity = NULL;
+
+    set_connected_entity(e, NULL);
+}
+
+void disconnect_nic(Entity *e) {
+    ASSERT(e->kind == EK_NIC, "BRO");
+    disconnect_connected_entity(e);
+    log_debug("Disconnected NIC with ID: %zu", e->id);
 }
 
 void disconnect_switch(Entity *e) {
@@ -647,20 +697,16 @@ void disconnect_switch(Entity *e) {
     for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
         for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
             Port *port = &e->switchh->fe[i][j];
-            if (port->conn) {
-                Access_point *a = port->conn->ap;
-                Nic *n = port->conn->nic;
-                if (a->connected_entity == e && a->connected_entity->kind == EK_SWITCH) {
-                    a->connected_entity = NULL;
-                }
-                if (n->connected_entity == e && n->connected_entity->kind == EK_SWITCH) {
-                    n->connected_entity = NULL;
-                }
-                port->conn = NULL;
-            }
+            disconnect_port(port);
         }
     }
     log_debug("Disconnected switch with ID: %zu", e->id);
+}
+
+void disconnect_ap(Entity *e) {
+    ASSERT(e->kind == EK_ACCESS_POINT, "BRO");
+    disconnect_connected_entity(e);
+    log_debug("Disconnected ap with ID: %zu", e->id);
 }
 
 // Free-ers

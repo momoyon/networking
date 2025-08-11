@@ -152,7 +152,7 @@ typedef const wchar* wstr;
 
 // Static variables
 #define C_ERROR_BUFF_CAP (1024)
-static char __error_buff__[C_ERROR_BUFF_CAP] = {0};
+extern char __error_buff__[C_ERROR_BUFF_CAP];
 
 // Macros
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
@@ -479,6 +479,9 @@ c_String_view c_sv_get_part(c_String_view sv, int from, int to);
 #include <assert.h>
 
 // My things implementation:
+
+// Global variables
+char __error_buff__[C_ERROR_BUFF_CAP] = {0};
 
 //
 // Math

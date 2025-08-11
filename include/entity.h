@@ -89,6 +89,7 @@ bool copy_entity_info(Entity *e);
 void disconnect_entity(Entity *e);
 void disconnect_nic(Entity *e);
 void disconnect_switch(Entity *e);
+void disconnect_ap(Entity *e);
 void free_entity(Entity *e);
 void free_nic(Entity *e);
 void free_switch(Entity *e);
