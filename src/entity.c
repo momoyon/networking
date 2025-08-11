@@ -728,6 +728,8 @@ void free_entity(Entity *e) {
     }
 }
 
+// TODO: Try loading and you will see that the last NIC isnt connected
+
 void free_nic(Entity *e) {
     ASSERT(e->kind == EK_NIC, "Br");
     if (e->nic->connected_entity != NULL) {
