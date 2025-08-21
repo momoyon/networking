@@ -220,8 +220,6 @@ int main(void)
     };
 
     bool is_in_command = false;
-    char command_buff[COMMAND_BUFF_CAP] = {0};
-    int command_cursor = 0;
     Console command_hist = {
         .font = GetFontDefault(),
     };
@@ -250,13 +248,13 @@ int main(void)
                 is_in_command = false;
             }
 
-            if (input_to_buff(command_buff, COMMAND_BUFF_CAP, &command_cursor)) {
+            if (input_to_console(&command_hist)) {
+                char* command_buff = current_console_line_buff(&command_hist);
                 Command_ids matched_commands_ids = match_command(command_buff);
                 if (matched_commands_ids.count == 0) {
                     log_error_console(command_hist, "`%s` is not a valid command!", command_buff);
                     is_in_command = true;
-                    memset(command_buff, 0, command_cursor);
-                    command_cursor = 0;
+                    clear_current_console_line(&command_hist);
                 } else if (matched_commands_ids.count == 1) {
                     if (strcmp(command_buff, commands[matched_commands_ids.items[0]]) == 0) {
                         // Run commands
@@ -298,8 +296,7 @@ int main(void)
                                     log_info_a(command_hist, " - %s", c);
                                 }
                                 is_in_command = true;
-                                memset(command_buff, 0, command_cursor);
-                                command_cursor = 0;
+                                clear_current_console_line(&command_hist);
                             } break;
                             case CMD_ID_COUNT:
                             default: ASSERT(false, "UNREACHABLE!");
@@ -307,8 +304,8 @@ int main(void)
                     } else {
                         const char *cmd = commands[matched_commands_ids.items[0]];
                         size_t cmd_len = strlen(cmd);
-                        memcpy(command_buff, cmd, cmd_len);
-                        command_cursor = cmd_len;
+                        memcpy(current_console_line_buff(&command_hist), cmd, cmd_len);
+                        command_hist.cursor = cmd_len;
                     }
                 } else {
                     log_debug_console(command_hist, "Command `%s` matched the following:", command_buff);
@@ -320,14 +317,14 @@ int main(void)
             }
 
             if (IsKeyPressed(KEY_TAB)) {
-                Command_ids matched_commands_ids = match_command(command_buff);
+                Command_ids matched_commands_ids = match_command(current_console_line_buff(&command_hist));
                 if (matched_commands_ids.count == 1) {
                     const char *cmd = commands[matched_commands_ids.items[0]];
                     size_t cmd_len = strlen(cmd);
-                    memcpy(command_buff, cmd, cmd_len);
-                    command_cursor = cmd_len;
+                    memcpy(current_console_line_buff(&command_hist), cmd, cmd_len);
+                    command_hist.cursor = cmd_len;
                 } else if (matched_commands_ids.count > 1) {
-                    log_debug_console(command_hist, "Command `%s` matched the following:", command_buff);
+                    log_debug_console(command_hist, "Command `%s` matched the following:", current_console_line_buff(&command_hist));
                     for (size_t i = 0; i < matched_commands_ids.count; ++i) {
                         int idx = matched_commands_ids.items[i];
                         log_debug_console(command_hist, "    - %s", commands[idx]);
@@ -338,8 +335,7 @@ int main(void)
         } else {
             if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_SEMICOLON)) {
                 is_in_command = true;
-                memset(command_buff, 0, COMMAND_BUFF_CAP);
-                command_cursor = 0;
+                clear_current_console_line(&command_hist);
             }
 
             // Move camera
@@ -590,7 +586,6 @@ int main(void)
                     if (input_to_console(active_switch_console)) {
                         active_switch_console = NULL;
                     }
-
                 } else if (hovering_entity) {
                     switch (hovering_entity->kind) {
                         case EK_NIC: {
@@ -948,14 +943,25 @@ int main(void)
                 }
             }
             if (active_switch_console) {
-                DrawRectangleRec(active_switch_console_rect, BLACK);
-                DrawRectangleLinesEx(active_switch_console_rect, 1, WHITE);
-                float pad = 8.f;
-
-                Console_line *current_console_line = &active_switch_console->lines.items[active_switch_console->line];
-
-                draw_text(GetFontDefault(), current_console_line->buff, v2(active_switch_console_rect.x + pad, active_switch_console_rect.y + pad), ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-
+                Rectangle console_rect = {
+                    .x = 0.f,
+                    .y = 0.f,
+                    .width = width * 0.5f,
+                    .height = height * 0.5f,
+                };
+                
+                // console_rect.x = (width * 0.5f) - console_rect.width * 0.5f;
+                // console_rect.y = (height * 0.5f) - console_rect.height * 0.5f;
+                draw_console(active_switch_console, console_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
+                
+                // DrawRectangleRec(active_switch_console_rect, BLACK);
+                // DrawRectangleLinesEx(active_switch_console_rect, 1, WHITE);
+                // float pad = 8.f;
+                //
+                // Console_line *current_console_line = &active_switch_console->lines.items[active_switch_console->line];
+                //
+                // draw_text(GetFontDefault(), current_console_line->buff, v2(active_switch_console_rect.x + pad, active_switch_console_rect.y + pad), ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+                //
                 // TODO: Get the letter width and add that to the cursor_rect.x and .width
                 // float cursor_offset = get_cursor_offset(active_switch_console);
                 //
@@ -975,7 +981,7 @@ int main(void)
 
         if (is_in_command) {
             draw_text(GetFontDefault(), ":", v2(4.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
-            draw_text(GetFontDefault(), command_buff, v2(8.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
+            draw_text(GetFontDefault(), current_console_line_buff(&command_hist), v2(8.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
 
             Rectangle command_rect = {
                 .x = 0.f,

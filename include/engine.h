@@ -104,6 +104,10 @@ struct Console {
     Font font;
 };
 
+Console_line *get_or_create_console_line(Console *console, size_t line);
+void clear_console_line(Console_line *cl);
+void clear_current_console_line(Console *console);
+char *current_console_line_buff(Console *console);
 bool input_to_console(Console *console);
 float get_cursor_offset(Console *console);
 void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
@@ -413,9 +417,38 @@ bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out)
 }
 
 // Console
+Console_line *get_or_create_console_line(Console *console, size_t line) {
+    // TODO: Check outofbounds of line
+    if (console->lines.count < line+1) {
+        Console_line new_console_line = {0};
+        darr_append(console->lines, new_console_line);
+    }
+    return &console->lines.items[line];
+}
+
+void clear_console_line(Console_line *cl) {
+    if (cl == NULL) {
+        log_warning("Console line is NULL!!");
+        return;
+    }
+    memset(cl->buff, 0, CONSOLE_LINE_BUFF_CAP);
+}
+
+void clear_current_console_line(Console *console) {
+    Console_line *cl = get_or_create_console_line(console, console->line);
+    clear_console_line(cl);
+    console->cursor = 0;
+}
+
+char *current_console_line_buff(Console *console) {
+    if (console == NULL) return NULL;
+    // TODO: Check line outofbounds
+    return console->lines.items[console->line].buff;
+}
+
 bool input_to_console(Console *console) {
 	int ch = 0;
-    Console_line *line = &console->lines.items[console->line];
+    Console_line *line = get_or_create_console_line(console, console->line);
 
     if (console->cursor < 0) console->cursor = 0;
     if (console->cursor > CONSOLE_LINE_BUFF_CAP-1) console->cursor = CONSOLE_LINE_BUFF_CAP-1;
@@ -470,12 +503,16 @@ float get_cursor_offset(Console *console) {
 void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) {
     Vector2 pos = {rect.x, rect.y + (rect.height - font_size)};
     pos = Vector2Add(pos, pad);
+    DrawRectangleLinesEx(rect, 1.f, WHITE);
+    DrawRectangleRec(rect, ColorAlpha(BLACK, 0.7f));
+    BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
     for (size_t i = 0; i < console->lines.count; ++i) {
         Console_line *line = &console->lines.items[console->lines.count - i - 1];
         draw_text(GetFontDefault(), line->buff, pos, font_size, line->color);
 
         pos.y -= (pad.y + 2.f*font_size);
     }
+    EndScissorMode();
 }
 
 // Timer and Alarm
