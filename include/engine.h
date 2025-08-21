@@ -101,6 +101,7 @@ struct Console {
 	Console_lines lines;
 	int cursor; // offset in the line
 	int line;   // line number
+    Font font;
 };
 
 bool input_to_console(Console *console);
@@ -115,6 +116,25 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
         darr_append(console.lines, l);\
     } while (0)
 
+#define log_error_console(console, fmt, ...) do {\
+        Console_line l = {\
+            .color = RED,\
+        };\
+        snprintf(l.buff, CONSOLE_LINE_BUFF_CAP, "[ERROR] "fmt, __VA_ARGS__);\
+        darr_append(console.lines, l);\
+    } while (0)
+
+#ifdef DEBUG
+#define log_debug_console(console, fmt, ...) do {\
+        Console_line l = {\
+            .color = YELLOW,\
+        };\
+        snprintf(l.buff, CONSOLE_LINE_BUFF_CAP, "[DEBUG] "fmt, __VA_ARGS__);\
+        darr_append(console.lines, l);\
+    } while (0)
+#else
+#define log_debug_console(...)
+#endif
 
 // Timer and Alarm
 typedef struct Timer Timer;
@@ -451,10 +471,10 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) 
     Vector2 pos = {rect.x, rect.y + (rect.height - font_size)};
     pos = Vector2Add(pos, pad);
     for (size_t i = 0; i < console->lines.count; ++i) {
-        Console_line *line = &console->lines.items[i];
+        Console_line *line = &console->lines.items[console->lines.count - i - 1];
         draw_text(GetFontDefault(), line->buff, pos, font_size, line->color);
 
-        pos.y -= (pad.y + font_size);
+        pos.y -= (pad.y + 2.f*font_size);
     }
 }
 

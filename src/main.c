@@ -14,6 +14,8 @@
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
 
+#define log_info_a(console, fmt, ...) log_info_console(console, fmt, __VA_ARGS__); log_info(fmt, __VA_ARGS__)
+
 #define FACTOR 105
 #define SCREEN_WIDTH (16 * FACTOR)
 #define SCREEN_HEIGHT (9 * FACTOR)
@@ -220,7 +222,9 @@ int main(void)
     bool is_in_command = false;
     char command_buff[COMMAND_BUFF_CAP] = {0};
     int command_cursor = 0;
-    // Console command_hist = {0};
+    Console command_hist = {
+        .font = GetFontDefault(),
+    };
 
     bool quit = false;
 
@@ -248,10 +252,11 @@ int main(void)
 
             if (input_to_buff(command_buff, COMMAND_BUFF_CAP, &command_cursor)) {
                 Command_ids matched_commands_ids = match_command(command_buff);
-                // TODO: Print the error message to the command "console" instead of logging to std(out|err)
                 if (matched_commands_ids.count == 0) {
-                    log_error("`%s` is not a valid command!", command_buff);
-                    is_in_command = false;
+                    log_error_console(command_hist, "`%s` is not a valid command!", command_buff);
+                    is_in_command = true;
+                    memset(command_buff, 0, command_cursor);
+                    command_cursor = 0;
                 } else if (matched_commands_ids.count == 1) {
                     if (strcmp(command_buff, commands[matched_commands_ids.items[0]]) == 0) {
                         // Run commands
@@ -287,11 +292,14 @@ int main(void)
                                 }
                             } break;
                             case CMD_ID_LIST_CMDS: {
-                                log_info("Commands: ");
+                                log_info_a(command_hist, "%s", "Commands: ");
                                 for (size_t i = 0; i < ARRAY_LEN(commands); ++i) {
                                     const char *c = commands[i];
-                                    log_info(" - %s", c);
+                                    log_info_a(command_hist, " - %s", c);
                                 }
+                                is_in_command = true;
+                                memset(command_buff, 0, command_cursor);
+                                command_cursor = 0;
                             } break;
                             case CMD_ID_COUNT:
                             default: ASSERT(false, "UNREACHABLE!");
@@ -302,13 +310,11 @@ int main(void)
                         memcpy(command_buff, cmd, cmd_len);
                         command_cursor = cmd_len;
                     }
-                    // log_info_console(command_hist, "%s", "Test");
-                    // log_debug("command_hist.count: %zu", command_hist.lines.count);
                 } else {
-                    log_debug("Command `%s` matched the following:", command_buff);
+                    log_debug_console(command_hist, "Command `%s` matched the following:", command_buff);
                     for (size_t i = 0; i < matched_commands_ids.count; ++i) {
                         int idx = matched_commands_ids.items[i];
-                        log_debug("    - %s", commands[idx]);
+                        log_debug_console(command_hist, "    - %s", commands[idx]);
                     }
                 }
             }
@@ -321,10 +327,10 @@ int main(void)
                     memcpy(command_buff, cmd, cmd_len);
                     command_cursor = cmd_len;
                 } else if (matched_commands_ids.count > 1) {
-                    log_debug("Command `%s` matched the following:", command_buff);
+                    log_debug_console(command_hist, "Command `%s` matched the following:", command_buff);
                     for (size_t i = 0; i < matched_commands_ids.count; ++i) {
                         int idx = matched_commands_ids.items[i];
-                        log_debug("    - %s", commands[idx]);
+                        log_debug_console(command_hist, "    - %s", commands[idx]);
                     }
                 }
 
@@ -971,13 +977,13 @@ int main(void)
             draw_text(GetFontDefault(), ":", v2(4.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
             draw_text(GetFontDefault(), command_buff, v2(8.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
 
-            // Rectangle command_rect = {
-            //     .x = 0.f,
-            //     .y = height * 0.5f - ENTITY_DEFAULT_RADIUS*0.5f,
-            //     .width = width,
-            //     .height = height * 0.5f,
-            // };
-            // draw_console(&command_hist, command_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
+            Rectangle command_rect = {
+                .x = 0.f,
+                .y = height * 0.5f - ENTITY_DEFAULT_RADIUS*0.5f,
+                .width = width,
+                .height = height * 0.5f,
+            };
+            draw_console(&command_hist, command_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
         }
 
         EndTextureMode();
