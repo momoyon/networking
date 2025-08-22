@@ -104,6 +104,7 @@ struct Console {
     Font font;
 };
 
+void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color);
 Console_line *get_or_create_console_line(Console *console, size_t line);
 void clear_console_line(Console_line *cl);
 void clear_current_console_line(Console *console);
@@ -417,6 +418,14 @@ bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out)
 }
 
 // Console
+
+void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color) {
+    Console_line cl = { .count = buff_size, };
+    memcpy(cl.buff, buff, buff_size);
+    cl.color = color;
+    darr_append(console->lines, cl);
+}
+
 Console_line *get_or_create_console_line(Console *console, size_t line) {
     // TODO: Check outofbounds of line
     if (console->lines.count < line+1) {

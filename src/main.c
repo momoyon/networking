@@ -14,7 +14,7 @@
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
 
-#define log_info_a(console, fmt, ...) log_info_console(console, fmt, __VA_ARGS__); log_info(fmt, __VA_ARGS__)
+#define log_info_a(console, fmt, ...) log_info_console((console), fmt, __VA_ARGS__); log_info(fmt, __VA_ARGS__)
 
 #define FACTOR 105
 #define SCREEN_WIDTH (16 * FACTOR)
@@ -584,7 +584,11 @@ int main(void)
             case MODE_INTERACT: {
                 if (active_switch_console) {
                     if (input_to_console(active_switch_console)) {
+                        char *buff = current_console_line_buff(active_switch_console);
+                        add_line_to_console(active_switch_console, buff, strlen(buff), WHITE);
+                        clear_current_console_line(active_switch_console);
                         active_switch_console = NULL;
+
                     }
                 } else if (hovering_entity) {
                     switch (hovering_entity->kind) {
@@ -943,35 +947,10 @@ int main(void)
                 }
             }
             if (active_switch_console) {
-                Rectangle console_rect = {
-                    .x = 0.f,
-                    .y = 0.f,
-                    .width = width * 0.5f,
-                    .height = height * 0.5f,
-                };
                 
-                // console_rect.x = (width * 0.5f) - console_rect.width * 0.5f;
-                // console_rect.y = (height * 0.5f) - console_rect.height * 0.5f;
-                draw_console(active_switch_console, console_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
+                draw_console(active_switch_console, active_switch_console_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
+                draw_text(GetFontDefault(), current_console_line_buff(active_switch_console), v2(active_switch_console_rect.x, active_switch_console_rect.y + active_switch_console_rect.height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
                 
-                // DrawRectangleRec(active_switch_console_rect, BLACK);
-                // DrawRectangleLinesEx(active_switch_console_rect, 1, WHITE);
-                // float pad = 8.f;
-                //
-                // Console_line *current_console_line = &active_switch_console->lines.items[active_switch_console->line];
-                //
-                // draw_text(GetFontDefault(), current_console_line->buff, v2(active_switch_console_rect.x + pad, active_switch_console_rect.y + pad), ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                //
-                // TODO: Get the letter width and add that to the cursor_rect.x and .width
-                // float cursor_offset = get_cursor_offset(active_switch_console);
-                //
-                // Rectangle cursor_rect = {
-                //     .x = active_switch_console_rect.x + pad + cursor_offset,
-                //     .y = active_switch_console_rect.y + pad,
-                //     .width = ENTITY_DEFAULT_RADIUS * 0.25,
-                //     .height = ENTITY_DEFAULT_RADIUS * 0.5,
-                // };
-                // DrawRectangleRec(cursor_rect, WHITE);
             }
         } break;
         case MODE_COUNT:
