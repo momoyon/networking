@@ -728,8 +728,6 @@ void free_entity(Entity *e) {
     }
 }
 
-// TODO: Try loading and you will see that the last NIC isnt connected
-
 void free_nic(Entity *e) {
     ASSERT(e->kind == EK_NIC, "Br");
     if (e->nic->connected_entity != NULL) {
@@ -737,8 +735,9 @@ void free_nic(Entity *e) {
         if (e_conn->nic->connected_entity == e) {
             e_conn->nic->connected_entity = NULL;
         }
-        e->nic->connected_entity = NULL;
     }
+
+    log_debug("IS THIS EVER CALLED?");
     
     // Add free mac_address so it can be reused
     Mac_address m = {0};
@@ -752,17 +751,17 @@ void free_nic(Entity *e) {
 
     if (e->nic->connected_entity != NULL && e->nic->connected_entity->kind == EK_SWITCH) {
         Entity *e_switch = e->nic->connected_entity;
-        for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
-            for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
+        for (size_t i = 0; i < ARRAY_LEN(e_switch->switchh->fe); ++i) {
+            for (size_t j = 0; j < ARRAY_LEN(e_switch->switchh->fe[i]); ++j) {
                 Entity *conn = e_switch->switchh->fe[i][j].conn;
                 if (conn && conn->nic == e->nic) {
-                    // @TODO: ts doesn't work 🥀 💔
                     e_switch->switchh->fe[i][j].conn = NULL;
                     // nic->connected_entity = NULL;
                 }
             }
         }
     }
+    e->nic->connected_entity = NULL;
 }
 
 void free_switch(Entity *e) {
