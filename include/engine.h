@@ -472,8 +472,9 @@ String_view_array get_current_console_args(Console *console) {
     const char *buff = get_current_console_line_buff(console);
     String_view sv = SV(buff);
 
+    sv_trim(&sv);
     while (sv.count > 0) {
-        sv_ltrim(&sv);
+        sv_trim(&sv);
         String_view arg = sv_lpop_until_char(&sv, ' ');
         darr_append(res, arg);
     }

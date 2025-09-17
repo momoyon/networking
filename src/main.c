@@ -103,8 +103,8 @@ typedef enum {
     CMD_ID_LOAD,
     CMD_ID_SAVE,
     CMD_ID_LIST_CMDS,
-    CMD_ID_COUNT,
     CMD_ID_SET,
+    CMD_ID_COUNT,
 } Command_id;
 
 typedef struct {
@@ -125,6 +125,8 @@ const char *commands[] = {
     [CMD_ID_LIST_CMDS] = "list_cmd",
     [CMD_ID_SET]       = "set",
 };
+// @TODO: ARRAY_LEN is getting -1 of the actual len
+size_t commands_count = ARRAY_LEN(commands)-1;
 
 bool str_starts_with(const char *str, const char *suffix) {
     if (str == NULL) return false;
@@ -138,10 +140,15 @@ bool str_starts_with(const char *str, const char *suffix) {
 
 Command_ids match_command(const char *command) {
     Command_ids matched_command_ids = {0};
-    for (int i = 0; i < ARRAY_LEN(commands); ++i) {
+    size_t command_len = strlen(command);
+    for (int i = 0; i < commands_count; ++i) {
         const char *c = commands[i];
+        size_t c_len = strlen(c);
         if (str_starts_with(c, command)) {
-            darr_append(matched_command_ids, i);
+            if ((command_len > c_len && command[c_len] == ' ')
+              || command_len <= c_len) {
+                darr_append(matched_command_ids, i);
+            }
         }
     }
 
@@ -256,13 +263,15 @@ int main(void)
 
             if (input_to_console(&command_hist)) {
                 char* command_buff = get_current_console_line_buff(&command_hist);
+                String_view_array args = get_current_console_args(&command_hist);
                 Command_ids matched_commands_ids = match_command(command_buff);
+                String_view command = args.items[0];
                 if (matched_commands_ids.count == 0) {
                     log_error_console(command_hist, "`%s` is not a valid command!", command_buff);
                     is_in_command = true;
                     clear_current_console_line(&command_hist);
                 } else if (matched_commands_ids.count == 1) {
-                    if (str_starts_with(command_buff, commands[matched_commands_ids.items[0]])) {
+                    if (sv_equals(command, SV(commands[matched_commands_ids.items[0]]))) {
                         // Run commands
                         is_in_command = false;
                         switch (matched_commands_ids.items[0]) {
@@ -318,9 +327,9 @@ int main(void)
                             } break;
                             case CMD_ID_SET: {
                                 const char *cmd = commands[matched_commands_ids.items[0]];
-                                String_view_array args = get_current_console_args(&command_hist);
+                                log_debug("args.count: %zu", args.count);
                                 if (args.count-1 < 2) { // NOTE: -1 because the command itself is also counted as an arg
-                                    log_error_a(command_hist, "Command `%s` wants 2 argument; but none provided!", cmd);
+                                    log_error_a(command_hist, "Command `%s` wants 2 argument; but %zu provided!", cmd, args.count-1);
                                 } else {
                                     String_view var_name = args.items[1];
                                     String_view var_new_value = args.items[2];
