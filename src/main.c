@@ -15,6 +15,7 @@
 #include <stb_ds.h>
 
 #define log_info_a(console, fmt, ...) log_info_console((console), fmt, __VA_ARGS__); log_info(fmt, __VA_ARGS__)
+#define log_error_a(console, fmt, ...) log_error_console((console), fmt, __VA_ARGS__); log_error(fmt, __VA_ARGS__)
 
 #define FACTOR 105
 #define SCREEN_WIDTH (16 * FACTOR)
@@ -103,6 +104,7 @@ typedef enum {
     CMD_ID_SAVE,
     CMD_ID_LIST_CMDS,
     CMD_ID_COUNT,
+    CMD_ID_SET,
 } Command_id;
 
 typedef struct {
@@ -121,9 +123,11 @@ const char *commands[] = {
     [CMD_ID_LOAD]      = "load",
     [CMD_ID_SAVE]      = "save",
     [CMD_ID_LIST_CMDS] = "list_cmd",
+    [CMD_ID_SET]       = "set",
 };
 
 bool str_starts_with(const char *str, const char *suffix) {
+    if (str == NULL) return false;
     while (*str != 0 && *suffix != 0) {
         if (*suffix++ != *str++) {
             return false;
@@ -177,7 +181,9 @@ int main(void)
 
     // Font font = GetFontDefault();
     //
-    const char* entities_save_path = "test.entities";
+    char entities_save_path[ENTITIES_SAVE_PATH_BUFF_CAP] = {0};
+
+    // snprintf(entities_save_path, ENTITIES_SAVE_PATH_BUFF_CAP, "%s", "test.entities");
 
     arr_heap_init(entities, ENTITIES_MAX_CAP);
 
@@ -249,14 +255,14 @@ int main(void)
             }
 
             if (input_to_console(&command_hist)) {
-                char* command_buff = current_console_line_buff(&command_hist);
+                char* command_buff = get_current_console_line_buff(&command_hist);
                 Command_ids matched_commands_ids = match_command(command_buff);
                 if (matched_commands_ids.count == 0) {
                     log_error_console(command_hist, "`%s` is not a valid command!", command_buff);
                     is_in_command = true;
                     clear_current_console_line(&command_hist);
                 } else if (matched_commands_ids.count == 1) {
-                    if (strcmp(command_buff, commands[matched_commands_ids.items[0]]) == 0) {
+                    if (str_starts_with(command_buff, commands[matched_commands_ids.items[0]])) {
                         // Run commands
                         is_in_command = false;
                         switch (matched_commands_ids.items[0]) {
@@ -276,17 +282,29 @@ int main(void)
                                 CHANGE_MODE(MODE_COPY);
                             } break;
                             case CMD_ID_LOAD: {
-                                if (load_entities(&entities, entities_save_path, &entity_arena, &temp_arena)) {
-                                    log_debug("Successfully loaded entities from `%s`", entities_save_path);
+                                if (*entities_save_path == '\0') {
+                                    log_error_a(command_hist, "%s", "entities_save_path is not set!");
+                                    is_in_command = true;
+                                    clear_current_console_line(&command_hist);
                                 } else {
-                                    log_debug("Failed to load entities from `%s`", entities_save_path);
+                                    if (load_entities(&entities, entities_save_path, &entity_arena, &temp_arena)) {
+                                        log_debug("Successfully loaded entities from `%s`", entities_save_path);
+                                    } else {
+                                        log_debug("Failed to load entities from `%s`", entities_save_path);
+                                    }
                                 }
                             } break;
                             case CMD_ID_SAVE: {
-                                if (save_entities(&entities, entities_save_path, entity_save_version)) {
-                                    log_debug("Successfully saved entities to `%s`", entities_save_path);
+                                if (*entities_save_path == '\0') {
+                                    log_error_a(command_hist, "%s", "entities_save_path is not set!");
+                                    is_in_command = true;
+                                    clear_current_console_line(&command_hist);
                                 } else {
-                                    log_debug("Failed to save entities to `%s`", entities_save_path);
+                                    if (save_entities(&entities, entities_save_path, entity_save_version)) {
+                                        log_debug("Successfully saved entities to `%s`", entities_save_path);
+                                    } else {
+                                        log_debug("Failed to save entities to `%s`", entities_save_path);
+                                    }
                                 }
                             } break;
                             case CMD_ID_LIST_CMDS: {
@@ -298,13 +316,28 @@ int main(void)
                                 is_in_command = true;
                                 clear_current_console_line(&command_hist);
                             } break;
+                            case CMD_ID_SET: {
+                                const char *cmd = commands[matched_commands_ids.items[0]];
+                                String_view_array args = get_current_console_args(&command_hist);
+                                if (args.count-1 < 2) { // NOTE: -1 because the command itself is also counted as an arg
+                                    log_error_a(command_hist, "Command `%s` wants 2 argument; but none provided!", cmd);
+                                } else {
+                                    String_view var_name = args.items[1];
+                                    String_view var_new_value = args.items[2];
+
+                                    log_info_a(command_hist, "SET "SV_FMT" to "SV_FMT, SV_ARG(var_name), SV_ARG(var_new_value));
+                                }
+
+                                clear_current_console_line(&command_hist);
+                                is_in_command = true;
+                            } break;
                             case CMD_ID_COUNT:
                             default: ASSERT(false, "UNREACHABLE!");
                         }
                     } else {
                         const char *cmd = commands[matched_commands_ids.items[0]];
                         size_t cmd_len = strlen(cmd);
-                        memcpy(current_console_line_buff(&command_hist), cmd, cmd_len);
+                        memcpy(get_current_console_line_buff(&command_hist), cmd, cmd_len);
                         command_hist.cursor = cmd_len;
                     }
                 } else {
@@ -317,14 +350,14 @@ int main(void)
             }
 
             if (IsKeyPressed(KEY_TAB)) {
-                Command_ids matched_commands_ids = match_command(current_console_line_buff(&command_hist));
+                Command_ids matched_commands_ids = match_command(get_current_console_line_buff(&command_hist));
                 if (matched_commands_ids.count == 1) {
                     const char *cmd = commands[matched_commands_ids.items[0]];
                     size_t cmd_len = strlen(cmd);
-                    memcpy(current_console_line_buff(&command_hist), cmd, cmd_len);
+                    memcpy(get_current_console_line_buff(&command_hist), cmd, cmd_len);
                     command_hist.cursor = cmd_len;
                 } else if (matched_commands_ids.count > 1) {
-                    log_debug_console(command_hist, "Command `%s` matched the following:", current_console_line_buff(&command_hist));
+                    log_debug_console(command_hist, "Command `%s` matched the following:", get_current_console_line_buff(&command_hist));
                     for (size_t i = 0; i < matched_commands_ids.count; ++i) {
                         int idx = matched_commands_ids.items[i];
                         log_debug_console(command_hist, "    - %s", commands[idx]);
@@ -584,7 +617,7 @@ int main(void)
             case MODE_INTERACT: {
                 if (active_switch_console) {
                     if (input_to_console(active_switch_console)) {
-                        char *buff = current_console_line_buff(active_switch_console);
+                        char *buff = get_current_console_line_buff(active_switch_console);
                         add_line_to_console(active_switch_console, buff, strlen(buff), WHITE);
                         clear_current_console_line(active_switch_console);
                         active_switch_console = NULL;
@@ -949,7 +982,7 @@ int main(void)
             if (active_switch_console) {
                 
                 draw_console(active_switch_console, active_switch_console_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
-                draw_text(GetFontDefault(), current_console_line_buff(active_switch_console), v2(active_switch_console_rect.x, active_switch_console_rect.y + active_switch_console_rect.height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
+                draw_text(GetFontDefault(), get_current_console_line_buff(active_switch_console), v2(active_switch_console_rect.x, active_switch_console_rect.y + active_switch_console_rect.height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
                 
             }
         } break;
@@ -960,7 +993,7 @@ int main(void)
 
         if (is_in_command) {
             draw_text(GetFontDefault(), ":", v2(4.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
-            draw_text(GetFontDefault(), current_console_line_buff(&command_hist), v2(8.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
+            draw_text(GetFontDefault(), get_current_console_line_buff(&command_hist), v2(8.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
 
             Rectangle command_rect = {
                 .x = 0.f,

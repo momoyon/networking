@@ -104,11 +104,21 @@ struct Console {
     Font font;
 };
 
+
+// NOTE: Not really related to console exclusively
+typedef struct String_view_array String_view_array;
+struct String_view_array {
+    String_view *items;
+    size_t count;
+    size_t capacity;
+};
+
 void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color);
 Console_line *get_or_create_console_line(Console *console, size_t line);
 void clear_console_line(Console_line *cl);
 void clear_current_console_line(Console *console);
-char *current_console_line_buff(Console *console);
+char *get_current_console_line_buff(Console *console);
+String_view_array get_current_console_args(Console *console);
 bool input_to_console(Console *console);
 float get_cursor_offset(Console *console);
 void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
@@ -449,10 +459,26 @@ void clear_current_console_line(Console *console) {
     console->cursor = 0;
 }
 
-char *current_console_line_buff(Console *console) {
+char *get_current_console_line_buff(Console *console) {
     if (console == NULL) return NULL;
     // TODO: Check line outofbounds
     return console->lines.items[console->line].buff;
+}
+
+// TODO: Get quoted args as a single arg
+String_view_array get_current_console_args(Console *console) {
+    String_view_array res = {0};
+
+    const char *buff = get_current_console_line_buff(console);
+    String_view sv = SV(buff);
+
+    while (sv.count > 0) {
+        sv_ltrim(&sv);
+        String_view arg = sv_lpop_until_char(&sv, ' ');
+        darr_append(res, arg);
+    }
+
+    return res;
 }
 
 bool input_to_console(Console *console) {
@@ -466,7 +492,6 @@ bool input_to_console(Console *console) {
 		ch = GetCharPressed();
 
         if (IsKeyPressed(KEY_ENTER)) {
-            log_debug("%s", line->buff);
             return true;
         }
 
