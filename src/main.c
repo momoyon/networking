@@ -66,6 +66,75 @@ const char* mode_as_str(const Mode m)
     }
 }
 
+typedef struct Var Var;
+typedef enum Var_type Var_type;
+
+enum Var_type {
+    VAR_TYPE_INT,
+    VAR_TYPE_FLOAT,
+    VAR_TYPE_STRING,
+    VAR_TYPE_CHAR,
+    VAR_TYPE_BOOL,
+    VAR_TYPE_COUNT,
+};
+
+const char *var_type_as_str(const Var_type t) {
+    switch (t) {
+        case VAR_TYPE_INT: return "int";
+        case VAR_TYPE_FLOAT: return "float";
+        case VAR_TYPE_STRING: return "string";
+        case VAR_TYPE_CHAR: return "char";
+        case VAR_TYPE_BOOL: return "bool";
+        case VAR_TYPE_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+    return "UNSEEABLE!";
+}
+
+struct Var {
+    Var_type type;
+    union {
+        int i;
+        float f;
+        bool b;
+        char ch;
+        const char *str;
+    } as;
+
+    const char *name;
+};
+
+#define INT_VAR(_name, value) (Var) { .type = VAR_TYPE_INT, .as.i = (value), .name = (#_name) }
+
+Var vars[] = {
+    INT_VAR(testvar, 0),
+};
+
+size_t vars_count = ARRAY_LEN(vars);
+
+bool set_int_var(Console *console, Var *var, String_view newvalue) {
+    int v_count = -1;
+    int v = sv_to_int(newvalue, &v_count, 10);
+    if (v_count <= -1) {
+        log_error_a(*console, "Failed to set `%s` to `"SV_FMT"`: is not an INT!", var->name, SV_ARG(newvalue));
+        return false;
+    }
+
+    log_info_a(*console, "SET %s from %d to %d", var->name, var->as.i, v);
+    var->as.i = v;
+    return true;
+}
+
+Var *get_var(String_view name) {
+    for (size_t i = 0; i < vars_count; ++i) {
+        Var *v = &vars[i];
+        if (sv_equals(name, SV(v->name))) {
+            return v;
+        }
+    }
+    return NULL;
+}
+
 // Externs from common.h
 RenderTexture2D ren_tex;
 Arena entity_arena;
@@ -330,14 +399,18 @@ int main(void)
                             } break;
                             case CMD_ID_SET: {
                                 const char *cmd = commands[matched_commands_ids.items[0]];
-                                log_debug("args.count: %zu", args.count);
                                 if (args.count-1 < 2) { // NOTE: -1 because the command itself is also counted as an arg
                                     log_error_a(command_hist, "Command `%s` wants 2 argument; but %zu provided!", cmd, args.count-1);
                                 } else {
                                     String_view var_name = args.items[1];
                                     String_view var_new_value = args.items[2];
 
-                                    log_info_a(command_hist, "SET "SV_FMT" to "SV_FMT, SV_ARG(var_name), SV_ARG(var_new_value));
+                                    Var *v = get_var(var_name);
+                                    if (v != NULL) {
+                                        set_int_var(&command_hist, v, var_new_value);
+                                    } else {
+                                        log_error_a(command_hist, "Could not find any variable named `"SV_FMT"`", SV_ARG(var_name));
+                                    }
                                 }
 
                                 clear_current_console_line(&command_hist);
