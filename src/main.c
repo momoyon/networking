@@ -95,7 +95,7 @@ const char* changing_type_as_str(const Changing_type ch)
 }
 
 typedef enum {
-    CMD_ID_EXIT,
+    CMD_ID_EXIT = 0,
     CMD_ID_NORMAL,
     CMD_ID_CHANGE,
     CMD_ID_INTERACT,
@@ -126,7 +126,7 @@ const char *commands[] = {
     [CMD_ID_SET]       = "set",
 };
 // @TODO: ARRAY_LEN is getting -1 of the actual len
-size_t commands_count = ARRAY_LEN(commands)-1;
+size_t commands_count = ARRAY_LEN(commands);
 
 bool str_starts_with(const char *str, const char *suffix) {
     if (str == NULL) return false;
@@ -265,7 +265,10 @@ int main(void)
                 char* command_buff = get_current_console_line_buff(&command_hist);
                 String_view_array args = get_current_console_args(&command_hist);
                 Command_ids matched_commands_ids = match_command(command_buff);
-                String_view command = args.items[0];
+                String_view command = SV("");
+                if (args.count > 0) {
+                    command = args.items[0];
+                }
                 if (matched_commands_ids.count == 0) {
                     log_error_console(command_hist, "`%s` is not a valid command!", command_buff);
                     is_in_command = true;
