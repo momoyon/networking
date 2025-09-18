@@ -15,6 +15,7 @@
 #include <stb_ds.h>
 
 #define log_info_a(console, fmt, ...) log_info_console((console), fmt, __VA_ARGS__); log_info(fmt, __VA_ARGS__)
+#define log_warning_a(console, fmt, ...) log_warning_console((console), fmt, __VA_ARGS__); log_warning(fmt, __VA_ARGS__)
 #define log_error_a(console, fmt, ...) log_error_console((console), fmt, __VA_ARGS__); log_error(fmt, __VA_ARGS__)
 
 #define FACTOR 105
@@ -67,6 +68,7 @@ const char* mode_as_str(const Mode m)
 }
 
 typedef struct Var Var;
+typedef struct Vars Vars;
 typedef enum Var_type Var_type;
 
 enum Var_type {
@@ -93,47 +95,25 @@ const char *var_type_as_str(const Var_type t) {
 
 struct Var {
     Var_type type;
-    union {
-        int i;
-        float f;
-        bool b;
-        char ch;
-        const char *str;
-    } as;
 
     const char *name;
+
+    void *value_ptr; // the pointer in the code that holds the value
 };
 
-#define INT_VAR(_name, value) (Var) { .type = VAR_TYPE_INT, .as.i = (value), .name = (#_name) }
-
-Var vars[] = {
-    INT_VAR(testvar, 0),
+struct Vars {
+    Var *items;
+    size_t count;
+    size_t capacity;
 };
 
-size_t vars_count = ARRAY_LEN(vars);
+Vars vars = {0};
 
-bool set_int_var(Console *console, Var *var, String_view newvalue) {
-    int v_count = -1;
-    int v = sv_to_int(newvalue, &v_count, 10);
-    if (v_count <= -1) {
-        log_error_a(*console, "Failed to set `%s` to `"SV_FMT"`: is not an INT!", var->name, SV_ARG(newvalue));
-        return false;
-    }
+#define INT_VAR(_name, varname) (Var) { .type = VAR_TYPE_INT, .name = (#_name), .value_ptr = (void*)(&varname) }
 
-    log_info_a(*console, "SET %s from %d to %d", var->name, var->as.i, v);
-    var->as.i = v;
-    return true;
-}
+bool set_int_var(Console *console, Var *var, String_view newvalue);
+Var *get_var(String_view name);
 
-Var *get_var(String_view name) {
-    for (size_t i = 0; i < vars_count; ++i) {
-        Var *v = &vars[i];
-        if (sv_equals(name, SV(v->name))) {
-            return v;
-        }
-    }
-    return NULL;
-}
 
 // Externs from common.h
 RenderTexture2D ren_tex;
@@ -171,8 +151,9 @@ typedef enum {
     CMD_ID_COPY,
     CMD_ID_LOAD,
     CMD_ID_SAVE,
-    CMD_ID_LIST_CMDS,
+    CMD_ID_LS_CMDS,
     CMD_ID_SET,
+    CMD_ID_LS_VARS,
     CMD_ID_COUNT,
 } Command_id;
 
@@ -191,8 +172,9 @@ const char *commands[] = {
     [CMD_ID_COPY]      = "copy",
     [CMD_ID_LOAD]      = "load",
     [CMD_ID_SAVE]      = "save",
-    [CMD_ID_LIST_CMDS] = "list_cmd",
+    [CMD_ID_LS_CMDS]   = "ls_cmds",
     [CMD_ID_SET]       = "set",
+    [CMD_ID_LS_VARS]   = "ls_vars",
 };
 // @TODO: ARRAY_LEN is getting -1 of the actual len
 size_t commands_count = ARRAY_LEN(commands);
@@ -238,6 +220,12 @@ Command_ids match_command(const char *command) {
 //
 //     return 0;
 // }
+
+
+/// @DEBUG
+static int radius = 100;
+///
+
 
 int main(void)
 {
@@ -307,6 +295,9 @@ int main(void)
     };
 
     bool quit = false;
+
+    // Add vars
+    darr_append(vars, (INT_VAR(radius, radius)));
 
     while (!quit && !WindowShouldClose()) {
         arena_reset(&temp_arena);
@@ -388,7 +379,7 @@ int main(void)
                                     }
                                 }
                             } break;
-                            case CMD_ID_LIST_CMDS: {
+                            case CMD_ID_LS_CMDS: {
                                 log_info_a(command_hist, "%s", "Commands: ");
                                 for (size_t i = 0; i < ARRAY_LEN(commands); ++i) {
                                     const char *c = commands[i];
@@ -415,6 +406,19 @@ int main(void)
 
                                 clear_current_console_line(&command_hist);
                                 is_in_command = true;
+                            } break;
+                            case CMD_ID_LS_VARS: {
+                                if (vars.count > 0) {
+                                    log_info_a(command_hist, "%s", "Vars: ");
+                                    for (int i = 0; i < vars.count; ++i) {
+                                        Var *v = &vars.items[i];
+                                        log_info_a(command_hist, " - %s(%s)", v->name, var_type_as_str(v->type));
+                                    }
+                                } else {
+                                    log_info_a(command_hist, "%s", "No var is defined!");
+                                }
+                                is_in_command = true;
+                                clear_current_console_line(&command_hist);
                             } break;
                             case CMD_ID_COUNT:
                             default: ASSERT(false, "UNREACHABLE!");
@@ -830,6 +834,10 @@ int main(void)
             draw_entity(e, debug_draw);
         }
 
+        /// @DEBUG
+        DrawCircleV(v2xx(0), radius, WHITE);
+        ///
+
         // Draw Wifi-waves
         for (size_t i = 0; i < wifi_waves.count; ++i) {
             Wifi_wave *ww = &wifi_waves.items[i];
@@ -1097,3 +1105,31 @@ int main(void)
     cleanup();
     return 0;
 }
+
+bool set_int_var(Console *console, Var *var, String_view newvalue) {
+    int v_count = -1;
+    int v = sv_to_int(newvalue, &v_count, 10);
+    if (v_count <= -1) {
+        log_error_a(*console, "Failed to set `%s` to `"SV_FMT"`: is not an INT!", var->name, SV_ARG(newvalue));
+        return false;
+    }
+
+    ASSERT(var->value_ptr, "THIS SHOULDN't HAPPEN!");
+
+    int *value_ptr = (int*)var->value_ptr;
+    *value_ptr = v;
+
+    log_info_a(*console, "SET %s from %d to %d", var->name, *value_ptr, v);
+    return true;
+}
+
+Var *get_var(String_view name) {
+    for (size_t i = 0; i < vars.count; ++i) {
+        Var *v = &vars.items[i];
+        if (sv_equals(name, SV(v->name))) {
+            return v;
+        }
+    }
+    return NULL;
+}
+

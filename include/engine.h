@@ -131,6 +131,14 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
         darr_append(console.lines, l);\
     } while (0)
 
+#define log_warning_console(console, fmt, ...) do {\
+        Console_line l = {\
+            .color = YELLOW,\
+        };\
+        snprintf(l.buff, CONSOLE_LINE_BUFF_CAP, "[WARNING] "fmt, __VA_ARGS__);\
+        darr_append(console.lines, l);\
+    } while (0)
+
 #define log_error_console(console, fmt, ...) do {\
         Console_line l = {\
             .color = RED,\
