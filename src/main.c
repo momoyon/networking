@@ -128,6 +128,7 @@ const char *get_var_value(Var *var);
 RenderTexture2D ren_tex;
 Arena entity_arena;
 Arena temp_arena;
+Arena str_arena;
 Texture_manager tex_man;
 size_t entity_save_version = 2;
 Wifi_waves wifi_waves = {0};
@@ -168,11 +169,12 @@ typedef enum {
 } Command_id;
 
 typedef struct {
-    Command_id *items;
+    int *items;
     size_t count;
     size_t capacity;
 } Command_ids; // @darr
 
+typedef Command_ids Ids;
 
 const char *commands[] = {
     [CMD_ID_EXIT]      = "exit",
@@ -217,6 +219,26 @@ Command_ids match_command(const char *command) {
     return matched_command_ids;
 }
 
+Ids match_var(const char *var) {
+    Ids matched_vars = {0};
+
+    size_t var_len = strlen(var);
+
+    for (int i = 0; i < vars.count; ++i) {
+        const char *varname = vars.items[i].name;
+        size_t varname_len = strlen(varname);
+        if (str_starts_with(varname, var)) {
+            if ((var_len > varname_len && var[varname_len] == ' ')
+              || var_len <= varname_len) {
+                darr_append(matched_vars, i);
+            }
+        }
+    }
+
+    return matched_vars;
+}
+
+
 // int main(int argc, char **argv) {
 //     shift_args(argv, argc);
 //
@@ -240,7 +262,7 @@ static float xoffset = 10.f;
 ///
 
 // Vars
-char *entities_save_path = NULL;
+char *entities_save_path = "test.entities";
 
 int main(void)
 {
@@ -280,6 +302,7 @@ int main(void)
 
     entity_arena = arena_make(32 * 1024);
     temp_arena = arena_make(0);
+    str_arena  = arena_make(0);
 
     Camera2D cam = {
         .zoom = 1.0,
@@ -417,7 +440,11 @@ int main(void)
                                     if (v != NULL) {
                                         set_var(&command_hist, v, var_new_value);
                                     } else {
-                                        log_error_a(command_hist, "Could not find any variable named `"SV_FMT"`", SV_ARG(var_name));
+                                        char *var_name_str = sv_to_cstr(var_name);
+                                        Ids matched_var_ids = match_var(var_name_str);
+                                        free(var_name_str);
+                                        if (matched_var_ids.count <= 0)
+                                            log_error_a(command_hist, "Could not find any variable named `"SV_FMT"`", SV_ARG(var_name));
                                     }
                                 }
 
@@ -440,6 +467,8 @@ int main(void)
                             case CMD_ID_GET: {
                                 if (args.count-1 <= 0) {
                                     log_error_a(command_hist, "%s", "Please provide the varname to get the value of!");
+                                    is_in_command = true;
+                                    break;
                                 }
                                 String_view var_name = args.items[1];
 
@@ -447,7 +476,28 @@ int main(void)
                                 if (v != NULL) {
                                     log_info_a(command_hist, SV_FMT": %s", SV_ARG(var_name), get_var_value(v));
                                 } else {
-                                    log_error_a(command_hist, "Could not find any variable named `"SV_FMT"`", SV_ARG(var_name));
+                                    char *var_name_str = sv_to_cstr(var_name);
+                                    Ids matched_var_ids = match_var(var_name_str);
+                                    free(var_name_str);
+                                    if (matched_var_ids.count <= 0) {
+                                        log_error_a(command_hist, "Could not find any variable named `"SV_FMT"`", SV_ARG(var_name));
+                                    } else {
+                                        if (matched_var_ids.count == 1) {
+                                            const char *varname = vars.items[matched_var_ids.items[0]].name;
+                                            const char *complete_get_varname = arena_alloc_str(temp_arena, "get %s", varname);
+                                            size_t varname_len = strlen(complete_get_varname);
+                                            memcpy(get_current_console_line_buff(&command_hist), complete_get_varname, varname_len);
+                                            command_hist.cursor = varname_len;
+
+                                            is_in_command = true;
+                                            break;
+                                        } else {
+                                            for (size_t i = 0; i < matched_var_ids.count; ++i) {
+                                                int idx = matched_var_ids.items[i];
+                                                log_debug_console(command_hist, "    - %s", vars.items[idx].name);
+                                            }
+                                        }
+                                    }
                                 }
                                 is_in_command = true;
                                 clear_current_console_line(&command_hist);
@@ -1199,19 +1249,13 @@ bool set_float_var(Console *console, Var *var, String_view newvalue) {
     return true;
 }
 
-// TODO: Don't malloc the new value
 bool set_str_var(Console *console, Var *var, String_view newvalue) {
     if (!var) return false;
     char **value_ptr = (char **)var->value_ptr;
 
-    if (*value_ptr != NULL) {
-        free(*value_ptr);
-    }
-
     log_info_a(*console, "SET %s from %s to "SV_FMT, var->name, *value_ptr, SV_ARG(newvalue));
 
-    *value_ptr = calloc(newvalue.count+1, sizeof(char));
-    memcpy(*value_ptr, newvalue.data, newvalue.count);
+    *value_ptr = arena_alloc_str(str_arena, SV_FMT, SV_ARG(newvalue));
 
     return true;
 }
