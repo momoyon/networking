@@ -110,10 +110,19 @@ struct Vars {
 Vars vars = {0};
 
 #define INT_VAR(_name, varname) (Var) { .type = VAR_TYPE_INT, .name = (#_name), .value_ptr = (void*)(&varname) }
+#define FLOAT_VAR(_name, varname) (Var) { .type = VAR_TYPE_FLOAT, .name = (#_name), .value_ptr = (void*)(&varname) }
+#define STR_VAR(_name, varname) (Var) { .type = VAR_TYPE_STRING, .name = (#_name), .value_ptr = (void*)(&varname) }
+#define CHAR_VAR(_name, varname) (Var) { .type = VAR_TYPE_CHAR, .name = (#_name), .value_ptr = (void*)(&varname) }
+#define BOOL_VAR(_name, varname) (Var) { .type = VAR_TYPE_BOOL, .name = (#_name), .value_ptr = (void*)(&varname) }
 
 bool set_int_var(Console *console, Var *var, String_view newvalue);
+bool set_float_var(Console *console, Var *var, String_view newvalue);
+bool set_str_var(Console *console, Var *var, String_view newvalue);
+bool set_char_var(Console *console, Var *var, String_view newvalue);
+bool set_bool_var(Console *console, Var *var, String_view newvalue);
+bool set_var(Console *console, Var *var, String_view newvalue);
 Var *get_var(String_view name);
-
+const char *get_var_value(Var *var);
 
 // Externs from common.h
 RenderTexture2D ren_tex;
@@ -154,6 +163,7 @@ typedef enum {
     CMD_ID_LS_CMDS,
     CMD_ID_SET,
     CMD_ID_LS_VARS,
+    CMD_ID_GET,
     CMD_ID_COUNT,
 } Command_id;
 
@@ -175,6 +185,7 @@ const char *commands[] = {
     [CMD_ID_LS_CMDS]   = "ls_cmds",
     [CMD_ID_SET]       = "set",
     [CMD_ID_LS_VARS]   = "ls_vars",
+    [CMD_ID_GET]       = "get",
 };
 // @TODO: ARRAY_LEN is getting -1 of the actual len
 size_t commands_count = ARRAY_LEN(commands);
@@ -224,8 +235,12 @@ Command_ids match_command(const char *command) {
 
 /// @DEBUG
 static int radius = 100;
+static bool blue = false;
+static float xoffset = 10.f;
 ///
 
+// Vars
+char *entities_save_path = NULL;
 
 int main(void)
 {
@@ -245,7 +260,6 @@ int main(void)
 
     // Font font = GetFontDefault();
     //
-    char entities_save_path[ENTITIES_SAVE_PATH_BUFF_CAP] = {0};
 
     // snprintf(entities_save_path, ENTITIES_SAVE_PATH_BUFF_CAP, "%s", "test.entities");
 
@@ -298,6 +312,9 @@ int main(void)
 
     // Add vars
     darr_append(vars, (INT_VAR(radius, radius)));
+    darr_append(vars, (FLOAT_VAR(xoffset, xoffset)));
+    darr_append(vars, (STR_VAR(entities_save_path, entities_save_path)));
+    darr_append(vars, (BOOL_VAR(blue, blue)));
 
     while (!quit && !WindowShouldClose()) {
         arena_reset(&temp_arena);
@@ -354,7 +371,7 @@ int main(void)
                                 CHANGE_MODE(MODE_COPY);
                             } break;
                             case CMD_ID_LOAD: {
-                                if (*entities_save_path == '\0') {
+                                if (entities_save_path == NULL) {
                                     log_error_a(command_hist, "%s", "entities_save_path is not set!");
                                     is_in_command = true;
                                     clear_current_console_line(&command_hist);
@@ -398,7 +415,7 @@ int main(void)
 
                                     Var *v = get_var(var_name);
                                     if (v != NULL) {
-                                        set_int_var(&command_hist, v, var_new_value);
+                                        set_var(&command_hist, v, var_new_value);
                                     } else {
                                         log_error_a(command_hist, "Could not find any variable named `"SV_FMT"`", SV_ARG(var_name));
                                     }
@@ -416,6 +433,21 @@ int main(void)
                                     }
                                 } else {
                                     log_info_a(command_hist, "%s", "No var is defined!");
+                                }
+                                is_in_command = true;
+                                clear_current_console_line(&command_hist);
+                            } break;
+                            case CMD_ID_GET: {
+                                if (args.count-1 <= 0) {
+                                    log_error_a(command_hist, "%s", "Please provide the varname to get the value of!");
+                                }
+                                String_view var_name = args.items[1];
+
+                                Var *v = get_var(var_name);
+                                if (v != NULL) {
+                                    log_info_a(command_hist, SV_FMT": %s", SV_ARG(var_name), get_var_value(v));
+                                } else {
+                                    log_error_a(command_hist, "Could not find any variable named `"SV_FMT"`", SV_ARG(var_name));
                                 }
                                 is_in_command = true;
                                 clear_current_console_line(&command_hist);
@@ -834,9 +866,9 @@ int main(void)
             draw_entity(e, debug_draw);
         }
 
-        /// @DEBUG
-        DrawCircleV(v2xx(0), radius, WHITE);
-        ///
+        // /// @DEBUG
+        // DrawCircleV(v2(xoffset, 0.f), radius, blue ? BLUE : WHITE);
+        // ///
 
         // Draw Wifi-waves
         for (size_t i = 0; i < wifi_waves.count; ++i) {
@@ -1106,6 +1138,31 @@ int main(void)
     return 0;
 }
 
+bool set_var(Console *console, Var *var, String_view newvalue) {
+    if (!var) return false;
+    switch (var->type) {
+        case VAR_TYPE_INT: {
+            return set_int_var(console, var, newvalue);
+        } break;
+        case VAR_TYPE_FLOAT: {
+            return set_float_var(console, var, newvalue);
+        } break;
+        case VAR_TYPE_STRING: {
+            return set_str_var(console, var, newvalue);
+        } break;
+        case VAR_TYPE_CHAR: {
+            return set_char_var(console, var, newvalue);
+        } break;
+        case VAR_TYPE_BOOL: {
+            return set_bool_var(console, var, newvalue);
+        } break;
+        case VAR_TYPE_COUNT:
+        default:
+            ASSERT(false, "UNREACHABLE!");
+    }
+    return false;
+}
+
 bool set_int_var(Console *console, Var *var, String_view newvalue) {
     int v_count = -1;
     int v = sv_to_int(newvalue, &v_count, 10);
@@ -1123,6 +1180,85 @@ bool set_int_var(Console *console, Var *var, String_view newvalue) {
     return true;
 }
 
+bool set_float_var(Console *console, Var *var, String_view newvalue) {
+    int v_count = -1;
+    float v = sv_to_float(newvalue, &v_count);
+    if (v_count <= -1) {
+        log_error_a(*console, "Failed to set `%s` to `"SV_FMT"`: is not an FLOAT!", var->name, SV_ARG(newvalue));
+        return false;
+    }
+
+    ASSERT(var->value_ptr, "THIS SHOULDN't HAPPEN!");
+
+    float *value_ptr = (float*)var->value_ptr;
+    
+    log_info_a(*console, "SET %s from %f to %f", var->name, *value_ptr, v);
+
+    *value_ptr = v;
+
+    return true;
+}
+
+// TODO: Don't malloc the new value
+bool set_str_var(Console *console, Var *var, String_view newvalue) {
+    if (!var) return false;
+    char **value_ptr = (char **)var->value_ptr;
+
+    if (*value_ptr != NULL) {
+        free(*value_ptr);
+    }
+
+    log_info_a(*console, "SET %s from %s to "SV_FMT, var->name, *value_ptr, SV_ARG(newvalue));
+
+    *value_ptr = calloc(newvalue.count+1, sizeof(char));
+    memcpy(*value_ptr, newvalue.data, newvalue.count);
+
+    return true;
+}
+
+
+bool set_char_var(Console *console, Var *var, String_view newvalue) {
+    if (!var) return false;
+
+    char *value_ptr = (char *)var->value_ptr;
+
+    *value_ptr = newvalue.data[0];
+
+    log_info_a(*console, "SET %s from %c to %c", var->name, *value_ptr, newvalue.data[0]);
+
+    return true;
+}
+
+bool set_bool_var(Console *console, Var *var, String_view newvalue) {
+    if (!var) return false;
+
+    char *newvalue_str = sv_to_cstr(newvalue);
+    size_t newvalue_str_len = strlen(newvalue_str);
+    char *newvalue_str_lower = (char *)malloc(newvalue_str_len*sizeof(char) + 1);
+
+    // tolower
+    for (int i = 0; i < newvalue_str_len; ++i) {
+        newvalue_str_lower[i] = tolower(newvalue_str[i]);
+    }
+    newvalue_str_lower[newvalue_str_len] = 0;
+
+    bool istrue = strcmp(newvalue_str_lower, "true") == 0;
+
+    log_info_a(*console, "SET %s from %s to %s", var->name, *((int*)var->value_ptr) ? "true" : "false", istrue ? "true" : "false");
+
+    if (istrue) {
+        *((int*)var->value_ptr) = 1;
+    } else {
+        *((int*)var->value_ptr) = 0;
+    }
+
+    free(newvalue_str);
+    free(newvalue_str_lower);
+
+    return true;
+}
+
+
 Var *get_var(String_view name) {
     for (size_t i = 0; i < vars.count; ++i) {
         Var *v = &vars.items[i];
@@ -1132,4 +1268,39 @@ Var *get_var(String_view name) {
     }
     return NULL;
 }
+
+
+const char *get_var_value(Var *var) {
+    if (!var) {
+        log_error("Var is NULL!");
+        return NULL;
+    }
+    if (!var->value_ptr) {
+        log_error("Var's value_ptr is NULL!");
+        return NULL;
+    }
+    switch (var->type) {
+        case VAR_TYPE_INT: {
+            return arena_alloc_str(temp_arena, "%d", *((int*)(var->value_ptr)));
+        } break;
+        case VAR_TYPE_FLOAT: {
+            return arena_alloc_str(temp_arena, "%f", *((float*)(var->value_ptr)));
+        } break;
+        case VAR_TYPE_STRING: {
+            return arena_alloc_str(temp_arena, "%s", *((char**)(var->value_ptr)));
+        } break;
+        case VAR_TYPE_CHAR: {
+            return arena_alloc_str(temp_arena, "%c", *((char*)(var->value_ptr)));
+        } break;
+        case VAR_TYPE_BOOL: {
+            return arena_alloc_str(temp_arena, "%s", *((int*)(var->value_ptr)) ? "true" : "false");
+        } break;
+        case VAR_TYPE_COUNT:
+        default:
+            ASSERT(false, "UNREACHABLE!");
+
+    }
+    return NULL;
+}
+
 
