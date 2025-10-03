@@ -16,13 +16,25 @@ typedef struct {
 	int conn_id; // NOTE: Only used when loading switches.
 } Port;
 
+typedef enum Switch_model Switch_model;
+
+enum Switch_model {
+    SW_MODEL_MOMO_SW_2025_A,
+    SW_MODEL_COUNT,
+};
+
+const char *switch_model_as_str(const Switch_model sw_m);
+
 typedef struct Switch Switch;
 struct Switch {
 	Console console;
 	Port fe[1][4];
+    Switch_model model;
+    bool booted;
 };
 
-void make_switch(Switch *switch_out, Arena *arena);
+void make_switch(Switch_model model, Switch *switch_out, Arena *arena);
 void make_switch_console(Console *console_out, Arena *arena);
+void boot_switch(Switch *switchh);
 
 #endif // _SWITCH_H_

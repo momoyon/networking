@@ -113,7 +113,9 @@ struct String_view_array {
     size_t capacity;
 };
 
+void add_line_to_console_simple(Console *console, char *line, Color color);
 void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color);
+Console_line *get_console_line(Console *console, size_t line);
 Console_line *get_or_create_console_line(Console *console, size_t line);
 void clear_console_line(Console_line *cl);
 void clear_current_console_line(Console *console);
@@ -436,6 +438,14 @@ bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out)
 }
 
 // Console
+void add_line_to_console_simple(Console *console, char *line, Color color) {
+    Console_line cl = {
+        .count = strlen(line),
+        .color = color,
+    };
+    memcpy(cl.buff, line, cl.count);
+    darr_append(console->lines, cl);
+}
 
 void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color) {
     Console_line cl = { .count = buff_size, };
@@ -444,13 +454,17 @@ void add_line_to_console(Console *console, char *buff, size_t buff_size, Color c
     darr_append(console->lines, cl);
 }
 
-Console_line *get_or_create_console_line(Console *console, size_t line) {
+Console_line *get_console_line(Console *console, size_t line) {
     // TODO: Check outofbounds of line
+    return &console->lines.items[line];
+}
+
+Console_line *get_or_create_console_line(Console *console, size_t line) {
     if (console->lines.count < line+1) {
         Console_line new_console_line = {0};
         darr_append(console->lines, new_console_line);
     }
-    return &console->lines.items[line];
+    return get_console_line(console, line);
 }
 
 void clear_console_line(Console_line *cl) {
@@ -502,6 +516,19 @@ bool input_to_console(Console *console) {
 
         if (IsKeyPressed(KEY_ENTER)) {
             return true;
+        }
+
+        // readline functionality
+        if (IsKeyDown(KEY_LEFT_CONTROL)) {
+            if (IsKeyPressed(KEY_P)) {
+                if (console->lines.count > 0) {
+                    Console_line *last_line = get_console_line(console, console->line-1);
+
+                    memcpy(last_line->buff, line->buff, last_line->count);
+                    line->count = last_line->count;
+                    log_debug("readline:prev_line");
+                }
+            }
         }
 
         if (IsKeyPressed(KEY_BACKSPACE) ||

@@ -261,9 +261,6 @@ static bool blue = false;
 static float xoffset = 10.f;
 ///
 
-// Vars
-char *entities_save_path = "test.entities";
-
 int main(void)
 {
     int width = 0;
@@ -282,8 +279,6 @@ int main(void)
 
     // Font font = GetFontDefault();
     //
-
-    // snprintf(entities_save_path, ENTITIES_SAVE_PATH_BUFF_CAP, "%s", "test.entities");
 
     arr_heap_init(entities, ENTITIES_MAX_CAP);
 
@@ -318,6 +313,7 @@ int main(void)
     size_t chars_buff_count = 0;
 
     Console *active_switch_console = NULL;
+    Switch *active_switch = NULL;
     float pad_perc = 0.15f;
     Rectangle active_switch_console_rect = {
         .x = 0,
@@ -336,7 +332,6 @@ int main(void)
     // Add vars
     darr_append(vars, (INT_VAR(radius, radius)));
     darr_append(vars, (FLOAT_VAR(xoffset, xoffset)));
-    darr_append(vars, (STR_VAR(entities_save_path, entities_save_path)));
     darr_append(vars, (BOOL_VAR(blue, blue)));
 
     while (!quit && !WindowShouldClose()) {
@@ -373,8 +368,11 @@ int main(void)
                     log_error_console(command_hist, "`%s` is not a valid command!", command_buff);
                     is_in_command = true;
                     clear_current_console_line(&command_hist);
+                    add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE);
                 } else if (matched_commands_ids.count == 1) {
+
                     if (sv_equals(command, SV(commands[matched_commands_ids.items[0]]))) {
+                        add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE);
                         // Run commands
                         is_in_command = false;
                         switch (matched_commands_ids.items[0]) {
@@ -394,30 +392,36 @@ int main(void)
                                 CHANGE_MODE(MODE_COPY);
                             } break;
                             case CMD_ID_LOAD: {
-                                if (entities_save_path == NULL) {
-                                    log_error_a(command_hist, "%s", "entities_save_path is not set!");
+                                if (args.count-1 <= 0) {
+                                    log_error_a(command_hist, "%s", "Please provide the name of the file to load!");
                                     is_in_command = true;
-                                    clear_current_console_line(&command_hist);
-                                } else {
-                                    if (load_entities(&entities, entities_save_path, &entity_arena, &temp_arena)) {
-                                        log_debug("Successfully loaded entities from `%s`", entities_save_path);
-                                    } else {
-                                        log_debug("Failed to load entities from `%s`", entities_save_path);
-                                    }
+                                    break;
                                 }
+                                String_view load_path_sv = args.items[1];
+                                char *load_path = sv_to_cstr(load_path_sv);
+                                if (load_entities(&entities, load_path, &entity_arena, &temp_arena)) {
+                                    log_info_a(command_hist, "Successfully loaded entities from `%s`", load_path);
+                                } else {
+                                    log_error_a(command_hist, "Failed to load entities from `%s`", load_path);
+                                    is_in_command = true;
+                                }
+                                free(load_path);
                             } break;
                             case CMD_ID_SAVE: {
-                                if (*entities_save_path == '\0') {
-                                    log_error_a(command_hist, "%s", "entities_save_path is not set!");
+                                if (args.count-1 <= 0) {
+                                    log_error_a(command_hist, "%s", "Please provide the name of the file to save!");
                                     is_in_command = true;
-                                    clear_current_console_line(&command_hist);
-                                } else {
-                                    if (save_entities(&entities, entities_save_path, entity_save_version)) {
-                                        log_debug("Successfully saved entities to `%s`", entities_save_path);
-                                    } else {
-                                        log_debug("Failed to save entities to `%s`", entities_save_path);
-                                    }
+                                    break;
                                 }
+                                String_view save_path_sv = args.items[1];
+                                char *save_path = sv_to_cstr(save_path_sv);
+                                if (save_entities(&entities, save_path, entity_save_version)) {
+                                    log_info_a(command_hist, "Successfully saved entities to `%s`", save_path);
+                                } else {
+                                    log_error_a(command_hist, "Failed to save entities to `%s`", save_path);
+                                    is_in_command = true;
+                                }
+                                free(save_path);
                             } break;
                             case CMD_ID_LS_CMDS: {
                                 log_info_a(command_hist, "%s", "Commands: ");
@@ -534,7 +538,6 @@ int main(void)
                         log_debug_console(command_hist, "    - %s", commands[idx]);
                     }
                 }
-
             }
         } else {
             if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_SEMICOLON)) {
@@ -787,13 +790,20 @@ int main(void)
             } break;
             case MODE_INTERACT: {
                 if (active_switch_console) {
+                    if (!active_switch->booted) {
+                        boot_switch(active_switch);
+                    }
+
                     if (input_to_console(active_switch_console)) {
                         char *buff = get_current_console_line_buff(active_switch_console);
                         add_line_to_console(active_switch_console, buff, strlen(buff), WHITE);
                         clear_current_console_line(active_switch_console);
-                        active_switch_console = NULL;
-
                     }
+                    if (IsKeyPressed(KEY_ESCAPE)) {
+                        active_switch_console = NULL;
+                        active_switch = NULL;
+                    }
+
                 } else if (hovering_entity) {
                     switch (hovering_entity->kind) {
                         case EK_NIC: {
@@ -802,6 +812,7 @@ int main(void)
                         case EK_SWITCH: {
                             if (IsKeyPressed(KEY_C)) {
                                 active_switch_console = &hovering_entity->switchh->console;
+                                active_switch = hovering_entity->switchh;
 
                                 active_switch_console_rect.x = (width * 0.5f) - active_switch_console_rect.width * 0.5f;
                                 active_switch_console_rect.y = (height * 0.5f) - active_switch_console_rect.height * 0.5f;

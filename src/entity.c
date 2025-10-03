@@ -109,6 +109,7 @@ void draw_entity(Entity *e, bool debug) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
+                draw_info_text(&p, arena_alloc_str(*e->temp_arena, "%s", switch_model_as_str(e->switchh->model)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 
                 for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
                     for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
@@ -509,7 +510,8 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
         } break;
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
-            make_switch(e->switchh, arena);
+            // TODO: Take switch model as input
+            make_switch(SW_MODEL_MOMO_SW_2025_A, e->switchh, arena);
             e->tex = load_texture_checked("resources/gfx/switch.png");
         } break;
         case EK_ACCESS_POINT: {
@@ -576,8 +578,8 @@ void make_nic(Entity *e, Nic *nic, Arena *arena) {
     } while (is_mac_address_assigned(e->entities, nic->mac_address));
 }
 
-void make_switch(Switch *switch_out, Arena *arena) {
-    Switch s = {0};
+void make_switch(Switch_model model, Switch *switch_out, Arena *arena) {
+    Switch s = {.model = model};
 
     make_switch_console(&s.console, arena);
 
