@@ -261,10 +261,12 @@ static bool blue = false;
 static float xoffset = 10.f;
 ///
 
+
 int main(void)
 {
     int width = 0;
     int height = 0;
+
 
 #if defined(DEBUG)
     bool debug_draw = true;
@@ -279,6 +281,7 @@ int main(void)
 
     // Font font = GetFontDefault();
     //
+    SetTextLineSpacing(1);
 
     arr_heap_init(entities, ENTITIES_MAX_CAP);
 
@@ -325,6 +328,7 @@ int main(void)
     bool is_in_command = false;
     Console command_hist = {
         .font = GetFontDefault(),
+        .prefix = ":",
     };
 
     bool quit = false;
@@ -831,6 +835,7 @@ int main(void)
                 if (!active_switch_console && IsKeyPressed(KEY_ESCAPE)) {
                     current_mode = last_mode;
                     active_switch_console = NULL;
+                    active_switch = NULL;
                 }
             } break;
             case MODE_COUNT:
@@ -1178,16 +1183,16 @@ int main(void)
         }
 
         if (is_in_command) {
-            draw_text(GetFontDefault(), ":", v2(4.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
-            draw_text(GetFontDefault(), get_current_console_line_buff(&command_hist), v2(8.f, height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
+
+            int console_font_size = ENTITY_DEFAULT_RADIUS * 0.5f;
 
             Rectangle command_rect = {
                 .x = 0.f,
-                .y = height * 0.5f - ENTITY_DEFAULT_RADIUS*0.5f,
+                .y = height * 0.5f - console_font_size,
                 .width = width,
                 .height = height * 0.5f,
             };
-            draw_console(&command_hist, command_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
+            draw_console(&command_hist, command_rect, v2(8, -8), console_font_size);
         }
 
         EndTextureMode();

@@ -102,6 +102,8 @@ struct Console {
 	int cursor; // offset in the line
 	int line;   // line number
     Font font;
+    int hist_lookup_idx; // idx for Ctrl+P and Ctrl+N
+    const char *prefix;
 };
 
 
@@ -122,7 +124,7 @@ void clear_current_console_line(Console *console);
 char *get_current_console_line_buff(Console *console);
 String_view_array get_current_console_args(Console *console);
 bool input_to_console(Console *console);
-float get_cursor_offset(Console *console);
+float get_cursor_offset(Console *console, int font_size);
 void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
 
 #define log_info_console(console, fmt, ...) do {\
@@ -445,6 +447,7 @@ void add_line_to_console_simple(Console *console, char *line, Color color) {
     };
     memcpy(cl.buff, line, cl.count);
     darr_append(console->lines, cl);
+    console->hist_lookup_idx = console->lines.count;
 }
 
 void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color) {
@@ -452,6 +455,7 @@ void add_line_to_console(Console *console, char *buff, size_t buff_size, Color c
     memcpy(cl.buff, buff, buff_size);
     cl.color = color;
     darr_append(console->lines, cl);
+    console->hist_lookup_idx = console->lines.count;
 }
 
 Console_line *get_console_line(Console *console, size_t line) {
@@ -520,13 +524,32 @@ bool input_to_console(Console *console) {
 
         // readline functionality
         if (IsKeyDown(KEY_LEFT_CONTROL)) {
+            // Prev_line
             if (IsKeyPressed(KEY_P)) {
                 if (console->lines.count > 0) {
-                    Console_line *last_line = get_console_line(console, console->line-1);
+                    if (console->hist_lookup_idx > 1) console->hist_lookup_idx--;
 
-                    memcpy(last_line->buff, line->buff, last_line->count);
+                    Console_line *last_line = get_console_line(console, console->hist_lookup_idx);
+
+                    memcpy(line->buff, last_line->buff, last_line->count);
                     line->count = last_line->count;
-                    log_debug("readline:prev_line");
+                    line->buff[line->count] = '\0';
+                    console->cursor = strlen(line->buff);
+
+                }
+            }
+
+            if (IsKeyPressed(KEY_N)) {
+                if (console->lines.count > 0) {
+                    if (console->hist_lookup_idx < console->lines.count-1) console->hist_lookup_idx++;
+
+                    Console_line *last_line = get_console_line(console, console->hist_lookup_idx);
+
+                    memcpy(line->buff, last_line->buff, last_line->count);
+                    line->count = last_line->count;
+                    line->buff[line->count] = '\0';
+                    console->cursor = strlen(line->buff);
+
                 }
             }
         }
@@ -555,19 +578,38 @@ bool input_to_console(Console *console) {
     return false;
 }
 
-float get_cursor_offset(Console *console) {
-    Font font = GetFontDefault();
-    float offset = 0.f;
-    for (int i = 0; i < console->cursor; ++i) {
-        char ch = console->lines.items[console->line].buff[i];
-        GlyphInfo ginfo = GetGlyphInfo(font, ch);
-        offset += ginfo.advanceX;
-        log_debug("Character: %c, AdvanceX: %d, Total Offset: %f", 
-                ch, ginfo.advanceX, offset);
-    }
-    // log_debug("cursor_offset: %f at %d", offset, console->cursor);
+// float get_cursor_offset(Console *console, int font_size) {
+//     Font font = console->font;
+//
+//     char buf[1024];
+//
+//     char *text = get_current_console_line_buff(console);
+//     memcpy(buf, text, console->cursor);
+//     buf[console->cursor] = '\0';
+//
+//     Vector2 size = MeasureTextEx(font, buf, font_size, 1.f);
+//
+//     return size.x;
+// }
 
-    return offset;
+float get_cursor_offset(Console *console, int font_size) {
+    Font font = console->font;
+    const char *text = get_current_console_line_buff(console);
+    float scale = (float)font_size / (float)font.baseSize;
+    float x = 0.0f;
+
+    for (int i = 0; i < console->cursor && text[i] != '\0'; ) {
+        int codepoint = text[i];
+        GlyphInfo glyph = GetGlyphInfo(font, codepoint); // pseudo: access font.glyphs[...] or use raylib helpers
+        i += 1;
+        Rectangle glyph_atlas_rec = GetGlyphAtlasRec(font, codepoint);
+        x += glyph_atlas_rec.width * scale;
+
+        // log_info("%c: %f, %f, %fx%f", codepoint, glyph_atlas_rec.x, glyph_atlas_rec.y, glyph_atlas_rec.width, glyph_atlas_rec.height);
+    }
+
+
+    return x;
 }
 
 void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) {
@@ -576,13 +618,29 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) 
     DrawRectangleLinesEx(rect, 1.f, WHITE);
     DrawRectangleRec(rect, ColorAlpha(BLACK, 0.7f));
     BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
+
     for (size_t i = 0; i < console->lines.count; ++i) {
         Console_line *line = &console->lines.items[console->lines.count - i - 1];
         draw_text(GetFontDefault(), line->buff, pos, font_size, line->color);
 
         pos.y -= (pad.y + 2.f*font_size);
     }
+
     EndScissorMode();
+
+    // draw_text(console->font, console->prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, WHITE);
+    // size_t prefix_len = strlen(console->prefix);
+    draw_text(console->font, get_current_console_line_buff(console), v2(rect.x, rect.y + rect.height), font_size, WHITE);
+
+    Rectangle cursor_rec = {
+        .x = rect.x + get_cursor_offset(console, font_size),
+        .y = rect.y + rect.height,
+        .width = font_size,
+        .height = font_size,
+    };
+    DrawRectangleRec(cursor_rec, WHITE);
+
+    // log_debug("console->cursor: %d", console->cursor);
 }
 
 // Timer and Alarm
