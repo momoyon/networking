@@ -595,7 +595,7 @@ void make_switch_console(Console *console_out, Arena *arena) {
 
     Console_line l = {0};
     console_out->font = GetFontDefault();
-    console_out->prefix = ">";
+    console_out->prefix = "Switch>";
     darr_append(console_out->lines, l);
 }
 

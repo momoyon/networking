@@ -107,7 +107,7 @@
 #define sv_is_hex_numbers c_sv_is_hex_numbers
 #define sv_equals c_sv_equals
 #define sv_get_part c_sv_get_part
-
+#define sv_lpop_arg c_sv_lpop_arg
 
 #endif // COMMONLIB_REMOVE_PREFIX
 
@@ -468,6 +468,7 @@ bool c_sv_contains_char(c_String_view sv, char ch);
 bool c_sv_is_hex_numbers(c_String_view sv);
 bool c_sv_equals(c_String_view sv1, c_String_view sv2);
 c_String_view c_sv_get_part(c_String_view sv, int from, int to);
+bool c_sv_lpop_arg(c_String_view *sv, c_String_view *out);
 
 #endif /* _COMMONLIB_H_ */
 
@@ -982,4 +983,53 @@ c_String_view c_sv_get_part(c_String_view sv, int from, int to) {
 
     return range;
 }
+
+bool c_sv_lpop_arg(c_String_view *sv, c_String_view *out) {
+    c_sv_trim(sv);
+    if (sv->count == 0) return false;
+
+    // If starts with a quote, consume until matching quote (allowing backslash escapes).
+    char start = sv->data[0];
+    if (start == '"' || start == '\'') {
+        // skip opening quote
+        sv->data++;
+        sv->count--;
+        const char *start_ptr = sv->data;
+        size_t out_count = 0;
+
+        while (sv->count > 0) {
+            char c = *sv->data;
+            if (c == '\\' && sv->count > 1) {
+                // skip backslash, take next char literally
+                sv->data++;
+                sv->count--;
+                sv->data++; sv->count--;
+                out_count += 1;
+                continue;
+            }
+            if (c == start) {
+                // closing quote found; advance past it and finish
+                sv->data++;
+                sv->count--;
+                break;
+            }
+            sv->data++;
+            sv->count--;
+            out_count++;
+        }
+
+        *out = (String_view){ .data = (char*)start_ptr, .count = out_count };
+        return true;
+    }
+
+    // Unquoted: pop until next space
+    const char *start_ptr = sv->data;
+    while (sv->count > 0 && *sv->data != ' ') {
+        sv->data++;
+        sv->count--;
+    }
+    *out = (String_view){ .data = (char*)start_ptr, .count = (size_t)(sv->data - start_ptr) };
+    return true;
+}
+
 #endif

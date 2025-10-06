@@ -32,7 +32,12 @@ void boot_switch(Switch *switchh, float dt) {
         add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "Momo software, Version %s, RELEASE SOFTWARE", switchh->version), GREEN);
         add_line_to_console_simple(console, "Copyright (c) 2025 by Momoyon", GREEN);
         add_line_to_console_simple(console, "", GREEN);
-        add_line_to_console_simple(console, "Press RETURN to get started!", GREEN);
         switchh->booted = true;
+    }
+}
+
+void parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
+    for (int i = 0; i < cmd_args.count; ++i) {
+        log_debug("SWITCH CONSOLE CMD: "SV_FMT, SV_ARG(cmd_args.items[i]));
     }
 }

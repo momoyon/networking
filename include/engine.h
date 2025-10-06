@@ -498,7 +498,6 @@ char *get_current_console_line_buff(Console *console) {
     return console->lines.items[console->line].buff;
 }
 
-// TODO: Get quoted args as a single arg
 String_view_array get_current_console_args(Console *console) {
     String_view_array res = {0};
 
@@ -508,8 +507,12 @@ String_view_array get_current_console_args(Console *console) {
     sv_trim(&sv);
     while (sv.count > 0) {
         sv_trim(&sv);
-        String_view arg = sv_lpop_until_char(&sv, ' ');
+        String_view arg = {0};
+        if (!sv_lpop_arg(&sv, &arg)) break;
         darr_append(res, arg);
+
+        // skip spaces between args
+        sv_trim(&sv);
     }
 
     return res;
@@ -636,8 +639,8 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) 
     EndScissorMode();
 
     draw_text(console->font, console->prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, WHITE);
-    size_t prefix_len = console->prefix ? strlen(console->prefix) : 0;
-    draw_text(console->font, get_current_console_line_buff(console), v2(rect.x + prefix_len * font_size, rect.y + rect.height), font_size, WHITE);
+    float prefix_offset = MeasureTextEx(console->font, console->prefix, font_size, 2.5f).x + 10.f;
+    draw_text(console->font, get_current_console_line_buff(console), v2(rect.x + prefix_offset, rect.y + rect.height), font_size, WHITE);
 
     // Rectangle cursor_rec = {
     //     .x = rect.x + get_cursor_offset(console, font_size),

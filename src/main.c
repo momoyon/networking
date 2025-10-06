@@ -800,6 +800,8 @@ int main(void)
 
                     if (input_to_console(active_switch_console)) {
                         char *buff = get_current_console_line_buff(active_switch_console);
+                        String_view_array args = get_current_console_args(active_switch_console);
+                        parse_switch_console_cmd(active_switch, args);
                         add_line_to_console(active_switch_console, buff, strlen(buff), WHITE);
                         clear_current_console_line(active_switch_console);
                     }
