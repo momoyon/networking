@@ -795,7 +795,7 @@ int main(void)
             case MODE_INTERACT: {
                 if (active_switch_console) {
                     if (!active_switch->booted) {
-                        boot_switch(active_switch);
+                        boot_switch(active_switch, GetFrameTime());
                     }
 
                     if (input_to_console(active_switch_console)) {
@@ -1173,7 +1173,6 @@ int main(void)
             if (active_switch_console) {
                 
                 draw_console(active_switch_console, active_switch_console_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
-                draw_text(GetFontDefault(), get_current_console_line_buff(active_switch_console), v2(active_switch_console_rect.x, active_switch_console_rect.y + active_switch_console_rect.height - ENTITY_DEFAULT_RADIUS * 0.5f), ENTITY_DEFAULT_RADIUS*0.5f, WHITE);
                 
             }
         } break;

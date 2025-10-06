@@ -30,11 +30,18 @@ struct Switch {
 	Console console;
 	Port fe[1][4];
     Switch_model model;
+    const char *version;
+
     bool booted;
+    int boot_perc;
+    bool boot_started;
+    Alarm boot_load_alarm;
+
+    Arena *tmp_arena;
 };
 
-void make_switch(Switch_model model, Switch *switch_out, Arena *arena);
+void make_switch(Switch_model model, const char *version, Switch *switch_out, Arena *arena, Arena *tmp_arena);
 void make_switch_console(Console *console_out, Arena *arena);
-void boot_switch(Switch *switchh);
+void boot_switch(Switch *switchh, float dt);
 
 #endif // _SWITCH_H_

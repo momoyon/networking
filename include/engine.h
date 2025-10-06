@@ -117,6 +117,7 @@ struct String_view_array {
 
 void add_line_to_console_simple(Console *console, char *line, Color color);
 void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color);
+void add_character_to_console_line(Console *console, char ch, size_t line);
 Console_line *get_console_line(Console *console, size_t line);
 Console_line *get_or_create_console_line(Console *console, size_t line);
 void clear_console_line(Console_line *cl);
@@ -458,6 +459,12 @@ void add_line_to_console(Console *console, char *buff, size_t buff_size, Color c
     console->hist_lookup_idx = console->lines.count;
 }
 
+void add_character_to_console_line(Console *console, char ch, size_t line) {
+    Console_line *l = get_console_line(console, line);
+
+    l->buff[l->count++] = ch;
+}
+
 Console_line *get_console_line(Console *console, size_t line) {
     // TODO: Check outofbounds of line
     return &console->lines.items[line];
@@ -600,7 +607,7 @@ float get_cursor_offset(Console *console, int font_size) {
 
     for (int i = 0; i < console->cursor && text[i] != '\0'; ) {
         int codepoint = text[i];
-        GlyphInfo glyph = GetGlyphInfo(font, codepoint); // pseudo: access font.glyphs[...] or use raylib helpers
+        // GlyphInfo glyph = GetGlyphInfo(font, codepoint); // pseudo: access font.glyphs[...] or use raylib helpers
         i += 1;
         Rectangle glyph_atlas_rec = GetGlyphAtlasRec(font, codepoint);
         x += glyph_atlas_rec.width * scale;
@@ -628,17 +635,17 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) 
 
     EndScissorMode();
 
-    // draw_text(console->font, console->prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, WHITE);
-    // size_t prefix_len = strlen(console->prefix);
-    draw_text(console->font, get_current_console_line_buff(console), v2(rect.x, rect.y + rect.height), font_size, WHITE);
+    draw_text(console->font, console->prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, WHITE);
+    size_t prefix_len = console->prefix ? strlen(console->prefix) : 0;
+    draw_text(console->font, get_current_console_line_buff(console), v2(rect.x + prefix_len * font_size, rect.y + rect.height), font_size, WHITE);
 
-    Rectangle cursor_rec = {
-        .x = rect.x + get_cursor_offset(console, font_size),
-        .y = rect.y + rect.height,
-        .width = font_size,
-        .height = font_size,
-    };
-    DrawRectangleRec(cursor_rec, WHITE);
+    // Rectangle cursor_rec = {
+    //     .x = rect.x + get_cursor_offset(console, font_size),
+    //     .y = rect.y + rect.height,
+    //     .width = font_size,
+    //     .height = font_size,
+    // };
+    // DrawRectangleRec(cursor_rec, WHITE);
 
     // log_debug("console->cursor: %d", console->cursor);
 }

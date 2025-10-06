@@ -511,7 +511,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
             // TODO: Take switch model as input
-            make_switch(SW_MODEL_MOMO_SW_2025_A, e->switchh, arena);
+            make_switch(SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, arena, temp_arena);
             e->tex = load_texture_checked("resources/gfx/switch.png");
         } break;
         case EK_ACCESS_POINT: {
@@ -578,8 +578,12 @@ void make_nic(Entity *e, Nic *nic, Arena *arena) {
     } while (is_mac_address_assigned(e->entities, nic->mac_address));
 }
 
-void make_switch(Switch_model model, Switch *switch_out, Arena *arena) {
+void make_switch(Switch_model model, const char *version, Switch *switch_out, Arena *arena, Arena *tmp_arena) {
     Switch s = {.model = model};
+    s.tmp_arena = tmp_arena;
+    s.version = version;
+
+    s.boot_load_alarm.alarm_time = 0.1f;
 
     make_switch_console(&s.console, arena);
 
@@ -590,6 +594,8 @@ void make_switch_console(Console *console_out, Arena *arena) {
     (void)arena;
 
     Console_line l = {0};
+    console_out->font = GetFontDefault();
+    console_out->prefix = ">";
     darr_append(console_out->lines, l);
 }
 
