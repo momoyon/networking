@@ -23,6 +23,8 @@ typedef struct {
     size_t capacity;
 } Entity_ids;
 
+extern char *entity_texture_path_map[EK_COUNT];
+
 // NOTE: How we assign unique ids for entities:
 // 1. We first check if `free_entity_ids` is empty:
 //      - true If empty: go 2.

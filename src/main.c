@@ -228,7 +228,6 @@ static bool blue = false;
 static float xoffset = 10.f;
 ///
 
-
 int main(void)
 {
     int width = 0;
@@ -260,6 +259,9 @@ int main(void)
     Entity* hovering_entity = NULL;
     Entity* connecting_from = NULL;
     Entity* connecting_to = NULL;
+
+    Texture2D selected_entity_kind_tex = {0};
+    ASSERT(load_texture(&tex_man, entity_texture_path_map[selected_entity_kind], &selected_entity_kind_tex), "THIS SHOULDNT FAIL!");
 
     Rectangle selection = { 0 };
     Vector2 selection_start = { 0 };
@@ -613,20 +615,37 @@ exec_command:
                         hovering_entity->state |= (1 << ESTATE_SELECTED);
                     }
                 }
-                // Copy mode
-                if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
-                    CHANGE_MODE(MODE_COPY);
+                /// Keybinds to change modes
+                if (IsKeyDown(KEY_LEFT_CONTROL)) {
+                    if (IsKeyPressed(KEY_C)) {
+                        CHANGE_MODE(MODE_COPY);
+                    }
+
+                    if (IsKeyPressed(KEY_I)) {
+                        CHANGE_MODE(MODE_INTERACT);
+                    }
+
+                    if (IsKeyPressed(KEY_H)) {
+                        CHANGE_MODE(MODE_CHANGE);
+                    }
+
+                    if (IsKeyPressed(KEY_N)) {
+                        CHANGE_MODE(MODE_NORMAL);
+                    }
                 }
+
 
                 // Change Entity kind
                 if (IsKeyPressed(KEY_E)) {
                     selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
+                    ASSERT(load_texture(&tex_man, entity_texture_path_map[selected_entity_kind], &selected_entity_kind_tex), "THIS SHOULDNT FAIL!");
                 }
                 if (IsKeyPressed(KEY_Q)) {
                     if (selected_entity_kind == 0)
                         selected_entity_kind = EK_COUNT - 1;
                     else
                         selected_entity_kind--;
+                    ASSERT(load_texture(&tex_man, entity_texture_path_map[selected_entity_kind], &selected_entity_kind_tex), "THIS SHOULDNT FAIL!");
                 }
 
                 // @DEBUG: Test ethernet frame transfer
@@ -1068,6 +1087,13 @@ exec_command:
             draw_text_aligned(GetFontDefault(), selected_entity_kind_str,
                 v2(width * 0.5, 2), ENTITY_DEFAULT_RADIUS * 0.5,
                 TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_CENTER, WHITE);
+
+            float xoffset_after_text = MeasureTextEx(GetFontDefault(), selected_entity_kind_str, ENTITY_DEFAULT_RADIUS * 0.5f, 2.5f).x / 2.f;
+
+            // TODO: Draw Entity Kind Sprite
+            DrawTextureV(selected_entity_kind_tex, v2(width*0.5f + xoffset_after_text, 2.f), WHITE);
+
+
             BeginMode2D(cam);
             if (connecting_from) {
                 DrawLineBezier(connecting_from->pos, m_world, 1.0, GRAY);

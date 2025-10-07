@@ -76,6 +76,7 @@ typedef struct {
 } Texture_manager;
 
 bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out);
+bool load_texture_(Texture_manager *tm, const char *filepath, Texture2D *tex_out, bool verbose);
 
 // Console
 #define CONSOLE_LINE_BUFF_CAP (1024*1)
@@ -425,17 +426,24 @@ bool input_to_buff(char *buff, size_t buff_cap, int *cursor) {
 
 // Assets Manager
 bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out) {
+    return load_texture_(tm, filepath, tex_out, false);
+}
+
+
+bool load_texture_(Texture_manager *tm, const char *filepath, Texture2D *tex_out, bool verbose) {
 	Texture_KV *tex_KV = hmgetp_null(tm->texture_map, filepath);
 
 	if (tex_KV != NULL) {
 		*tex_out = tex_KV->value;
-		log_debug("Found '%s' at texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
+        if (verbose)
+            log_debug("Found '%s' at texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
 	} else {
 		Texture2D tex = LoadTexture(filepath);
 		if (!IsTextureReady(tex)) return false;
 		*tex_out = tex;
 		hmput(tm->texture_map, filepath, tex);
-		log_debug("Added '%s' to texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
+        if (verbose)
+            log_debug("Added '%s' to texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
 	}
 
 	return true;

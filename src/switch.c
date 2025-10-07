@@ -55,7 +55,7 @@ bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
     Ids matched_command_ids = match_command(cmd_str, switch_commands, switch_commands_count);
 
     if (matched_command_ids.count == 0) {
-        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), SV_FMT" is not a valid command!", SV_ARG(cmd)), RED);
+        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "%s is not a valid command!", cmd_str), RED);
     } else if (matched_command_ids.count == 1) {
 
         switch (matched_command_ids.items[0]) {

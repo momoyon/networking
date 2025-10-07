@@ -15,6 +15,12 @@ size_t entities_count = 0;
 Entities entities = {0};
 Entity_indices free_entity_indices = {0};
 
+char *entity_texture_path_map[EK_COUNT] = {
+    [EK_NIC] = "resources/gfx/nic.png",
+    [EK_SWITCH] = "resources/gfx/switch.png",
+    [EK_ACCESS_POINT] = "resources/gfx/ap.png",
+};
+
 static size_t get_unique_id(void) {
     if (free_entity_ids.count > 0) {
         int last_free_id = -1;
@@ -177,7 +183,9 @@ void draw_entity(Entity *e, bool debug) {
             .width  = e->tex.width*ENTITY_TEXTURE_SCALE,
             .height = e->tex.height*ENTITY_TEXTURE_SCALE,
         };
-        DrawTexturePro(e->tex, src, dst, CLITERAL(Vector2) { (ENTITY_DEFAULT_RADIUS/2)+1, (ENTITY_DEFAULT_RADIUS/2)+1 }, 0.0, WHITE);
+        // NOTE: Honestly no idea why i have to add this.
+        static const int o = 4;
+        DrawTexturePro(e->tex, src, dst, v2((ENTITY_DEFAULT_RADIUS/2)+o, (ENTITY_DEFAULT_RADIUS/2)+o), 0.0, WHITE);
     } else {
         DrawCircle(e->pos.x, e->pos.y, e->radius, WHITE);
     }
@@ -504,7 +512,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
         case EK_NIC: {
             e->nic = (Nic *)arena_alloc(arena, sizeof(Nic));
             make_nic(e, e->nic, arena);
-            e->tex = load_texture_checked("resources/gfx/nic.png");
+            e->tex = load_texture_checked(entity_texture_path_map[EK_NIC]);
             ASSERT(IsTextureReady(e->tex), "Failed to load network interface image!");
             e->nic->nic_entity_id = -1;
         } break;
@@ -512,12 +520,12 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
             // TODO: Take switch model as input
             make_switch(SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, arena, temp_arena);
-            e->tex = load_texture_checked("resources/gfx/switch.png");
+            e->tex = load_texture_checked(entity_texture_path_map[EK_SWITCH]);
         } break;
         case EK_ACCESS_POINT: {
             e->ap = (Access_point *)arena_alloc(arena, sizeof(Access_point));
             make_ap(e, e->ap, arena);
-            e->tex = load_texture_checked("resources/gfx/ap.png");
+            e->tex = load_texture_checked(entity_texture_path_map[EK_ACCESS_POINT]);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
