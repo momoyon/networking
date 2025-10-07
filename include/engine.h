@@ -117,6 +117,7 @@ struct String_view_array {
 
 void add_line_to_console_simple(Console *console, char *line, Color color);
 void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color);
+void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color);
 void add_character_to_console_line(Console *console, char ch, size_t line);
 Console_line *get_console_line(Console *console, size_t line);
 Console_line *get_or_create_console_line(Console *console, size_t line);
@@ -454,6 +455,17 @@ void add_line_to_console_simple(Console *console, char *line, Color color) {
 void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color) {
     Console_line cl = { .count = buff_size, };
     memcpy(cl.buff, buff, buff_size);
+    cl.color = color;
+    darr_append(console->lines, cl);
+    console->hist_lookup_idx = console->lines.count;
+}
+
+void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color) {
+    const char *prefixed = arena_alloc_str(*tmp_arena, "%s%s", console->prefix, buff);
+    size_t prefixed_len = strlen(prefixed);
+
+    Console_line cl = { .count = prefixed_len, };
+    memcpy(cl.buff, prefixed, prefixed_len);
     cl.color = color;
     darr_append(console->lines, cl);
     console->hist_lookup_idx = console->lines.count;

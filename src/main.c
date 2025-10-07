@@ -168,13 +168,7 @@ typedef enum {
     CMD_ID_COUNT,
 } Command_id;
 
-typedef struct {
-    int *items;
-    size_t count;
-    size_t capacity;
-} Command_ids; // @darr
-
-typedef Command_ids Ids;
+typedef Ids Command_ids;
 
 const char *commands[] = {
     [CMD_ID_EXIT]      = "exit",
@@ -191,33 +185,6 @@ const char *commands[] = {
 };
 // @TODO: ARRAY_LEN is getting -1 of the actual len
 size_t commands_count = ARRAY_LEN(commands);
-
-bool str_starts_with(const char *str, const char *suffix) {
-    if (str == NULL) return false;
-    while (*str != 0 && *suffix != 0) {
-        if (*suffix++ != *str++) {
-            return false;
-        }
-    }
-    return true;
-}
-
-Command_ids match_command(const char *command) {
-    Command_ids matched_command_ids = {0};
-    size_t command_len = strlen(command);
-    for (int i = 0; i < commands_count; ++i) {
-        const char *c = commands[i];
-        size_t c_len = strlen(c);
-        if (str_starts_with(c, command)) {
-            if ((command_len > c_len && command[c_len] == ' ')
-              || command_len <= c_len) {
-                darr_append(matched_command_ids, i);
-            }
-        }
-    }
-
-    return matched_command_ids;
-}
 
 Ids match_var(const char *var) {
     Ids matched_vars = {0};
@@ -331,6 +298,12 @@ int main(void)
         .prefix = ":",
     };
 
+    // prerun cmd (only supports one line rn)
+    // TODO: Support multiple commands on multiple lines
+    int prerun_cmd_file_size = -1;
+    const char *prerun_cmd = read_file(COMMAND_PRERUN_FILENAME, &prerun_cmd_file_size);
+    bool prerun_cmd_ran = false;
+
     bool quit = false;
 
     // Add vars
@@ -355,15 +328,36 @@ int main(void)
             debug_draw = !debug_draw;
         }
 
+
+        // Run prerun command
+        if (prerun_cmd_file_size > 0 && !prerun_cmd_ran) {
+
+            size_t prerun_cmd_len = strlen(prerun_cmd);
+
+            if (command_hist.lines.count <= 0) {
+                Console_line cl = {0};
+
+                darr_append(command_hist.lines, cl);
+            }
+
+            memcpy(command_hist.lines.items[0].buff, prerun_cmd, prerun_cmd_len-1);
+            command_hist.lines.items[0].count = prerun_cmd_len-1;
+
+            prerun_cmd_ran = true;
+
+            goto exec_command;
+        }
+
         if (is_in_command) {
             if (IsKeyPressed(KEY_ESCAPE)) {
                 is_in_command = false;
             }
 
             if (input_to_console(&command_hist)) {
+exec_command:
                 char* command_buff = get_current_console_line_buff(&command_hist);
                 String_view_array args = get_current_console_args(&command_hist);
-                Command_ids matched_commands_ids = match_command(command_buff);
+                Command_ids matched_commands_ids = match_command(command_buff, commands, commands_count);
                 String_view command = SV("");
                 if (args.count > 0) {
                     command = args.items[0];
@@ -529,7 +523,7 @@ int main(void)
             }
 
             if (IsKeyPressed(KEY_TAB)) {
-                Command_ids matched_commands_ids = match_command(get_current_console_line_buff(&command_hist));
+                Command_ids matched_commands_ids = match_command(get_current_console_line_buff(&command_hist), commands, commands_count);
                 if (matched_commands_ids.count == 1) {
                     const char *cmd = commands[matched_commands_ids.items[0]];
                     size_t cmd_len = strlen(cmd);
@@ -796,18 +790,25 @@ int main(void)
                 if (active_switch_console) {
                     if (!active_switch->booted) {
                         boot_switch(active_switch, GetFrameTime());
-                    }
+                    } else {
+                        if (input_to_console(active_switch_console)) {
+                            char *buff = get_current_console_line_buff(active_switch_console);
+                            String_view_array args = get_current_console_args(active_switch_console);
 
-                    if (input_to_console(active_switch_console)) {
-                        char *buff = get_current_console_line_buff(active_switch_console);
-                        String_view_array args = get_current_console_args(active_switch_console);
-                        parse_switch_console_cmd(active_switch, args);
-                        add_line_to_console(active_switch_console, buff, strlen(buff), WHITE);
-                        clear_current_console_line(active_switch_console);
-                    }
-                    if (IsKeyPressed(KEY_ESCAPE)) {
-                        active_switch_console = NULL;
-                        active_switch = NULL;
+                            add_line_to_console_prefixed(active_switch_console, &temp_arena, buff, WHITE);
+
+                            if (!parse_switch_console_cmd(active_switch, args)) {
+                                clear_current_console_line(active_switch_console);
+                                active_switch_console = NULL;
+                                active_switch = NULL;
+                            }
+                            if (active_switch_console)
+                                clear_current_console_line(active_switch_console);
+                        }
+                        if (IsKeyPressed(KEY_ESCAPE)) {
+                            active_switch_console = NULL;
+                            active_switch = NULL;
+                        }
                     }
 
                 } else if (hovering_entity) {

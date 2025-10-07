@@ -9,6 +9,13 @@
 #include <entity.h>
 #include <ap.h>
 
+
+typedef struct {
+    int *items;
+    size_t count;
+    size_t capacity;
+} Ids; // @darr
+
 extern RenderTexture2D ren_tex;
 extern Arena entity_arena;
 extern Arena temp_arena;
@@ -21,5 +28,8 @@ void crash(void);
 Texture2D load_texture_checked(const char *filepath);
 void add_entity(Entity e);
 void emit_wifi(Vector2 pos, Color color, float dead_zone);
+
+bool str_starts_with(const char *str, const char *suffix);
+Ids match_command(const char *command, const char **commands, size_t commands_count);
 
 #endif // _COMMON_H_

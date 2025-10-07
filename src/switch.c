@@ -1,5 +1,14 @@
 #include <switch.h>
 #include <raylib.h>
+#include <common.h>
+
+const char *switch_commands[] = {
+    [SW_CMD_ID_EXIT]   = "exit",
+    [SW_CMD_ID_LOGOUT] = "logout",
+    [SW_CMD_ID_ENABLE] = "enable",
+};
+
+size_t switch_commands_count = ARRAY_LEN(switch_commands);
 
 const char *switch_model_as_str(const Switch_model sw_m) {
     switch (sw_m) {
@@ -36,8 +45,48 @@ void boot_switch(Switch *switchh, float dt) {
     }
 }
 
-void parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
-    for (int i = 0; i < cmd_args.count; ++i) {
-        log_debug("SWITCH CONSOLE CMD: "SV_FMT, SV_ARG(cmd_args.items[i]));
+bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
+    bool res = true;
+    Console *console = &switchh->console;
+    if (cmd_args.count <= 0) return true;
+    String_view cmd = cmd_args.items[0];
+
+    char *cmd_str = sv_to_cstr(cmd);
+    Ids matched_command_ids = match_command(cmd_str, switch_commands, switch_commands_count);
+
+    if (matched_command_ids.count == 0) {
+        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), SV_FMT" is not a valid command!", SV_ARG(cmd)), RED);
+    } else if (matched_command_ids.count == 1) {
+
+        switch (matched_command_ids.items[0]) {
+            case SW_CMD_ID_EXIT: {
+                if (switchh->enabled) {
+                    switch_no_enable(switchh);
+                } else {
+                    res = false;
+                }
+            } break;
+            case SW_CMD_ID_ENABLE: {
+                switch_enable(switchh);
+            } break;
+            case SW_CMD_ID_COUNT:
+            default: ASSERT(false, "UNREACHABLE!");
+        }
+    } else { 
     }
+
+    free(cmd_str);
+    return res;
 }
+
+
+void switch_enable(Switch *switchh) {
+    switchh->enabled = true;
+    switchh->console.prefix = "Switch#";
+}
+
+void switch_no_enable(Switch *switchh) {
+    switchh->enabled = false;
+    switchh->console.prefix = "Switch>";
+}
+

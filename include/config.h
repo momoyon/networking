@@ -13,4 +13,6 @@
 #define COMMAND_BUFF_CAP (1024*1)
 #define AP_WIFI_WAVE_ALARM_TIME 1.0
 
+#define COMMAND_PRERUN_FILENAME "prerun_command.momo"
+
 #endif // _CONFIG_H_
