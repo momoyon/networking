@@ -31,8 +31,12 @@ void boot_switch(Switch *switchh, float dt) {
 
     if (switchh->boot_perc < 50) {
         if (on_alarm(&switchh->boot_load_alarm, dt)) {
-            add_character_to_console_line(console, '#', console->lines.count-1);
-            switchh->boot_perc++;
+            int boot_value = rand() % 3;
+            switchh->boot_perc += boot_value;
+            if (switchh->boot_perc >= 50) switchh->boot_perc = 50;
+            for (int i = 0; i < boot_value; ++i) {
+                add_character_to_console_line(console, '#', console->lines.count-1);
+            }
         }
     } else {
         add_character_to_console_line(console, ']', console->lines.count-1);
@@ -45,6 +49,7 @@ void boot_switch(Switch *switchh, float dt) {
     }
 }
 
+// TODO: Sometimes the cmd_str (or smth) is jumbled mess.
 bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
     bool res = true;
     Console *console = &switchh->console;
@@ -55,10 +60,11 @@ bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
     Ids matched_command_ids = match_command(cmd_str, switch_commands, switch_commands_count);
 
     if (matched_command_ids.count == 0) {
-        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "%s is not a valid command!", cmd_str), RED);
+        char *err_msg = arena_alloc_str(*(switchh->tmp_arena), "%s is not a valid command!", cmd_str);
+        add_line_to_console_simple(console, err_msg, RED);
     } else if (matched_command_ids.count == 1) {
-
         switch (matched_command_ids.items[0]) {
+            case SW_CMD_ID_LOGOUT:
             case SW_CMD_ID_EXIT: {
                 if (switchh->enabled) {
                     switch_no_enable(switchh);
@@ -73,6 +79,7 @@ bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
             default: ASSERT(false, "UNREACHABLE!");
         }
     } else { 
+        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "%% Ambigiuous command: \"%s\"", cmd_str), YELLOW);
     }
 
     free(cmd_str);
