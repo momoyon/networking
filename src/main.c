@@ -183,7 +183,6 @@ const char *commands[] = {
     [CMD_ID_LS_VARS]   = "ls_vars",
     [CMD_ID_GET]       = "get",
 };
-// @TODO: ARRAY_LEN is getting -1 of the actual len
 size_t commands_count = ARRAY_LEN(commands);
 
 Ids match_var(const char *var) {
@@ -1090,9 +1089,7 @@ exec_command:
 
             float xoffset_after_text = MeasureTextEx(GetFontDefault(), selected_entity_kind_str, ENTITY_DEFAULT_RADIUS * 0.5f, 2.5f).x / 2.f;
 
-            // TODO: Draw Entity Kind Sprite
             DrawTextureV(selected_entity_kind_tex, v2(width*0.5f + xoffset_after_text, 2.f), WHITE);
-
 
             BeginMode2D(cam);
             if (connecting_from) {
