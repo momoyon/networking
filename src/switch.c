@@ -19,6 +19,19 @@ const char *switch_model_as_str(const Switch_model sw_m) {
     return "YOU ARE CURSED!";
 }
 
+
+const char *switch_console_mode_as_str(const Switch_console_mode m) {
+    switch (m) {
+        case SW_CNSL_MODE_USER: return "User";
+        case SW_CNSL_MODE_ENABLED: return "Enabled";
+        case SW_CNSL_MODE_CONFIG: return "config";
+        case SW_CNSL_MODE_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+
+    return "*PIC OF SCP-096*";
+}
+
 void boot_switch(Switch *switchh, float dt) {
     Console *console = &switchh->console;
 
@@ -66,14 +79,14 @@ bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
         switch (matched_command_ids.items[0]) {
             case SW_CMD_ID_LOGOUT:
             case SW_CMD_ID_EXIT: {
-                if (switchh->enabled) {
-                    switch_no_enable(switchh);
+                if (switchh->mode == SW_CNSL_MODE_ENABLED) {
+                    switch_change_mode(switchh, SW_CNSL_MODE_USER);
                 } else {
                     res = false;
                 }
             } break;
             case SW_CMD_ID_ENABLE: {
-                switch_enable(switchh);
+                switch_change_mode(switchh, SW_CNSL_MODE_ENABLED);
             } break;
             case SW_CMD_ID_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
@@ -86,14 +99,23 @@ bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
     return res;
 }
 
-
-void switch_enable(Switch *switchh) {
-    switchh->enabled = true;
-    switchh->console.prefix = "Switch#";
+// TODO: arena_alloc_str() doesn't work correctly now
+void switch_change_mode(Switch *switchh, Switch_console_mode new_mode) {
+    switchh->mode = new_mode;
+    switch (switchh->mode) {
+        case SW_CNSL_MODE_USER: {
+            if (switchh->console.prefix) arena_dealloc(switchh->str_arena, (void*)switchh->console.prefix);
+            switchh->console.prefix = arena_alloc_str(*(switchh->str_arena), "%s>", switchh->hostname ? switchh->hostname : "Switch");
+        } break;
+        case SW_CNSL_MODE_ENABLED: {
+            if (switchh->console.prefix) arena_dealloc(switchh->str_arena, (void*)switchh->console.prefix);
+            switchh->console.prefix = arena_alloc_str(*(switchh->str_arena), "%s#", switchh->hostname ? switchh->hostname : "Switch");
+        } break;
+        case SW_CNSL_MODE_CONFIG: {
+            if (switchh->console.prefix) arena_dealloc(switchh->str_arena, (void*)switchh->console.prefix);
+            switchh->console.prefix = arena_alloc_str(*(switchh->str_arena), "%s(config)#", switchh->hostname ? switchh->hostname : "Switch");
+        } break;
+        case SW_CNSL_MODE_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
 }
-
-void switch_no_enable(Switch *switchh) {
-    switchh->enabled = false;
-    switchh->console.prefix = "Switch>";
-}
-

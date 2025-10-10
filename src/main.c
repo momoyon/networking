@@ -399,7 +399,7 @@ exec_command:
                                 }
                                 String_view load_path_sv = args.items[1];
                                 char *load_path = sv_to_cstr(load_path_sv);
-                                if (load_entities(&entities, load_path, &entity_arena, &temp_arena)) {
+                                if (load_entities(&entities, load_path, &entity_arena, &temp_arena, &str_arena)) {
                                     log_info_a(command_hist, "Successfully loaded entities from `%s`", load_path);
                                 } else {
                                     log_error_a(command_hist, "Failed to load entities from `%s`", load_path);
@@ -678,7 +678,7 @@ exec_command:
                 if (IsKeyPressed(KEY_SPACE)) {
                     float64 tp1 = GetTime();
                     Entity e = make_entity(&entities, m_world, ENTITY_DEFAULT_RADIUS,
-                        selected_entity_kind, &entity_arena, &temp_arena);
+                        selected_entity_kind, &entity_arena, &temp_arena, &str_arena);
                     log_debug("make_entity() took %.2lfs", GetTime() - tp1);
                     add_entity(e);
                 }

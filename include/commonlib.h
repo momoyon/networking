@@ -55,6 +55,7 @@
 #define Arena c_Arena
 #define arena_make c_arena_make
 #define arena_alloc c_arena_alloc
+#define arena_dealloc c_arena_dealloc
 #define arena_reset c_arena_reset
 #define arena_free c_arena_free
 #define arena_alloc_str c_arena_alloc_str
@@ -395,17 +396,35 @@ void c_touch_file_if_doesnt_exist(cstr file);
 // c_Arena
 //
 
+typedef struct c_Mem_block c_Mem_block;
+typedef struct c_Mem_blocks c_Mem_blocks;
+
+struct c_Mem_block {
+    void *mem;
+    size_t size;
+};
+
+struct c_Mem_blocks {
+    c_Mem_block *items;
+    size_t count;
+    size_t capacity;
+}; // @darr
+
 #define ARENA_BUFF_INITIAL_SIZE (1024*4)
 
 struct c_Arena {
     void* buff;
     uint64 buff_size;
     void* ptr;
+
+    c_Mem_blocks alloced_blocks;
+    c_Mem_blocks free_blocks;
 };
 
 // pass size 0 to get ARENA_BUFF_INITIAL_SIZE
 c_Arena c_arena_make(size_t size);
 void* c_arena_alloc(c_Arena* a, size_t size);
+void c_arena_dealloc(c_Arena *a, void *mem);
 void c_arena_reset(c_Arena* a);
 void c_arena_free(c_Arena* a);
 
@@ -647,18 +666,70 @@ void* c_arena_alloc(c_Arena* a, size_t size) {
     void* res = a->ptr;
     a->ptr = (uint8*)a->ptr + size;
 
-    size_t diff = (size_t)((uint8*)a->ptr - (uint8*)a->buff);
-    if (diff > a->buff_size) {
-        c_log_info("c_Arena resized from %zu to %zu", a->buff_size, a->buff_size*2);
-        a->buff_size *= 2;
-        a->buff = C_REALLOC(a->buff, a->buff_size);
-        a->ptr = (uint8*)a->buff + diff;
-        res = a->ptr;
-        a->ptr = (uint8*)a->ptr + size;
+    bool free_block_found = false;
+
+    // TODO: Check if there is a free block that can fit this
+    for (size_t i = 0; i < a->free_blocks.count; ++i) {
+        c_Mem_block free_block = a->free_blocks.items[i];
+
+        if (free_block.size >= size) {
+            res = free_block.mem;
+
+            size_t diff = free_block.size - size;
+
+            darr_delete(a->free_blocks, c_Mem_block, i);
+
+            if (diff > 0) {
+                c_Mem_block residue_block = {
+                    .mem = (uint8 *)free_block.mem + size,
+                    .size = diff,
+                };
+
+                darr_append(a->free_blocks, residue_block);
+            }
+
+            free_block_found = true;
+            break;
+        }
     }
-    /* C_ASSERT((size_t)((uint8*)a->ptr - (uint8*)a->buff) <= a->buff_size); */
+
+
+    if (!free_block_found) {
+        size_t diff = (size_t)((uint8*)a->ptr - (uint8*)a->buff);
+        if (diff > a->buff_size) {
+            c_log_info("c_Arena resized from %zu to %zu", a->buff_size, a->buff_size*2);
+            a->buff_size *= 2;
+            a->buff = C_REALLOC(a->buff, a->buff_size);
+            a->ptr = (uint8*)a->buff + diff;
+            res = a->ptr;
+            // TODO: Do we need to do this?
+            a->ptr = (uint8*)a->ptr + size;
+        }
+        /* C_ASSERT((size_t)((uint8*)a->ptr - (uint8*)a->buff) <= a->buff_size); */
+    }
+
+    c_Mem_block block = {
+        .mem = res,
+        .size = size,
+    };
+
+    c_darr_append(a->alloced_blocks, block);
 
     return res;
+}
+
+void c_arena_dealloc(c_Arena *a, void *mem) {
+    C_ASSERT(a->buff, "Bro pass an initialized arena!");
+
+    for (size_t i = 0; i < a->alloced_blocks.count; ++i) {
+        c_Mem_block block = a->alloced_blocks.items[i];
+
+        if (block.mem == mem) {
+            c_darr_append(a->free_blocks, block);
+            c_darr_delete(a->alloced_blocks, c_Mem_block, i);
+            return;
+        }
+    }
 }
 
 void c_arena_reset(c_Arena* a) {
@@ -1018,7 +1089,7 @@ bool c_sv_lpop_arg(c_String_view *sv, c_String_view *out) {
             out_count++;
         }
 
-        *out = (String_view){ .data = (char*)start_ptr, .count = out_count };
+        *out = (c_String_view){ .data = (char*)start_ptr, .count = out_count };
         return true;
     }
 
@@ -1028,7 +1099,7 @@ bool c_sv_lpop_arg(c_String_view *sv, c_String_view *out) {
         sv->data++;
         sv->count--;
     }
-    *out = (String_view){ .data = (char*)start_ptr, .count = (size_t)(sv->data - start_ptr) };
+    *out = (c_String_view){ .data = (char*)start_ptr, .count = (size_t)(sv->data - start_ptr) };
     return true;
 }
 

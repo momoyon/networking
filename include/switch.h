@@ -35,6 +35,17 @@ enum Switch_model {
 
 const char *switch_model_as_str(const Switch_model sw_m);
 
+typedef enum Switch_console_mode Switch_console_mode;
+
+enum Switch_console_mode {
+    SW_CNSL_MODE_USER,
+    SW_CNSL_MODE_ENABLED,
+    SW_CNSL_MODE_CONFIG,
+    SW_CNSL_MODE_COUNT,
+};
+
+const char *switch_console_mode_as_str(const Switch_console_mode m);
+
 typedef struct Switch Switch;
 struct Switch {
 	Console console;
@@ -48,17 +59,18 @@ struct Switch {
     Alarm boot_load_alarm;
 
     // Console stuff
-    bool enabled;
+    Switch_console_mode mode;
+    const char *hostname;
 
     Arena *tmp_arena;
+    Arena *str_arena;
 };
 
-void make_switch(Switch_model model, const char *version, Switch *switch_out, Arena *arena, Arena *tmp_arena);
+void make_switch(Switch_model model, const char *version, Switch *switch_out, Arena *arena, Arena *tmp_arena, Arena *str_arena);
 void make_switch_console(Console *console_out, Arena *arena);
 void boot_switch(Switch *switchh, float dt);
 bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args);
 
-void switch_enable(Switch *switchh);
-void switch_no_enable(Switch *switchh);
+void switch_change_mode(Switch *switchh, Switch_console_mode new_mode);
 
 #endif // _SWITCH_H_

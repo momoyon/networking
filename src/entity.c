@@ -506,7 +506,7 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b) {
     return true;
 }
 
-static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
+static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_arena) {
     (void)temp_arena;
     switch (e->kind) {
         case EK_NIC: {
@@ -519,7 +519,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
             // TODO: Take switch model as input
-            make_switch(SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, arena, temp_arena);
+            make_switch(SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, arena, temp_arena, str_arena);
             e->tex = load_texture_checked(entity_texture_path_map[EK_SWITCH]);
         } break;
         case EK_ACCESS_POINT: {
@@ -533,7 +533,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena) {
 }
 
 // Makers
-Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena) {
+Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena, Arena *str_arena) {
     Entity e = (Entity) {
         .pos = pos,
         .radius = radius,
@@ -542,10 +542,11 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
         .state = 0,
         .arena = arena,
         .temp_arena = temp_arena,
+        .str_arena = str_arena,
         .entities = entities,
     };
 
-    init_entity(&e, arena, temp_arena);
+    init_entity(&e, arena, temp_arena, str_arena);
 
     return e;
 }
@@ -586,14 +587,17 @@ void make_nic(Entity *e, Nic *nic, Arena *arena) {
     } while (is_mac_address_assigned(e->entities, nic->mac_address));
 }
 
-void make_switch(Switch_model model, const char *version, Switch *switch_out, Arena *arena, Arena *tmp_arena) {
+void make_switch(Switch_model model, const char *version, Switch *switch_out, Arena *arena, Arena *tmp_arena, Arena *str_arena) {
     Switch s = {.model = model};
     s.tmp_arena = tmp_arena;
+    s.str_arena = str_arena;
     s.version = version;
 
     s.boot_load_alarm.alarm_time = 0.1f;
 
     make_switch_console(&s.console, arena);
+
+    switch_change_mode(&s, SW_CNSL_MODE_USER);
 
     *switch_out = s;
 }
@@ -603,7 +607,7 @@ void make_switch_console(Console *console_out, Arena *arena) {
 
     Console_line l = {0};
     console_out->font = GetFontDefault();
-    console_out->prefix = "Switch>";
+    // console_out->prefix = "Switch>";
     darr_append(console_out->lines, l);
 }
 
@@ -1015,7 +1019,7 @@ static bool load_entity_from_data_v1(Entity *e, String_view *sv) {
     e->id = id;
     e->state = state;
 
-    init_entity(e, e->arena, e->temp_arena);
+    init_entity(e, e->arena, e->temp_arena, e->str_arena);
 
     return true;
 }
@@ -1287,7 +1291,7 @@ bool save_entities(Entities *entities, const char *filepath, size_t save_version
     return true;
 }
 
-bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena) {
+bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena, Arena *str_arena) {
     // Reset before loading new entities
     entities_count = 0;
     entities->count = 0;
@@ -1303,7 +1307,7 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
     String_view sv = SV(file);
 
     while (sv.count > 0) {
-        Entity e = make_entity(entities, v2xx(0), ENTITY_DEFAULT_RADIUS, EK_NIC, arena, temp_arena);
+        Entity e = make_entity(entities, v2xx(0), ENTITY_DEFAULT_RADIUS, EK_NIC, arena, temp_arena, str_arena);
         sv_trim(&sv);
         if (!load_entity_from_data(&e, &sv)) {
             free((void*)file);
