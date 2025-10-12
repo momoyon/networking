@@ -63,17 +63,16 @@ void boot_switch(Switch *switchh, float dt) {
 }
 
 // TODO: Sometimes the cmd_str (or smth) is jumbled mess.
-bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
+bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
     bool res = true;
     Console *console = &switchh->console;
     if (cmd_args.count <= 0) return true;
-    String_view cmd = cmd_args.items[0];
+    const char *cmd = cmd_args.items[0];
 
-    char *cmd_str = sv_to_cstr(cmd);
-    Ids matched_command_ids = match_command(cmd_str, switch_commands, switch_commands_count);
+    Ids matched_command_ids = match_command(cmd, switch_commands, switch_commands_count);
 
     if (matched_command_ids.count == 0) {
-        char *err_msg = arena_alloc_str(*(switchh->tmp_arena), "%s is not a valid command!", cmd_str);
+        char *err_msg = arena_alloc_str(*(switchh->tmp_arena), "%s is not a valid command!", cmd);
         add_line_to_console_simple(console, err_msg, RED);
     } else if (matched_command_ids.count == 1) {
         switch (matched_command_ids.items[0]) {
@@ -92,28 +91,26 @@ bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args) {
             default: ASSERT(false, "UNREACHABLE!");
         }
     } else { 
-        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "%% Ambigiuous command: \"%s\"", cmd_str), YELLOW);
+        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "%% Ambigiuous command: \"%s\"", cmd), YELLOW);
     }
 
-    free(cmd_str);
     return res;
 }
 
-// TODO: arena_alloc_str() doesn't work correctly now
 void switch_change_mode(Switch *switchh, Switch_console_mode new_mode) {
     switchh->mode = new_mode;
+    switchh->console.prefix = switchh->hostname;
     switch (switchh->mode) {
         case SW_CNSL_MODE_USER: {
-            if (switchh->console.prefix) arena_dealloc(switchh->str_arena, (void*)switchh->console.prefix);
-            switchh->console.prefix = arena_alloc_str(*(switchh->str_arena), "%s>", switchh->hostname ? switchh->hostname : "Switch");
+            switchh->console.prefix_symbol = '>';
         } break;
         case SW_CNSL_MODE_ENABLED: {
-            if (switchh->console.prefix) arena_dealloc(switchh->str_arena, (void*)switchh->console.prefix);
-            switchh->console.prefix = arena_alloc_str(*(switchh->str_arena), "%s#", switchh->hostname ? switchh->hostname : "Switch");
+            switchh->console.prefix_symbol = '#';
         } break;
         case SW_CNSL_MODE_CONFIG: {
-            if (switchh->console.prefix) arena_dealloc(switchh->str_arena, (void*)switchh->console.prefix);
-            switchh->console.prefix = arena_alloc_str(*(switchh->str_arena), "%s(config)#", switchh->hostname ? switchh->hostname : "Switch");
+            switchh->console.prefix_symbol = '#';
+            // TODO: Have to change prefix
+            // switchh->prefix = 
         } break;
         case SW_CNSL_MODE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");

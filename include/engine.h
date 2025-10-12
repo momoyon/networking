@@ -105,13 +105,14 @@ struct Console {
     Font font;
     int hist_lookup_idx; // idx for Ctrl+P and Ctrl+N
     const char *prefix;
+    char prefix_symbol;
 };
 
 
 // NOTE: Not really related to console exclusively
-typedef struct String_view_array String_view_array;
-struct String_view_array {
-    String_view *items;
+typedef struct String_array String_array;
+struct String_array {
+    char **items;
     size_t count;
     size_t capacity;
 };
@@ -125,7 +126,7 @@ Console_line *get_or_create_console_line(Console *console, size_t line);
 void clear_console_line(Console_line *cl);
 void clear_current_console_line(Console *console);
 char *get_current_console_line_buff(Console *console);
-String_view_array get_current_console_args(Console *console);
+String_array get_current_console_args(Console *console);
 bool input_to_console(Console *console);
 float get_cursor_offset(Console *console, int font_size);
 void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
@@ -469,7 +470,7 @@ void add_line_to_console(Console *console, char *buff, size_t buff_size, Color c
 }
 
 void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color) {
-    const char *prefixed = arena_alloc_str(*tmp_arena, "%s%s", console->prefix, buff);
+    const char *prefixed = arena_alloc_str(*tmp_arena, "%s%c%s", console->prefix, console->prefix_symbol, buff);
     size_t prefixed_len = strlen(prefixed);
 
     Console_line cl = { .count = prefixed_len, };
@@ -518,8 +519,8 @@ char *get_current_console_line_buff(Console *console) {
     return console->lines.items[console->line].buff;
 }
 
-String_view_array get_current_console_args(Console *console) {
-    String_view_array res = {0};
+String_array get_current_console_args(Console *console) {
+    String_array res = {0};
 
     const char *buff = get_current_console_line_buff(console);
     String_view sv = SV(buff);
@@ -529,7 +530,8 @@ String_view_array get_current_console_args(Console *console) {
         sv_trim(&sv);
         String_view arg = {0};
         if (!sv_lpop_arg(&sv, &arg)) break;
-        darr_append(res, arg);
+        char *str = sv_to_cstr(arg);
+        darr_append(res, str);
 
         // skip spaces between args
         sv_trim(&sv);
@@ -658,8 +660,16 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) 
 
     EndScissorMode();
 
-    draw_text(console->font, console->prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, WHITE);
-    float prefix_offset = MeasureTextEx(console->font, console->prefix, font_size, 2.5f).x + 10.f;
+    // @SPEED
+    char actual_prefix[1024] = {0};
+
+    size_t prefix_len = console->prefix ? strlen(console->prefix) : 0;
+    
+    memcpy(actual_prefix, console->prefix, prefix_len);
+    actual_prefix[prefix_len] = console->prefix_symbol;
+
+    draw_text(console->font, actual_prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, WHITE);
+    float prefix_offset = MeasureTextEx(console->font, actual_prefix, font_size, 2.5f).x + 10.f;
     draw_text(console->font, get_current_console_line_buff(console), v2(rect.x + prefix_offset, rect.y + rect.height), font_size, WHITE);
 
     // Rectangle cursor_rec = {

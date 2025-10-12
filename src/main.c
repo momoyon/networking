@@ -115,13 +115,13 @@ Vars vars = {0};
 #define CHAR_VAR(_name, varname) (Var) { .type = VAR_TYPE_CHAR, .name = (#_name), .value_ptr = (void*)(&varname) }
 #define BOOL_VAR(_name, varname) (Var) { .type = VAR_TYPE_BOOL, .name = (#_name), .value_ptr = (void*)(&varname) }
 
-bool set_int_var(Console *console, Var *var, String_view newvalue);
-bool set_float_var(Console *console, Var *var, String_view newvalue);
-bool set_str_var(Console *console, Var *var, String_view newvalue);
-bool set_char_var(Console *console, Var *var, String_view newvalue);
-bool set_bool_var(Console *console, Var *var, String_view newvalue);
-bool set_var(Console *console, Var *var, String_view newvalue);
-Var *get_var(String_view name);
+bool set_int_var(Console *console, Var *var,   const char *newvalue);
+bool set_float_var(Console *console, Var *var, const char *newvalue);
+bool set_str_var(Console *console, Var *var,   const char *newvalue);
+bool set_char_var(Console *console, Var *var,  const char *newvalue);
+bool set_bool_var(Console *console, Var *var,  const char *newvalue);
+bool set_var(Console *console, Var *var,       const char *newvalue);
+Var *get_var(const char *name);
 const char *get_var_value(Var *var);
 
 // Externs from common.h
@@ -357,9 +357,9 @@ int main(void)
             if (input_to_console(&command_hist)) {
 exec_command:
                 char* command_buff = get_current_console_line_buff(&command_hist);
-                String_view_array args = get_current_console_args(&command_hist);
+                String_array args = get_current_console_args(&command_hist);
                 Command_ids matched_commands_ids = match_command(command_buff, commands, commands_count);
-                String_view command = SV("");
+                const char *command = "";
                 if (args.count > 0) {
                     command = args.items[0];
                 }
@@ -370,7 +370,7 @@ exec_command:
                     add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE);
                 } else if (matched_commands_ids.count == 1) {
 
-                    if (sv_equals(command, SV(commands[matched_commands_ids.items[0]]))) {
+                    if (strcmp(command, commands[matched_commands_ids.items[0]]) == 0) {
                         add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE);
                         // Run commands
                         is_in_command = false;
@@ -396,15 +396,13 @@ exec_command:
                                     is_in_command = true;
                                     break;
                                 }
-                                String_view load_path_sv = args.items[1];
-                                char *load_path = sv_to_cstr(load_path_sv);
+                                const char *load_path = args.items[1];
                                 if (load_entities(&entities, load_path, &entity_arena, &temp_arena, &str_arena)) {
                                     log_info_a(command_hist, "Successfully loaded entities from `%s`", load_path);
                                 } else {
                                     log_error_a(command_hist, "Failed to load entities from `%s`", load_path);
                                     is_in_command = true;
                                 }
-                                free(load_path);
                             } break;
                             case CMD_ID_SAVE: {
                                 if (args.count-1 <= 0) {
@@ -412,15 +410,13 @@ exec_command:
                                     is_in_command = true;
                                     break;
                                 }
-                                String_view save_path_sv = args.items[1];
-                                char *save_path = sv_to_cstr(save_path_sv);
+                                const char *save_path = args.items[1];
                                 if (save_entities(&entities, save_path, entity_save_version)) {
                                     log_info_a(command_hist, "Successfully saved entities to `%s`", save_path);
                                 } else {
                                     log_error_a(command_hist, "Failed to save entities to `%s`", save_path);
                                     is_in_command = true;
                                 }
-                                free(save_path);
                             } break;
                             case CMD_ID_LS_CMDS: {
                                 log_info_a(command_hist, "%s", "Commands: ");
@@ -436,18 +432,16 @@ exec_command:
                                 if (args.count-1 < 2) { // NOTE: -1 because the command itself is also counted as an arg
                                     log_error_a(command_hist, "Command `%s` wants 2 argument; but %zu provided!", cmd, args.count-1);
                                 } else {
-                                    String_view var_name = args.items[1];
-                                    String_view var_new_value = args.items[2];
+                                    const char *var_name = args.items[1];
+                                    const char *var_new_value = args.items[2];
 
                                     Var *v = get_var(var_name);
                                     if (v != NULL) {
                                         set_var(&command_hist, v, var_new_value);
                                     } else {
-                                        char *var_name_str = sv_to_cstr(var_name);
-                                        Ids matched_var_ids = match_var(var_name_str);
-                                        free(var_name_str);
+                                        Ids matched_var_ids = match_var(var_name);
                                         if (matched_var_ids.count <= 0)
-                                            log_error_a(command_hist, "Could not find any variable named `"SV_FMT"`", SV_ARG(var_name));
+                                            log_error_a(command_hist, "Could not find any variable named `%s`", var_name);
                                     }
                                 }
 
@@ -473,17 +467,15 @@ exec_command:
                                     is_in_command = true;
                                     break;
                                 }
-                                String_view var_name = args.items[1];
+                                const char *var_name = args.items[1];
 
                                 Var *v = get_var(var_name);
                                 if (v != NULL) {
-                                    log_info_a(command_hist, SV_FMT": %s", SV_ARG(var_name), get_var_value(v));
+                                    log_info_a(command_hist, "%s: %s", var_name, get_var_value(v));
                                 } else {
-                                    char *var_name_str = sv_to_cstr(var_name);
-                                    Ids matched_var_ids = match_var(var_name_str);
-                                    free(var_name_str);
+                                    Ids matched_var_ids = match_var(var_name);
                                     if (matched_var_ids.count <= 0) {
-                                        log_error_a(command_hist, "Could not find any variable named `"SV_FMT"`", SV_ARG(var_name));
+                                        log_error_a(command_hist, "Could not find any variable named `%s`", var_name);
                                     } else {
                                         if (matched_var_ids.count == 1) {
                                             const char *varname = vars.items[matched_var_ids.items[0]].name;
@@ -520,6 +512,12 @@ exec_command:
                         int idx = matched_commands_ids.items[i];
                         log_debug_console(command_hist, "    - %s", commands[idx]);
                     }
+                }
+
+                // Have to free the malloc-ed args
+                for (size_t i = 0; i < args.count; ++i) {
+                    char *arg = args.items[i];
+                    free(arg);
                 }
             }
 
@@ -811,7 +809,7 @@ exec_command:
                     } else {
                         if (input_to_console(active_switch_console)) {
                             char *buff = get_current_console_line_buff(active_switch_console);
-                            String_view_array args = get_current_console_args(active_switch_console);
+                            String_array args = get_current_console_args(active_switch_console);
 
                             add_line_to_console_prefixed(active_switch_console, &temp_arena, buff, WHITE);
 
@@ -822,6 +820,12 @@ exec_command:
                             }
                             if (active_switch_console)
                                 clear_current_console_line(active_switch_console);
+
+                            // Have to free the malloc-ed args
+                            for (size_t i = 0; i < args.count; ++i) {
+                                char *arg = args.items[i];
+                                free(arg);
+                            }
                         }
                         if (IsKeyPressed(KEY_ESCAPE)) {
                             active_switch_console = NULL;
@@ -1229,7 +1233,7 @@ exec_command:
     return 0;
 }
 
-bool set_var(Console *console, Var *var, String_view newvalue) {
+bool set_var(Console *console, Var *var, const char *newvalue) {
     if (!var) return false;
     switch (var->type) {
         case VAR_TYPE_INT: {
@@ -1254,8 +1258,9 @@ bool set_var(Console *console, Var *var, String_view newvalue) {
     return false;
 }
 
-bool set_int_var(Console *console, Var *var, String_view newvalue) {
+bool set_int_var(Console *console, Var *var, const char *newvalue_str) {
     int v_count = -1;
+    String_view newvalue = SV(newvalue_str);
     int v = sv_to_int(newvalue, &v_count, 10);
     if (v_count <= -1) {
         log_error_a(*console, "Failed to set `%s` to `"SV_FMT"`: is not an INT!", var->name, SV_ARG(newvalue));
@@ -1271,8 +1276,9 @@ bool set_int_var(Console *console, Var *var, String_view newvalue) {
     return true;
 }
 
-bool set_float_var(Console *console, Var *var, String_view newvalue) {
+bool set_float_var(Console *console, Var *var, const char *newvalue_str) {
     int v_count = -1;
+    String_view newvalue = SV(newvalue_str);
     float v = sv_to_float(newvalue, &v_count);
     if (v_count <= -1) {
         log_error_a(*console, "Failed to set `%s` to `"SV_FMT"`: is not an FLOAT!", var->name, SV_ARG(newvalue));
@@ -1290,44 +1296,44 @@ bool set_float_var(Console *console, Var *var, String_view newvalue) {
     return true;
 }
 
-bool set_str_var(Console *console, Var *var, String_view newvalue) {
+bool set_str_var(Console *console, Var *var, const char *newvalue) {
     if (!var) return false;
     char **value_ptr = (char **)var->value_ptr;
 
-    log_info_a(*console, "SET %s from %s to "SV_FMT, var->name, *value_ptr, SV_ARG(newvalue));
+    log_info_a(*console, "SET %s from %s to %s", var->name, *value_ptr, newvalue);
 
-    *value_ptr = arena_alloc_str(str_arena, SV_FMT, SV_ARG(newvalue));
+    // TODO: Prolly should implement and use a str_dup here
+    *value_ptr = arena_alloc_str(str_arena, "%s", newvalue);
 
     return true;
 }
 
 
-bool set_char_var(Console *console, Var *var, String_view newvalue) {
+bool set_char_var(Console *console, Var *var, const char *newvalue) {
     if (!var) return false;
 
     char *value_ptr = (char *)var->value_ptr;
 
-    *value_ptr = newvalue.data[0];
+    *value_ptr = *newvalue;
 
-    log_info_a(*console, "SET %s from %c to %c", var->name, *value_ptr, newvalue.data[0]);
+    log_info_a(*console, "SET %s from %c to %c", var->name, *value_ptr, *newvalue);
 
     return true;
 }
 
-bool set_bool_var(Console *console, Var *var, String_view newvalue) {
+bool set_bool_var(Console *console, Var *var, const char *newvalue) {
     if (!var) return false;
 
-    char *newvalue_str = sv_to_cstr(newvalue);
-    size_t newvalue_str_len = strlen(newvalue_str);
-    char *newvalue_str_lower = (char *)malloc(newvalue_str_len*sizeof(char) + 1);
+    size_t newvalue_len = strlen(newvalue);
+    char *newvalue_lower = (char *)malloc(newvalue_len*sizeof(char) + 1);
 
     // tolower
-    for (int i = 0; i < newvalue_str_len; ++i) {
-        newvalue_str_lower[i] = tolower(newvalue_str[i]);
+    for (int i = 0; i < newvalue_len; ++i) {
+        newvalue_lower[i] = tolower(newvalue[i]);
     }
-    newvalue_str_lower[newvalue_str_len] = 0;
+    newvalue_lower[newvalue_len] = 0;
 
-    bool istrue = strcmp(newvalue_str_lower, "true") == 0;
+    bool istrue = strcmp(newvalue_lower, "true") == 0;
 
     log_info_a(*console, "SET %s from %s to %s", var->name, *((int*)var->value_ptr) ? "true" : "false", istrue ? "true" : "false");
 
@@ -1337,17 +1343,16 @@ bool set_bool_var(Console *console, Var *var, String_view newvalue) {
         *((int*)var->value_ptr) = 0;
     }
 
-    free(newvalue_str);
-    free(newvalue_str_lower);
+    free(newvalue_lower);
 
     return true;
 }
 
 
-Var *get_var(String_view name) {
+Var *get_var(const char *name) {
     for (size_t i = 0; i < vars.count; ++i) {
         Var *v = &vars.items[i];
-        if (sv_equals(name, SV(v->name))) {
+        if (strcmp(name, v->name) == 0) {
             return v;
         }
     }

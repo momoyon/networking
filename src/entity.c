@@ -592,6 +592,7 @@ void make_switch(Switch_model model, const char *version, Switch *switch_out, Ar
     s.tmp_arena = tmp_arena;
     s.str_arena = str_arena;
     s.version = version;
+    s.hostname = "Switch";
 
     s.boot_load_alarm.alarm_time = 0.1f;
 

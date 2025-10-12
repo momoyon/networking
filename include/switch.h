@@ -69,7 +69,7 @@ struct Switch {
 void make_switch(Switch_model model, const char *version, Switch *switch_out, Arena *arena, Arena *tmp_arena, Arena *str_arena);
 void make_switch_console(Console *console_out, Arena *arena);
 void boot_switch(Switch *switchh, float dt);
-bool parse_switch_console_cmd(Switch *switchh, String_view_array cmd_args);
+bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args);
 
 void switch_change_mode(Switch *switchh, Switch_console_mode new_mode);
 
