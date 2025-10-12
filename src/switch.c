@@ -2,13 +2,27 @@
 #include <raylib.h>
 #include <common.h>
 
-const char *switch_commands[] = {
+const char *switch_user_commands[] = {
     [SW_CMD_ID_EXIT]   = "exit",
     [SW_CMD_ID_LOGOUT] = "logout",
     [SW_CMD_ID_ENABLE] = "enable",
 };
+size_t switch_user_commands_count = ARRAY_LEN(switch_user_commands);
 
-size_t switch_commands_count = ARRAY_LEN(switch_commands);
+const char *switch_user_command_descriptions[] = {
+    [SW_CMD_ID_EXIT]   = "Exit from the EXEC",
+    [SW_CMD_ID_LOGOUT] = "Exit from the EXEC",
+    [SW_CMD_ID_ENABLE] = "Turn on priviledged commands",
+};
+size_t switch_user_command_descriptions_count = ARRAY_LEN(switch_user_command_descriptions);
+
+const char *switch_enabled_commands[] = {
+};
+size_t switch_enabled_commands_count = ARRAY_LEN(switch_enabled_commands);
+
+const char *switch_config_commands[] = {
+};
+size_t switch_config_commands_count = ARRAY_LEN(switch_config_commands);
 
 const char *switch_model_as_str(const Switch_model sw_m) {
     switch (sw_m) {
@@ -68,6 +82,13 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
     if (cmd_args.count <= 0) return true;
     const char *cmd = cmd_args.items[0];
 
+
+    const char **switch_commands = NULL;
+    size_t switch_commands_count = 0;
+
+    get_switch_console_commands(switchh, &switch_commands, &switch_commands_count);
+
+
     Ids matched_command_ids = match_command(cmd, switch_commands, switch_commands_count);
 
     if (matched_command_ids.count == 0) {
@@ -110,6 +131,27 @@ void switch_change_mode(Switch *switchh, Switch_console_mode new_mode) {
             switchh->console.prefix_symbol = '#';
             // TODO: Have to change prefix
             // switchh->prefix = 
+        } break;
+        case SW_CNSL_MODE_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+}
+
+
+void get_switch_console_commands(Switch *switchh, const char ***commands_out, size_t *commands_count_out) {
+
+    switch (switchh->mode) {
+        case SW_CNSL_MODE_USER: {
+            *commands_out = switch_user_commands;
+            *commands_count_out = switch_user_commands_count;
+        } break;
+        case SW_CNSL_MODE_ENABLED: {
+            *commands_out = switch_enabled_commands;
+            *commands_count_out = switch_enabled_commands_count;
+        } break;
+        case SW_CNSL_MODE_CONFIG: {
+            *commands_out = switch_config_commands;
+            *commands_count_out = switch_config_commands_count;
         } break;
         case SW_CNSL_MODE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");

@@ -8,15 +8,23 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
+extern const char *switch_user_commands[];
+extern size_t switch_user_commands_count;
+extern const char *switch_user_command_descriptions[];
+extern size_t switch_user_command_descriptions_count;
+
+extern const char *switch_enabled_commands[];
+extern size_t switch_enabled_commands_count;
+
+extern const char *switch_config_commands[];
+extern size_t switch_config_commands_count;
+
 typedef enum {
     SW_CMD_ID_EXIT = 0,
     SW_CMD_ID_ENABLE,
     SW_CMD_ID_LOGOUT,
     SW_CMD_ID_COUNT,
 } Switch_console_cmd_id;
-
-extern const char *switch_commands[];
-extern size_t switch_commands_count;
 
 typedef struct Entity Entity;
 
@@ -70,6 +78,8 @@ void make_switch(Switch_model model, const char *version, Switch *switch_out, Ar
 void make_switch_console(Console *console_out, Arena *arena);
 void boot_switch(Switch *switchh, float dt);
 bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args);
+
+void get_switch_console_commands(Switch *switchh, const char ***commands_out, size_t *commands_count_out);
 
 void switch_change_mode(Switch *switchh, Switch_console_mode new_mode);
 
