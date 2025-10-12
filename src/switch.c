@@ -62,7 +62,6 @@ void boot_switch(Switch *switchh, float dt) {
     }
 }
 
-// TODO: Sometimes the cmd_str (or smth) is jumbled mess.
 bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
     bool res = true;
     Console *console = &switchh->console;

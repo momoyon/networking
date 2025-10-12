@@ -831,6 +831,23 @@ exec_command:
                             active_switch_console = NULL;
                             active_switch = NULL;
                         }
+
+                        if (IsKeyPressed(KEY_TAB)) {
+                            char *buff = get_current_console_line_buff(active_switch_console);
+                            Ids matched_command_ids = match_command(buff, switch_commands, switch_commands_count);
+                            if (matched_command_ids.count == 1) {
+                                const char *cmd = switch_commands[matched_command_ids.items[0]];
+                                size_t cmd_len = strlen(cmd);
+                                memcpy(buff, cmd, cmd_len);
+
+                                active_switch_console->cursor = cmd_len;
+                            } else {
+                                for (int i = 0; i < matched_command_ids.count; ++i) {
+                                    char *cmd = switch_commands[matched_command_ids.items[i]];
+                                    add_line_to_console_simple(active_switch_console, cmd, YELLOW, false);
+                                }
+                            }
+                        }
                     }
 
                 } else if (hovering_entity) {
