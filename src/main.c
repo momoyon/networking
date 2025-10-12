@@ -367,11 +367,11 @@ exec_command:
                     log_error_console(command_hist, "`%s` is not a valid command!", command_buff);
                     is_in_command = true;
                     clear_current_console_line(&command_hist);
-                    add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE);
+                    add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE, true);
                 } else if (matched_commands_ids.count == 1) {
 
                     if (strcmp(command, commands[matched_commands_ids.items[0]]) == 0) {
-                        add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE);
+                        add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE, true);
                         // Run commands
                         is_in_command = false;
                         switch (matched_commands_ids.items[0]) {
@@ -811,7 +811,7 @@ exec_command:
                             char *buff = get_current_console_line_buff(active_switch_console);
                             String_array args = get_current_console_args(active_switch_console);
 
-                            add_line_to_console_prefixed(active_switch_console, &temp_arena, buff, WHITE);
+                            add_line_to_console_prefixed(active_switch_console, &temp_arena, buff, WHITE, true);
 
                             if (!parse_switch_console_cmd(active_switch, args)) {
                                 clear_current_console_line(active_switch_console);

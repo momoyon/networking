@@ -36,8 +36,8 @@ void boot_switch(Switch *switchh, float dt) {
     Console *console = &switchh->console;
 
     if (!switchh->boot_started) {
-        add_line_to_console_simple(console, "BOOTING SWITCH...", GREEN);
-        add_line_to_console_simple(console, "[", GREEN);
+        add_line_to_console_simple(console, "BOOTING SWITCH...", GREEN, false);
+        add_line_to_console_simple(console, "[", GREEN, false);
         switchh->boot_started = true;
     }
 
@@ -53,11 +53,11 @@ void boot_switch(Switch *switchh, float dt) {
         }
     } else {
         add_character_to_console_line(console, ']', console->lines.count-1);
-        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "Switch Model: %s", switch_model_as_str(switchh->model)), GREEN);
-        add_line_to_console_simple(console, "", GREEN);
-        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "Momo software, Version %s, RELEASE SOFTWARE", switchh->version), GREEN);
-        add_line_to_console_simple(console, "Copyright (c) 2025 by Momoyon", GREEN);
-        add_line_to_console_simple(console, "", GREEN);
+        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "Switch Model: %s", switch_model_as_str(switchh->model)), GREEN, false);
+        add_line_to_console_simple(console, "", GREEN, false);
+        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "Momo software, Version %s, RELEASE SOFTWARE", switchh->version), GREEN, false);
+        add_line_to_console_simple(console, "Copyright (c) 2025 by Momoyon", GREEN, false);
+        add_line_to_console_simple(console, "", GREEN, false);
         switchh->booted = true;
     }
 }
@@ -73,7 +73,7 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
 
     if (matched_command_ids.count == 0) {
         char *err_msg = arena_alloc_str(*(switchh->tmp_arena), "%s is not a valid command!", cmd);
-        add_line_to_console_simple(console, err_msg, RED);
+        add_line_to_console_simple(console, err_msg, RED, false);
     } else if (matched_command_ids.count == 1) {
         switch (matched_command_ids.items[0]) {
             case SW_CMD_ID_LOGOUT:
@@ -91,7 +91,7 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
             default: ASSERT(false, "UNREACHABLE!");
         }
     } else { 
-        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "%% Ambigiuous command: \"%s\"", cmd), YELLOW);
+        add_line_to_console_simple(console, arena_alloc_str(*(switchh->tmp_arena), "%% Ambigiuous command: \"%s\"", cmd), YELLOW, false);
     }
 
     return res;

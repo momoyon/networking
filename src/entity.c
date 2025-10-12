@@ -606,10 +606,10 @@ void make_switch(Switch_model model, const char *version, Switch *switch_out, Ar
 void make_switch_console(Console *console_out, Arena *arena) {
     (void)arena;
 
-    Console_line l = {0};
-    console_out->font = GetFontDefault();
-    // console_out->prefix = "Switch>";
-    darr_append(console_out->lines, l);
+    int flags = 0;
+    SET_FLAG(flags, CONSOLE_FLAG_READLINE_USES_UNPREFIXED_LINES);
+    Console c = make_console(flags, GetFontDefault());
+    *console_out = c;
 }
 
 void make_ap(Entity *e, Access_point *ap_out, Arena *arena) {
