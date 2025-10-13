@@ -53,7 +53,7 @@ void draw_entity(Entity *e, bool debug) {
             ASSERT(e->nic, "We failed to allocate nic!");
             // DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
 
-            if (e->state & (1<<ESTATE_SELECTED)) {
+	    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
@@ -111,7 +111,7 @@ void draw_entity(Entity *e, bool debug) {
         } break;
         case EK_SWITCH: {
             ASSERT(e->switchh, "We failed to allocate switch!");
-            if (e->state & (1<<ESTATE_SELECTED)) {
+	    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
@@ -147,15 +147,17 @@ void draw_entity(Entity *e, bool debug) {
             }
         } break;
         case EK_ACCESS_POINT: {
-            Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
-            DrawLineV(e->pos, p, WHITE);
-            draw_info_text(&p, arena_alloc_str(*e->temp_arena, "mac address:"MAC_FMT, MAC_ARG(e->ap->mac_address)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-            draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                        "mgmt ipv4: "IPV4_FMT" "SUBNET_MASK_FMT, IPV4_ARG(e->ap->mgmt_ipv4), SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask)),
-                    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-            draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                        "Power: %s", e->ap->on ? "On" : "Off"),
-                    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+	    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
+		    Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
+		    DrawLineV(e->pos, p, WHITE);
+		    draw_info_text(&p, arena_alloc_str(*e->temp_arena, "mac address:"MAC_FMT, MAC_ARG(e->ap->mac_address)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+		    draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+				"mgmt ipv4: "IPV4_FMT" "SUBNET_MASK_FMT, IPV4_ARG(e->ap->mgmt_ipv4), SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask)),
+			    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+		    draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+				"Power: %s", e->ap->on ? "On" : "Off"),
+			    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+	    }
 
             // Draw connections
             if (e->ap->connected_entity) {
@@ -192,19 +194,19 @@ void draw_entity(Entity *e, bool debug) {
     if (debug) draw_text_aligned(GetFontDefault(), entity_kind_as_str(e->kind), Vector2Subtract(e->pos, v2(0, ENTITY_DEFAULT_RADIUS*1.5)), ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
 
     // Draw outline if selected
-    if (e->state & (1<<ESTATE_SELECTED)) {
+    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+2, WHITE);
     }
-    if (e->state & (1<<ESTATE_HOVERING)) {
+    if (GET_FLAG(e->state, ESTATE_HOVERING)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GRAY);
     }
 
-    ASSERT(!(e->state & (1<<ESTATE_CONNECTING_FROM) && e->state & (1<<ESTATE_CONNECTING_TO)), "I can't connect to myself");
-    if (e->state & (1<<ESTATE_CONNECTING_FROM)) {
+    ASSERT(!(GET_FLAG(e->state, ESTATE_CONNECTING_FROM) && GET_FLAG(e->state, ESTATE_CONNECTING_TO)), "I can't connect to myself");
+    if (GET_FLAG(e->state, ESTATE_CONNECTING_FROM)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, RED);
     }
 
-    if (e->state & (1<<ESTATE_CONNECTING_TO)) {
+    if (GET_FLAG(e->state, ESTATE_CONNECTING_TO)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GREEN);
     }
 }
@@ -554,7 +556,7 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
 static bool is_mac_address_assigned(Entities *entities, uint8 *mac_address) {
     for (size_t i = 0; i < entities->count; ++i) {
         Entity *e = &entities->items[i];
-        if (e->state & (1<<ESTATE_DEAD)) continue;
+	if (GET_FLAG(e->state, ESTATE_DEAD)) continue;
 
         if (e->kind == EK_NIC) {
             uint8 *nic_mac = e->nic->mac_address;
@@ -1237,7 +1239,7 @@ bool save_entities(Entities *entities, const char *filepath, size_t save_version
 
     for (size_t i = 0; i < entities->count; ++i) {
         Entity *e = &entities->items[i];
-        if (e->state & (1<<ESTATE_DEAD)) continue;
+	if (GET_FLAG(e->state, ESTATE_DEAD)) continue;
 
         if (!save_entity_to_data(e, &entities_arena, &temp_arena, save_version)) {
             arena_free(&entities_arena);
