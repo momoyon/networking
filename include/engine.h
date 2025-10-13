@@ -141,7 +141,7 @@ char *get_current_console_line_buff(Console *console);
 String_array get_current_console_args(Console *console);
 bool input_to_console(Console *console, char *ignore_characters, size_t ignore_characters_count);
 float get_cursor_offset(Console *console, int font_size);
-void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
+void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size, Color fill_color, Color border_color, float alpha);
 
 #define log_info_console(console, fmt, ...) do {\
         Console_line l = {\
@@ -163,7 +163,7 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
         Console_line l = {\
             .color = RED,\
         };\
-        snprintf(l.buff, CONSOLE_LINE_BUFF_CAP, "[ERROR] "fmt, __VA_ARGS__);\
+        snprintf(l.buff, CONSOLE_LINE_BUFF_CAP, "[ERROR] "fmt, ##__VA_ARGS__);\
         darr_append(console.lines, l);\
     } while (0)
 
@@ -743,16 +743,16 @@ float get_cursor_offset(Console *console, int font_size) {
     return x;
 }
 
-void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) {
+void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size, Color fill_color, Color border_color, float alpha) {
     Vector2 pos = {rect.x, rect.y + (rect.height - font_size)};
     pos = Vector2Add(pos, pad);
-    DrawRectangleLinesEx(rect, 1.f, WHITE);
-    DrawRectangleRec(rect, ColorAlpha(BLACK, 0.7f));
+    DrawRectangleRec(rect, fill_color);
+    DrawRectangleLinesEx(rect, 1.f, ColorAlpha(border_color, alpha));
     BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
 
     for (size_t i = 0; i < console->lines.count; ++i) {
         Console_line *line = &console->lines.items[console->lines.count - i - 1];
-        draw_text(GetFontDefault(), line->buff, pos, font_size, line->color);
+        draw_text(GetFontDefault(), line->buff, pos, font_size, ColorAlpha(line->color, alpha));
 
         pos.y -= (pad.y + 2.f*font_size);
     }
@@ -767,9 +767,9 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size) 
     memcpy(actual_prefix, console->prefix, prefix_len);
     actual_prefix[prefix_len] = console->prefix_symbol;
 
-    draw_text(console->font, actual_prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, WHITE);
+    draw_text(console->font, actual_prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, ColorAlpha(WHITE, alpha));
     float prefix_offset = MeasureTextEx(console->font, actual_prefix, font_size, 2.5f).x + 10.f;
-    draw_text(console->font, get_current_console_line_buff(console), v2(rect.x + prefix_offset, rect.y + rect.height), font_size, WHITE);
+    draw_text(console->font, get_current_console_line_buff(console), v2(rect.x + prefix_offset, rect.y + rect.height), font_size, ColorAlpha(WHITE, alpha));
 
     // Rectangle cursor_rec = {
     //     .x = rect.x + get_cursor_offset(console, font_size),

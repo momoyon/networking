@@ -226,7 +226,7 @@ void get_switch_console_commands(Switch *switchh, const char ***commands_out, si
     }
 }
 
-bool get_next_switch_console_command_arg(Switch *switchh, String_array current_args, Switch_console_arg *next_arg_out) {
+bool get_next_switch_console_command_arg(String_array current_args, Switch_console_arg *next_arg_out) {
     // TODO: Do we care about the mode here?
 
     if (current_args.count <= 0) return NULL;
