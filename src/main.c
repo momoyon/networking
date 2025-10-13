@@ -268,6 +268,7 @@ int main(void)
     temp_arena = arena_make(0);
     str_arena  = arena_make(0);
 
+    float zoom_to = 1.f;
     Camera2D cam = {
         .zoom = 1.0,
         .offset = CLITERAL(Vector2) { width / 2, height / 2 },
@@ -577,12 +578,12 @@ exec_command:
 
             // Zoom camera
             float scroll = GetMouseWheelMove();
-            cam.zoom += scroll * 100.f * GetFrameTime();
-            if (cam.zoom <= 0.1f)
-                cam.zoom = 0.1f;
+            zoom_to += scroll * 100.f * GetFrameTime();
+            if (zoom_to <= 0.1f)
+                zoom_to = 0.1f;
 
             if (IsKeyPressed(KEY_ZERO)) {
-                cam.zoom = 1.f;
+                zoom_to = 1.f;
             }
 
 #ifdef DEBUG
@@ -957,6 +958,10 @@ exec_command:
         ClearBackground(BLACK);
 
         // Update
+	// Smooth camera zoom
+
+	cam.zoom += (zoom_to - cam.zoom) * GetFrameTime() * 100.f;
+
         // Find hovering entity
         hovering_entity = NULL;
         for (int i = (int)entities.count - 1; i >= 0; --i) {
