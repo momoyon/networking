@@ -9,6 +9,9 @@
 #include <entity.h>
 #include <ap.h>
 
+#define log_info_a(console, fmt, ...) log_info_console((console), fmt, __VA_ARGS__); log_info(fmt, __VA_ARGS__)
+#define log_warning_a(console, fmt, ...) log_warning_console((console), fmt, __VA_ARGS__); log_warning(fmt, __VA_ARGS__)
+#define log_error_a(console, fmt, ...) log_error_console((console), fmt, __VA_ARGS__); log_error(fmt, __VA_ARGS__)
 
 typedef struct {
     int *items;

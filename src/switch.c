@@ -172,6 +172,9 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
             case SW_CMD_ID_ENABLE: {
                 switch_change_mode(switchh, SW_CNSL_MODE_ENABLED);
             } break;
+            case SW_CMD_ID_PING: {
+                log_error_a(*console, "%s", "`ping` is UNIMPLEMENTED!");
+            } break;
             case SW_CMD_ID_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
         }
@@ -223,26 +226,46 @@ void get_switch_console_commands(Switch *switchh, const char ***commands_out, si
     }
 }
 
-const char *get_next_switch_console_command_arg(Switch *switchh, String_array current_args) {
+bool get_next_switch_console_command_arg(Switch *switchh, String_array current_args, Switch_console_arg *next_arg_out) {
     // TODO: Do we care about the mode here?
 
     if (current_args.count <= 0) return NULL;
 
     const char *cmd = current_args.items[0];
 
+    Switch_console_args cmd_args = get_args_for_switch_cmd(cmd);
 
+
+    int next_arg_idx = current_args.count-1; // -1 because the cmd itself is part of the args
+
+    if (next_arg_idx < cmd_args.count) {
+        Switch_console_arg next_arg = cmd_args.items[next_arg_idx];
+
+        *next_arg_out = next_arg;
+        return true;
+    }
+
+    return false;
 }
 
 #define MATCH_CMD(with) (strcmp(cmd, with) == 0)
 
-String_array get_args_for_switch_cmd(const char *cmd) {
-    String_array res = {0};
+Switch_console_args get_args_for_switch_cmd(const char *cmd) {
+    Switch_console_args res = {0};
     // NOTE: redundant ifs just to list out every command
     if MATCH_CMD("exit") {
     } else if MATCH_CMD("logout") {
     } else if MATCH_CMD("enable") {
     } else if MATCH_CMD("ping") {
+        Switch_console_arg arg = {
+            .name = "WORD",
+            .desc = "Ping destination address or hostname",
+        };
 
+        darr_append(arg.types, SW_CNSL_ARG_TYPE_WORD);
+        darr_append(arg.types, SW_CNSL_ARG_TYPE_ABCD);
+
+        darr_append(res, arg);
     }
 
 

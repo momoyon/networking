@@ -14,10 +14,6 @@
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
 
-#define log_info_a(console, fmt, ...) log_info_console((console), fmt, __VA_ARGS__); log_info(fmt, __VA_ARGS__)
-#define log_warning_a(console, fmt, ...) log_warning_console((console), fmt, __VA_ARGS__); log_warning(fmt, __VA_ARGS__)
-#define log_error_a(console, fmt, ...) log_error_console((console), fmt, __VA_ARGS__); log_error(fmt, __VA_ARGS__)
-
 #define FACTOR 105
 #define SCREEN_WIDTH (16 * FACTOR)
 #define SCREEN_HEIGHT (9 * FACTOR)
@@ -846,11 +842,15 @@ exec_command:
 
                             if (matched_command_ids.count == 1) {
                                 const char *cmd = switch_commands[matched_command_ids.items[0]];
-                                if (strcmp(buff, cmd) == 0) {
+                                if (str_starts_with(buff, cmd)) {
                                     // TODO: Get next argument for cmd if exists
                                     String_array current_args = get_current_console_args(active_switch_console);
 
-                                    const char *next_arg = get_next_switch_console_command_arg(active_switch, current_args);
+                                    Switch_console_arg next_arg = {0};
+                                    if (get_next_switch_console_command_arg(active_switch, current_args, &next_arg)) {
+                                        char *cmd_with_desc = (char *)arena_alloc_str(temp_arena, "%s    - %s", next_arg.name, next_arg.desc);
+                                        add_line_to_console_simple(active_switch_console, cmd_with_desc, YELLOW, false);
+                                    }
 
                                 } else {
                                     char *cmd_with_desc = (char*)arena_alloc_str(temp_arena, "%s    - %s", cmd, switch_user_command_descriptions[matched_command_ids.items[0]]);

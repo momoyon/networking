@@ -19,8 +19,9 @@ extern size_t switch_enabled_commands_count;
 extern const char *switch_config_commands[];
 extern size_t switch_config_commands_count;
 
-
 typedef struct Switch_console_arg Switch_console_arg;
+typedef struct Switch_console_args Switch_console_args;
+typedef struct Switch_console_arg_types Switch_console_arg_types;
 typedef enum Switch_console_arg_type Switch_console_arg_type;
 
 enum Switch_console_arg_type {
@@ -38,10 +39,24 @@ const char *switch_console_arg_type_as_str(const Switch_console_arg_type t);
 Switch_console_arg_type switch_console_arg_type_from_str(const char *t);
 bool valid_switch_console_arg(const char *cmd, Switch_console_arg_type type);
 
+struct Switch_console_arg_types {
+    Switch_console_arg_type *items;
+    size_t count;
+    size_t capacity;
+};
+
 struct Switch_console_arg {
     const char *name;
-    Switch_console_arg_type type;
+    const char *desc;
+    Switch_console_arg_types types;
 };
+
+struct Switch_console_args {
+    Switch_console_arg *items;
+    size_t count;
+    size_t capacity;
+};
+
 
 typedef enum {
     SW_CMD_ID_EXIT = 0,
@@ -104,11 +119,11 @@ void make_switch_console(Console *console_out, Arena *arena);
 void boot_switch(Switch *switchh, float dt);
 bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args);
 
-const char *get_next_switch_console_command_arg(Switch *switchh, String_array current_args);
+bool get_next_switch_console_command_arg(Switch *switchh, String_array current_args, Switch_console_arg *next_arg_out);
 void get_switch_console_commands(Switch *switchh, const char ***commands_out, size_t *commands_count_out);
 
 void switch_change_mode(Switch *switchh, Switch_console_mode new_mode);
 
-String_array get_args_for_switch_cmd(const char *cmd);
+Switch_console_args get_args_for_switch_cmd(const char *cmd);
 
 #endif // _SWITCH_H_
