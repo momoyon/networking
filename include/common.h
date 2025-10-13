@@ -31,5 +31,7 @@ void emit_wifi(Vector2 pos, Color color, float dead_zone);
 
 bool str_starts_with(const char *str, const char *suffix);
 Ids match_command(const char *command, const char **commands, size_t commands_count);
+bool parse_n_octet_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count, bool for_mask);
+bool parse_n_octet_with_mask_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count, uint8 *mask);
 
 #endif // _COMMON_H_

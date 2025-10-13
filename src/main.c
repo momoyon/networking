@@ -165,6 +165,7 @@ typedef enum {
     CMD_ID_SET,
     CMD_ID_LS_VARS,
     CMD_ID_GET,
+    CMD_ID_TEST_SWITCH_CONSOLE_ARG_TYPE,
     CMD_ID_COUNT,
 } Command_id;
 
@@ -182,6 +183,7 @@ const char *commands[] = {
     [CMD_ID_SET]       = "set",
     [CMD_ID_LS_VARS]   = "ls_vars",
     [CMD_ID_GET]       = "get",
+    [CMD_ID_TEST_SWITCH_CONSOLE_ARG_TYPE] = "test_sw",
 };
 size_t commands_count = ARRAY_LEN(commands);
 
@@ -354,7 +356,7 @@ int main(void)
                 is_in_command = false;
             }
 
-            if (input_to_console(&command_hist)) {
+            if (input_to_console(&command_hist, "", 0)) {
 exec_command:
                 char* command_buff = get_current_console_line_buff(&command_hist);
                 String_array args = get_current_console_args(&command_hist);
@@ -494,6 +496,32 @@ exec_command:
                                         }
                                     }
                                 }
+                                is_in_command = true;
+                                clear_current_console_line(&command_hist);
+                            } break;
+                            case CMD_ID_TEST_SWITCH_CONSOLE_ARG_TYPE: {
+                                if (args.count-1 < 2) {
+                                    log_error_a(command_hist, "%s", "Please provide the switch console type to test!");
+                                    is_in_command = true;
+                                    break;
+                                }
+                                const char *type_str = args.items[1];
+
+                                Switch_console_arg_type type = switch_console_arg_type_from_str(type_str);
+
+                                // TODO: Tab-completion for type
+                                if (type == SW_CNSL_ARG_TYPE_INVALID) {
+                                    log_error_a(command_hist, "%s is not a valid Switch Console Argument Type!", type_str);
+                                } else {
+                                    const char *testing_value = args.items[2];
+
+                                    if (valid_switch_console_arg(testing_value, type)) {
+                                        log_info_a(command_hist, "%s is a valid %s", testing_value, switch_console_arg_type_as_str(type));
+                                    } else {
+                                        log_info_a(command_hist, "%s is not a valid %s", testing_value, switch_console_arg_type_as_str(type));
+                                    }
+                                }
+
                                 is_in_command = true;
                                 clear_current_console_line(&command_hist);
                             } break;
@@ -809,20 +837,36 @@ exec_command:
                     } else {
                         bool was_question = false;
                         if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_SLASH)) {
+                            char *buff = get_current_console_line_buff(active_switch_console);
                             const char **switch_commands = NULL;
                             size_t switch_commands_count = 0;
                             get_switch_console_commands(active_switch, &switch_commands, &switch_commands_count);
 
-                            for (int i = 0; i < switch_commands_count; ++i) {
-                                char *cmd = (char *)switch_commands[i];
-                                char *full_cmd_with_desc = arena_alloc_str(temp_arena, "%s    - %s", cmd, switch_user_command_descriptions[i]);
-                                add_line_to_console_simple(active_switch_console, full_cmd_with_desc, YELLOW, false);
-                            }
+                            Ids matched_command_ids = match_command(buff, switch_commands, switch_commands_count);
 
-                            was_question = true;
+                            if (matched_command_ids.count == 1) {
+                                const char *cmd = switch_commands[matched_command_ids.items[0]];
+                                if (strcmp(buff, cmd) == 0) {
+                                    // TODO: Get next argument for cmd if exists
+                                    String_array current_args = get_current_console_args(active_switch_console);
+
+                                    const char *next_arg = get_next_switch_console_command_arg(active_switch, current_args);
+
+                                } else {
+                                    char *cmd_with_desc = (char*)arena_alloc_str(temp_arena, "%s    - %s", cmd, switch_user_command_descriptions[matched_command_ids.items[0]]);
+                                    add_line_to_console_simple(active_switch_console, cmd_with_desc, YELLOW, false);
+                                }
+                            } else {
+                                for (int i = 0; i < matched_command_ids.count; ++i) {
+                                    char *cmd = (char *)switch_commands[matched_command_ids.items[i]];
+                                    char *cmd_with_desc = (char*)arena_alloc_str(temp_arena, "%s    - %s", cmd, switch_user_command_descriptions[i]);
+                                    add_line_to_console_simple(active_switch_console, cmd_with_desc, YELLOW, false);
+                                }
+                            }
                         }
                         if (!was_question) {
-                            if (input_to_console(active_switch_console)) {
+
+                            if (input_to_console(active_switch_console, "?", 1)) {
                                 char *buff = get_current_console_line_buff(active_switch_console);
                                 String_array args = get_current_console_args(active_switch_console);
 

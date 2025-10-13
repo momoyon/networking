@@ -139,7 +139,7 @@ void clear_console_line(Console_line *cl);
 void clear_current_console_line(Console *console);
 char *get_current_console_line_buff(Console *console);
 String_array get_current_console_args(Console *console);
-bool input_to_console(Console *console);
+bool input_to_console(Console *console, char *ignore_characters, size_t ignore_characters_count);
 float get_cursor_offset(Console *console, int font_size);
 void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size);
 
@@ -590,7 +590,7 @@ String_array get_current_console_args(Console *console) {
     return res;
 }
 
-bool input_to_console(Console *console) {
+bool input_to_console(Console *console, char *ignore_characters, size_t ignore_characters_count) {
 	int ch = 0;
     Console_line *line = get_or_create_console_line(console, console->line);
 
@@ -599,6 +599,17 @@ bool input_to_console(Console *console) {
 
 	do {
 		ch = GetCharPressed();
+
+        bool ignore = false;
+
+        for (size_t i = 0; i < ignore_characters_count; ++i) {
+            if (ch == ignore_characters[i]) {
+                ignore = true;
+                break;
+            }
+        }
+
+        if (ignore) continue;
 
         if (IsKeyPressed(KEY_ENTER)) {
             return true;

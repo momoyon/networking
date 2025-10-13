@@ -1025,36 +1025,8 @@ static bool load_entity_from_data_v1(Entity *e, String_view *sv) {
     return true;
 }
 
-static bool parse_n_octet_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count) {
-    if (octets_count < n) {
-        log_error("%s: octets count passed is less than n: %zu < %d", __func__, octets_count, n);
-        return false;
-    }
-
-    for (int i = 0; i < n; ++i) {
-        char c = i == n-1 ? ' ' : '.';
-        String_view oct_sv = sv_lpop_until_char(sv, c);
-        int oct_count = -1;
-        uint oct = sv_to_uint(oct_sv, &oct_count, 10);
-        if (oct_count < 0) {
-            log_error("Failed to convert oct%d `"SV_FMT"` to a number!", i+1, SV_ARG(oct_sv));
-            return false;
-        }
-        if (oct > 255) {
-            log_error("Octets must be in the range 0-255!");
-            return false;
-        }
-        if (i < n-1) {
-            sv_lremove(sv, 1); // Remove .
-        }
-
-        octets[i] = oct;
-    }
-    return true;
-}
-
 static bool parse_four_octet_from_data(String_view *sv, uint8 four_octet[4]) {
-    return parse_n_octet_from_data(4, sv, four_octet, 4);
+    return parse_n_octet_from_data(4, sv, four_octet, 4, false);
 }
 
 static bool parse_nic_from_data(Nic *nic, String_view *sv) {
@@ -1069,7 +1041,7 @@ static bool parse_nic_from_data(Nic *nic, String_view *sv) {
         return false;
     }
 
-    if (!parse_n_octet_from_data(6, sv, mac_address, 6)) {
+    if (!parse_n_octet_from_data(6, sv, mac_address, 6, false)) {
         return false;
     }
 
@@ -1167,7 +1139,7 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
             if (!parse_four_octet_from_data(sv, subnet_mask)) {
                 return false;
             }
-            if (!parse_n_octet_from_data(6, sv, mac_address, 6)) {
+            if (!parse_n_octet_from_data(6, sv, mac_address, 6, false)) {
                 return false;
             }
             sv_ltrim(sv);
@@ -1456,4 +1428,61 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
         }
     }
     return false;
+}
+
+bool parse_n_octet_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count, bool for_mask) {
+    if (octets_count < n) {
+        log_error("%s: octets count passed is less than n: %zu < %d", __func__, octets_count, n);
+        return false;
+    }
+
+    for (int i = 0; i < n; ++i) {
+        char c = i == n-1 ? for_mask ? '/' : ' ' : '.';
+        String_view oct_sv = sv_lpop_until_char(sv, c);
+        int oct_count = -1;
+        uint oct = sv_to_uint(oct_sv, &oct_count, 10);
+        if (oct_count < 0) {
+            log_error("Failed to convert oct%d `"SV_FMT"` to a number!", i+1, SV_ARG(oct_sv));
+            return false;
+        }
+        if (oct > 255) {
+            log_error("Octets must be in the range 0-255!");
+            return false;
+        }
+        if (i < n-1) {
+            sv_lremove(sv, 1); // Remove .
+        }
+
+        octets[i] = oct;
+    }
+    return true;
+}
+
+bool parse_n_octet_with_mask_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count, uint8 *mask) {
+    if (!parse_n_octet_from_data(n, sv, octets, octets_count, true)) { return false; }
+    if (sv->count <= 0 || sv->data[0] != '/') { 
+        log_error("'/' expected before mask!");
+        return false;
+    }
+    // Remove /
+    sv_lremove(sv, 1);
+
+    String_view mask_sv = *sv;
+
+    int mask_count = -1;
+    int mask_converted = sv_to_uint(*sv, &mask_count, 10);
+    if (mask_count < 0) {
+        log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(mask_sv));
+        return false;
+    }
+
+    sv_lremove(sv, mask_count);
+
+    *mask = mask_converted;
+
+    if (sv->count > 0) {
+        log_error("Excess data after mask: "SV_FMT, SV_ARG(*sv));
+        return false;
+    }
+    return true;
 }
