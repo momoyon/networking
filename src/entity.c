@@ -53,7 +53,7 @@ void draw_entity(Entity *e, bool debug) {
             ASSERT(e->nic, "We failed to allocate nic!");
             // DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
 
-            if (e->state & (1<<ESTATE_SELECTED)) {
+	    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
@@ -111,7 +111,7 @@ void draw_entity(Entity *e, bool debug) {
         } break;
         case EK_SWITCH: {
             ASSERT(e->switchh, "We failed to allocate switch!");
-            if (e->state & (1<<ESTATE_SELECTED)) {
+	    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
@@ -147,15 +147,17 @@ void draw_entity(Entity *e, bool debug) {
             }
         } break;
         case EK_ACCESS_POINT: {
-            Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
-            DrawLineV(e->pos, p, WHITE);
-            draw_info_text(&p, arena_alloc_str(*e->temp_arena, "mac address:"MAC_FMT, MAC_ARG(e->ap->mac_address)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-            draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                        "mgmt ipv4: "IPV4_FMT" "SUBNET_MASK_FMT, IPV4_ARG(e->ap->mgmt_ipv4), SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask)),
-                    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-            draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                        "Power: %s", e->ap->on ? "On" : "Off"),
-                    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+	    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
+		    Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
+		    DrawLineV(e->pos, p, WHITE);
+		    draw_info_text(&p, arena_alloc_str(*e->temp_arena, "mac address:"MAC_FMT, MAC_ARG(e->ap->mac_address)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+		    draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+				"mgmt ipv4: "IPV4_FMT" "SUBNET_MASK_FMT, IPV4_ARG(e->ap->mgmt_ipv4), SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask)),
+			    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+		    draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+				"Power: %s", e->ap->on ? "On" : "Off"),
+			    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+	    }
 
             // Draw connections
             if (e->ap->connected_entity) {
@@ -192,19 +194,19 @@ void draw_entity(Entity *e, bool debug) {
     if (debug) draw_text_aligned(GetFontDefault(), entity_kind_as_str(e->kind), Vector2Subtract(e->pos, v2(0, ENTITY_DEFAULT_RADIUS*1.5)), ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
 
     // Draw outline if selected
-    if (e->state & (1<<ESTATE_SELECTED)) {
+    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+2, WHITE);
     }
-    if (e->state & (1<<ESTATE_HOVERING)) {
+    if (GET_FLAG(e->state, ESTATE_HOVERING)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GRAY);
     }
 
-    ASSERT(!(e->state & (1<<ESTATE_CONNECTING_FROM) && e->state & (1<<ESTATE_CONNECTING_TO)), "I can't connect to myself");
-    if (e->state & (1<<ESTATE_CONNECTING_FROM)) {
+    ASSERT(!(GET_FLAG(e->state, ESTATE_CONNECTING_FROM) && GET_FLAG(e->state, ESTATE_CONNECTING_TO)), "I can't connect to myself");
+    if (GET_FLAG(e->state, ESTATE_CONNECTING_FROM)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, RED);
     }
 
-    if (e->state & (1<<ESTATE_CONNECTING_TO)) {
+    if (GET_FLAG(e->state, ESTATE_CONNECTING_TO)) {
         DrawCircleLines(e->pos.x, e->pos.y, e->radius+4, GREEN);
     }
 }
@@ -247,7 +249,7 @@ static bool copy_ipv4(Entity *e) {
             ipv4_str = arena_alloc_str(*e->temp_arena, IPV4_FMT, IPV4_ARG(e->nic->ipv4_address));
         } break;
         case EK_SWITCH: {
-            log_error("Cannot copy ipv4 from a Switch!");
+            log_error_to_console("Cannot copy ipv4 from a Switch!");
             return false;
         } break;
         case EK_ACCESS_POINT: {
@@ -269,7 +271,7 @@ static bool copy_subnet_mask(Entity *e) {
             submask_str = arena_alloc_str(*e->temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->nic->subnet_mask));
         } break;
         case EK_SWITCH: {
-            log_error("Cannot copy subnet mask from a Switch!");
+            log_error_to_console("Cannot copy subnet mask from a Switch!");
             return false;
         } break;
         case EK_ACCESS_POINT: {
@@ -291,7 +293,7 @@ static bool copy_mac_address(Entity *e) {
             mac_str = arena_alloc_str(*e->temp_arena, MAC_FMT, MAC_ARG(e->nic->mac_address));
         } break;
         case EK_SWITCH: {
-            log_error("Cannot copy mac address from a Switch!");
+            log_error_to_console("Cannot copy mac address from a Switch!");
             return false;
         } break;
         case EK_ACCESS_POINT: {
@@ -309,21 +311,21 @@ static bool copy_mac_address(Entity *e) {
 bool copy_entity_info(Entity *e) {
     if (IsKeyPressed(KEY_ONE)) {
         if (e == NULL) {
-            log_warning("Please hover over the entity you want to copy info of!");
+            log_error_to_console("Please hover over the entity you want to copy info of!");
             return false;
         }
         if (!copy_ipv4(e)) return false;
     }
     if (IsKeyPressed(KEY_TWO)) {
         if (e == NULL) {
-            log_warning("Please hover over the entity you want to copy info of!");
+            log_error_to_console("Please hover over the entity you want to copy info of!");
             return false;
         }
         if (!copy_subnet_mask(e)) return false;
     }
     if (IsKeyPressed(KEY_THREE)) {
         if (e == NULL) {
-            log_warning("Please hover over the entity you want to copy info of!");
+            log_error_to_console("Please hover over the entity you want to copy info of!");
             return false;
         }
         if (!copy_mac_address(e)) return false;
@@ -338,7 +340,7 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
     }
 
     if (nic->nic->connected_entity != NULL) {
-        log_error("This nic is already connected to something!");
+        log_error_to_console("This nic is already connected to something!");
         return false;
     }
 
@@ -348,7 +350,7 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
             Entity *b = other;
 
             if (b->nic->connected_entity != NULL && b->nic->connected_entity != a) {
-                log_error("The other NIC is already connected to something!");
+                log_error_to_console("The other NIC is already connected to something!");
                 return false;
             }
 
@@ -361,7 +363,7 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
             ASSERT(other->switchh, "bo");
 
             if (nic->nic->connected_entity != NULL && nic->nic->connected_entity->kind == EK_SWITCH && nic->nic->connected_entity != other) {
-                log_error("Please disconnect the nic from any other switch!");
+                log_error_to_console("Please disconnect the nic from any other switch!");
                 return false;
             }
 
@@ -378,7 +380,7 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
             }
             if (!found) { 
                 if (!connect_to_next_free_port(nic, other)) {
-                    log_error("No free port available!");
+                    log_error_to_console("No free port available!");
                     return false;
                 }
             } else {
@@ -412,7 +414,7 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
             ASSERT(other->switchh, "bo");
 
             if (ap->ap->connected_entity != NULL && ap->ap->connected_entity->kind == EK_SWITCH && ap->ap->connected_entity != other) {
-                log_error("Please disconnect the AP from any other switch!");
+                log_error_to_console("Please disconnect the AP from any other switch!");
                 return false;
             }
 
@@ -429,7 +431,7 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
             }
             if (!found) { 
                 if (!connect_to_next_free_port(ap, other)) {
-                    log_error("No free port available!");
+                    log_error_to_console("No free port available!");
                     return false;
                 }
             } else {
@@ -460,7 +462,7 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
             return connect_nic_to(other, switchh); // We can do this 
         } break;
         case EK_SWITCH: {
-            log_warning("We can't connect two switches directly!");
+            log_error_to_console("We can't connect two switches directly!");
             return false;
         } break;
         case EK_ACCESS_POINT: {
@@ -554,7 +556,7 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
 static bool is_mac_address_assigned(Entities *entities, uint8 *mac_address) {
     for (size_t i = 0; i < entities->count; ++i) {
         Entity *e = &entities->items[i];
-        if (e->state & (1<<ESTATE_DEAD)) continue;
+	if (GET_FLAG(e->state, ESTATE_DEAD)) continue;
 
         if (e->kind == EK_NIC) {
             uint8 *nic_mac = e->nic->mac_address;
@@ -815,7 +817,7 @@ bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
 //
 // static bool is_frame_for_conn(Entity *conn, Ethernet_frame frame) {
 //     if (!conn) {
-//         log_error("%s: Please pass a non-NULL conn!", __func__);
+//         log_error_to_console("%s: Please pass a non-NULL conn!", __func__);
 //         return false;
 //     }
 //
@@ -825,7 +827,7 @@ bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
 //     } else if (conn->kind == EK_ACCESS_POINT) {
 //         memcpy(conn_mac_addr.addr, conn->ap->, sizeof(uint8) * 6);
 //     } else {
-//         log_error("%s: Invalid conn kind!", __func__);
+//         log_error_to_console("%s: Invalid conn kind!", __func__);
 //     }
 //     return false;
 // }
@@ -851,17 +853,17 @@ bool recieve(Entity *dst, Entity *src, Ethernet_frame frame) {
     switch (dst->kind) {
         case EK_NIC: {
             if (dst->nic->connected_entity != src) {
-                log_error("The dst NIC is not connected to the src NIC!");
+                log_error_to_console("The dst NIC is not connected to the src NIC!");
                 // if (dst->nic->connected_entity != NULL && dst->nic->connected_entity == EK_SWITCH) {
                 //     return forward_frame_via_switch(dst->nic->connected_entity, frame);
                 // } else {
-                //     log_error("The dst NIC is not connected to a switch either");
+                //     log_error_to_console("The dst NIC is not connected to a switch either");
                 // }
                 return false;
             }
 
             if (memcmp(frame.dst, dst->nic->mac_address, sizeof(uint8)*6) != 0) {
-                log_warning("Ethernet Frame destined for "MAC_FMT" is dropped at src's connected NIC "MAC_FMT, MAC_ARG(frame.dst), MAC_ARG(dst->nic->mac_address));
+                log_error_to_console("Ethernet Frame destined for "MAC_FMT" is dropped at src's connected NIC "MAC_FMT, MAC_ARG(frame.dst), MAC_ARG(dst->nic->mac_address));
                 return false;
             }
             log_debug("Received Ethernet Frame from "MAC_FMT" to "MAC_FMT, MAC_ARG(frame.src), MAC_ARG(frame.dst));
@@ -979,34 +981,34 @@ static bool load_entity_from_data_v1(Entity *e, String_view *sv) {
     int pos_x_count = -1;
     float pos_x = sv_to_float(pos_x_sv, &pos_x_count);
     if (pos_x_count < 0) {
-        log_error("pos.x: Failed to convert `"SV_FMT"` to float!", SV_ARG(pos_x_sv));
+        log_error_to_console("pos.x: Failed to convert `"SV_FMT"` to float!", SV_ARG(pos_x_sv));
         return false;
     }
     int pos_y_count = -1;
     float pos_y = sv_to_float(pos_y_sv, &pos_y_count);
     if (pos_y_count < 0) {
-        log_error("pos.y: Failed to convert `"SV_FMT"` to float!", SV_ARG(pos_y_sv));
+        log_error_to_console("pos.y: Failed to convert `"SV_FMT"` to float!", SV_ARG(pos_y_sv));
         return false;
     }
 
     int kind_count = -1;
     int kind = sv_to_uint(kind_sv, &kind_count, 10);
     if (kind_count < 0) {
-        log_error("kind: Failed to convert `"SV_FMT"` to uint!!", SV_ARG(kind_sv));
+        log_error_to_console("kind: Failed to convert `"SV_FMT"` to uint!!", SV_ARG(kind_sv));
         return false;
     }
 
     int id_count = -1;
     int id = sv_to_uint(id_sv, &id_count, 10);
     if (id_count < 0) {
-        log_error("id: Failed to convert `"SV_FMT"` to uint!!", SV_ARG(id_sv));
+        log_error_to_console("id: Failed to convert `"SV_FMT"` to uint!!", SV_ARG(id_sv));
         return false;
     }
 
     int state_count = -1;
     int state = sv_to_int(state_sv, &state_count, 10);
     if (state_count < 0) {
-        log_error("state: Failed to convert state `"SV_FMT"` to int!!", SV_ARG(state_sv));
+        log_error_to_console("state: Failed to convert state `"SV_FMT"` to int!!", SV_ARG(state_sv));
         return false;
     }
 
@@ -1064,7 +1066,7 @@ static bool parse_nic_from_data(Nic *nic, String_view *sv) {
     int nic_id_count = -1;
     int nic_id = sv_to_int(nic_id_sv, &nic_id_count, 10);
     if (nic_id_count < 0) {
-        log_error("Failed to convert nic id `"SV_FMT"` to int!", SV_ARG(nic_id_sv));
+        log_error_to_console("Failed to convert nic id `"SV_FMT"` to int!", SV_ARG(nic_id_sv));
         return false;
     }
 
@@ -1087,7 +1089,7 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
         } break;
         case EK_SWITCH: {
             if (e->switchh == NULL) {
-                log_error("Please allocate the switch before trying to load from data!");
+                log_error_to_console("Please allocate the switch before trying to load from data!");
                 ASSERT(false, "DEBUG");
                 return false;
             }
@@ -1114,15 +1116,15 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
                 int port_conn_id_count = -1;
                 int port_conn_id = sv_to_int(port_conn_id_sv, &port_conn_id_count, 10);
                 if (port_conn_id_count < 0) {
-                    log_error("Failed to convert port conn id `"SV_FMT"` to int!", SV_ARG(port_conn_id_sv));
+                    log_error_to_console("Failed to convert port conn id `"SV_FMT"` to int!", SV_ARG(port_conn_id_sv));
                     return false;
                 }
                 log_debug("Parsed port %d/%d: %d", i, j, port_conn_id);
                 if (i < 0 || i > ARRAY_LEN(e->switchh->fe)-1) {
-                    log_error("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, ARRAY_LEN(e->switchh->fe));
+                    log_error_to_console("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, ARRAY_LEN(e->switchh->fe));
                 }
                 if (j < 0 || j > ARRAY_LEN(e->switchh->fe[0])-1) {
-                    log_error("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, ARRAY_LEN(e->switchh->fe[0]));
+                    log_error_to_console("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, ARRAY_LEN(e->switchh->fe[0]));
                 }
                 e->switchh->fe[i][j].conn_id = port_conn_id;
             }
@@ -1173,7 +1175,7 @@ bool load_entity_from_data(Entity *e, String_view *data_sv) {
     int version_count = -1;
     int version = sv_to_int(version_sv, &version_count, 10);
     if (version_count < 0) {
-        log_error("Failed to convert version `"SV_FMT"` to int!", SV_ARG(version_sv));
+        log_error_to_console("Failed to convert version `"SV_FMT"` to int!", SV_ARG(version_sv));
         return false;
     }
 
@@ -1237,7 +1239,7 @@ bool save_entities(Entities *entities, const char *filepath, size_t save_version
 
     for (size_t i = 0; i < entities->count; ++i) {
         Entity *e = &entities->items[i];
-        if (e->state & (1<<ESTATE_DEAD)) continue;
+	if (GET_FLAG(e->state, ESTATE_DEAD)) continue;
 
         if (!save_entity_to_data(e, &entities_arena, &temp_arena, save_version)) {
             arena_free(&entities_arena);
@@ -1253,7 +1255,7 @@ bool save_entities(Entities *entities, const char *filepath, size_t save_version
     FILE *f = fopen(filepath, "wb");
     size_t wrote = fwrite(entities_arena.buff, sizeof(char), c, f);
     if (wrote < c) {
-        log_error("Failed to write entities data to `%s`", filepath);
+        log_error_to_console("Failed to write entities data to `%s`", filepath);
         fclose(f);
         return false;
     }
@@ -1302,7 +1304,7 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
                     if (port->conn_id >= 0) {
                         Entity *conn = get_entity_ptr_by_id(entities, port->conn_id);
                         if (conn == NULL) {
-                            log_error("Cannot find CONN with id %d", port->conn_id);
+                            log_error_to_console("Cannot find CONN with id %d", port->conn_id);
                             return false;
                         }
                         port->conn = conn;
@@ -1324,7 +1326,7 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
             if (e->nic->nic_entity_id >= 0) {
                 Entity *nic_entity = get_entity_ptr_by_id(entities, e->nic->nic_entity_id);
                 if (!e) {
-                    log_error("Failed to get entity from nic_id %d that NIC %zu was connected to...", e->nic->nic_entity_id, e->id);
+                    log_error_to_console("Failed to get entity from nic_id %d that NIC %zu was connected to...", e->nic->nic_entity_id, e->id);
                     return false;
                 }
                 e->nic->connected_entity = nic_entity;
@@ -1361,7 +1363,7 @@ static bool four_octet_from_input(uint8 *four_octet, char *chars_buff, size_t *c
         }
         if (('0' <= ch && ch <= '9') || ch == '.') {
             if (*chars_buff_count >= chars_buff_cap) {
-                log_error("Exhausted chars buff!");
+                log_error_to_console("Exhausted chars buff!");
                 exit(1);
             }
             chars_buff[(*chars_buff_count)++] = (char)ch;
@@ -1380,7 +1382,7 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
         case EK_ACCESS_POINT:
             return four_octet_from_input(e->ap->mgmt_ipv4, chars_buff, chars_buff_count, chars_buff_cap);
         case EK_SWITCH: {
-            log_warning("Cannot change the ipv4 of a switch!");
+            log_error_to_console("Cannot change the ipv4 of a switch!");
             return false;
         } break;
         case EK_COUNT:
@@ -1396,7 +1398,7 @@ bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_coun
         case EK_ACCESS_POINT:
             return four_octet_from_input(e->ap->mgmt_subnet_mask, chars_buff, chars_buff_count, chars_buff_cap);
         case EK_SWITCH: {
-            log_warning("Cannot change the subnet mask of a switch!");
+            log_error_to_console("Cannot change the subnet mask of a switch!");
             return false;
         } break;
         case EK_COUNT:
@@ -1407,11 +1409,11 @@ bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_coun
 
 bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
     if (!e || (e->kind != EK_NIC && e->kind != EK_ACCESS_POINT)) {
-        log_error("Cannot connect to port: the NIC or AP is not valid!");
+        log_error_to_console("Cannot connect to port: the NIC or AP is not valid!");
         return false;
     }
     if (!switch_e || switch_e->kind != EK_SWITCH) {
-        log_error("Cannot connect to port: the Switch is not valid!");
+        log_error_to_console("Cannot connect to port: the Switch is not valid!");
         return false;
     }
 
@@ -1432,7 +1434,7 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
 
 bool parse_n_octet_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count, bool for_mask) {
     if (octets_count < n) {
-        log_error("%s: octets count passed is less than n: %zu < %d", __func__, octets_count, n);
+        log_error_to_console("%s: octets count passed is less than n: %zu < %d", __func__, octets_count, n);
         return false;
     }
 
@@ -1442,11 +1444,11 @@ bool parse_n_octet_from_data(int n, String_view *sv, uint8 *octets, size_t octet
         int oct_count = -1;
         uint oct = sv_to_uint(oct_sv, &oct_count, 10);
         if (oct_count < 0) {
-            log_error("Failed to convert oct%d `"SV_FMT"` to a number!", i+1, SV_ARG(oct_sv));
+            log_error_to_console("Failed to convert oct%d `"SV_FMT"` to a number!", i+1, SV_ARG(oct_sv));
             return false;
         }
         if (oct > 255) {
-            log_error("Octets must be in the range 0-255!");
+            log_error_to_console("Octets must be in the range 0-255!");
             return false;
         }
         if (i < n-1) {
@@ -1461,7 +1463,7 @@ bool parse_n_octet_from_data(int n, String_view *sv, uint8 *octets, size_t octet
 bool parse_n_octet_with_mask_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count, uint8 *mask) {
     if (!parse_n_octet_from_data(n, sv, octets, octets_count, true)) { return false; }
     if (sv->count <= 0 || sv->data[0] != '/') { 
-        log_error("'/' expected before mask!");
+        log_error_to_console("'/' expected before mask!");
         return false;
     }
     // Remove /
@@ -1472,7 +1474,7 @@ bool parse_n_octet_with_mask_from_data(int n, String_view *sv, uint8 *octets, si
     int mask_count = -1;
     int mask_converted = sv_to_uint(*sv, &mask_count, 10);
     if (mask_count < 0) {
-        log_error("Failed to convert `"SV_FMT"` to a number!", SV_ARG(mask_sv));
+        log_error_to_console("Failed to convert `"SV_FMT"` to a number!", SV_ARG(mask_sv));
         return false;
     }
 
@@ -1481,7 +1483,7 @@ bool parse_n_octet_with_mask_from_data(int n, String_view *sv, uint8 *octets, si
     *mask = mask_converted;
 
     if (sv->count > 0) {
-        log_error("Excess data after mask: "SV_FMT, SV_ARG(*sv));
+        log_error_to_console("Excess data after mask: "SV_FMT, SV_ARG(*sv));
         return false;
     }
     return true;

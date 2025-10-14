@@ -128,6 +128,11 @@ Arena str_arena;
 Texture_manager tex_man;
 size_t entity_save_version = 2;
 Wifi_waves wifi_waves = {0};
+Console error_console = {
+	.prefix = "",
+};
+float error_console_activity = 0.f;
+float error_console_alpha = 0;
 
 typedef enum {
     CHANGE_IPV4,
@@ -202,6 +207,7 @@ Ids match_var(const char *var) {
     return matched_vars;
 }
 
+// Externs
 
 // int main(int argc, char **argv) {
 //     shift_args(argv, argc);
@@ -268,10 +274,12 @@ int main(void)
     temp_arena = arena_make(0);
     str_arena  = arena_make(0);
 
+    float zoom_to = 1.f;
     Camera2D cam = {
         .zoom = 1.0,
         .offset = CLITERAL(Vector2) { width / 2, height / 2 },
     };
+	float camera_speed = 400.f;
     Vector2 mpos_from = { 0 };
 
     bool is_changing = false;
@@ -294,8 +302,13 @@ int main(void)
     bool is_in_command = false;
     Console command_hist = {
         .font = GetFontDefault(),
-        .prefix = ":",
+        .prefix_symbol = ':',
     };
+
+	error_console.font = GetFontDefault();
+
+	Console_line cl = {0};
+	darr_append(error_console.lines, cl);
 
     // prerun cmd (only supports one line rn)
     // TODO: Support multiple commands on multiple lines
@@ -309,6 +322,7 @@ int main(void)
     darr_append(vars, (INT_VAR(radius, radius)));
     darr_append(vars, (FLOAT_VAR(xoffset, xoffset)));
     darr_append(vars, (BOOL_VAR(blue, blue)));
+    darr_append(vars, (FLOAT_VAR(camera_speed, camera_speed)));
 
     while (!quit && !WindowShouldClose()) {
         arena_reset(&temp_arena);
@@ -326,7 +340,6 @@ int main(void)
         if (IsKeyPressed(KEY_GRAVE)) {
             debug_draw = !debug_draw;
         }
-
 
         // Run prerun command
         if (prerun_cmd_file_size > 0 && !prerun_cmd_ran) {
@@ -577,12 +590,12 @@ exec_command:
 
             // Zoom camera
             float scroll = GetMouseWheelMove();
-            cam.zoom += scroll * 100.f * GetFrameTime();
-            if (cam.zoom <= 0.1f)
-                cam.zoom = 0.1f;
+            zoom_to += scroll * 100.f * GetFrameTime();
+            if (zoom_to <= 0.1f)
+                zoom_to = 0.1f;
 
             if (IsKeyPressed(KEY_ZERO)) {
-                cam.zoom = 1.f;
+                zoom_to = 1.f;
             }
 
 #ifdef DEBUG
@@ -847,7 +860,7 @@ exec_command:
                                     String_array current_args = get_current_console_args(active_switch_console);
 
                                     Switch_console_arg next_arg = {0};
-                                    if (get_next_switch_console_command_arg(active_switch, current_args, &next_arg)) {
+                                    if (get_next_switch_console_command_arg(current_args, &next_arg)) {
                                         char *cmd_with_desc = (char *)arena_alloc_str(temp_arena, "%s    - %s", next_arg.name, next_arg.desc);
                                         add_line_to_console_simple(active_switch_console, cmd_with_desc, YELLOW, false);
                                     }
@@ -957,6 +970,20 @@ exec_command:
         ClearBackground(BLACK);
 
         // Update
+		// Smooth camera zoom
+
+		cam.zoom += (zoom_to - cam.zoom) * GetFrameTime() * 100.f;
+
+		// Error console activity
+		if (error_console_activity > 0.f) {
+			error_console_activity -= GetFrameTime();
+			if (error_console_activity < 0.f) error_console_activity = 0.f;
+		} else {
+			if (error_console_alpha > 0) {
+				error_console_alpha -= GetFrameTime();
+			}
+		}
+
         // Find hovering entity
         hovering_entity = NULL;
         for (int i = (int)entities.count - 1; i >= 0; --i) {
@@ -1287,7 +1314,7 @@ exec_command:
             }
             if (active_switch_console) {
                 
-                draw_console(active_switch_console, active_switch_console_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f);
+                draw_console(active_switch_console, active_switch_console_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f, BLACK, WHITE, 1.f);
                 
             }
         } break;
@@ -1296,18 +1323,27 @@ exec_command:
             ASSERT(false, "UNREACHABLE!");
         }
 
+		int console_font_size = ENTITY_DEFAULT_RADIUS * 0.5f;
         if (is_in_command) {
-
-            int console_font_size = ENTITY_DEFAULT_RADIUS * 0.5f;
-
             Rectangle command_rect = {
                 .x = 0.f,
                 .y = height * 0.5f - console_font_size,
                 .width = width,
                 .height = height * 0.5f,
             };
-            draw_console(&command_hist, command_rect, v2(8, -8), console_font_size);
+            draw_console(&command_hist, command_rect, v2(8, -8), console_font_size, ColorAlpha(BLACK, 0.7f), WHITE, 1.f);
         }
+
+		if (error_console_alpha > 0) {
+			float pad = 10.f;
+            Rectangle command_rect = {
+                .x = pad,
+                .y = pad,
+                .width = width - pad*2,
+                .height = height - pad*2,
+            };
+			draw_console(&error_console, command_rect, v2(8, -8), console_font_size, BLANK, WHITE, error_console_alpha);
+		}
 
         EndTextureMode();
         draw_ren_tex(ren_tex, SCREEN_WIDTH, SCREEN_HEIGHT);

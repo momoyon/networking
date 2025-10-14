@@ -121,7 +121,7 @@ void make_switch_console(Console *console_out, Arena *arena);
 void boot_switch(Switch *switchh, float dt);
 bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args);
 
-bool get_next_switch_console_command_arg(Switch *switchh, String_array current_args, Switch_console_arg *next_arg_out);
+bool get_next_switch_console_command_arg(String_array current_args, Switch_console_arg *next_arg_out);
 void get_switch_console_commands(Switch *switchh, const char ***commands_out, size_t *commands_count_out);
 
 void switch_change_mode(Switch *switchh, Switch_console_mode new_mode);
