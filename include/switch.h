@@ -63,6 +63,8 @@ typedef enum {
     SW_CMD_ID_ENABLE,
     SW_CMD_ID_LOGOUT,
     SW_CMD_ID_PING,
+    SW_CMD_ID_CONNECT,
+    SW_CMD_ID_DISABLE,
     SW_CMD_ID_COUNT,
 } Switch_console_cmd_id;
 

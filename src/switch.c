@@ -3,18 +3,22 @@
 #include <common.h>
 
 const char *switch_user_commands[] = {
-    [SW_CMD_ID_EXIT]   = "exit",
-    [SW_CMD_ID_LOGOUT] = "logout",
-    [SW_CMD_ID_ENABLE] = "enable",
-    [SW_CMD_ID_PING]   = "ping",
+    [SW_CMD_ID_EXIT]    = "exit",
+    [SW_CMD_ID_LOGOUT]  = "logout",
+    [SW_CMD_ID_ENABLE]  = "enable",
+    [SW_CMD_ID_PING]    = "ping",
+    [SW_CMD_ID_CONNECT] = "connect",
+    [SW_CMD_ID_DISABLE] = "disable"
 };
 size_t switch_user_commands_count = ARRAY_LEN(switch_user_commands);
 
 const char *switch_user_command_descriptions[] = {
-    [SW_CMD_ID_EXIT]   = "Exit from the EXEC",
-    [SW_CMD_ID_LOGOUT] = "Exit from the EXEC",
-    [SW_CMD_ID_ENABLE] = "Turn on priviledged commands",
-    [SW_CMD_ID_PING]   = "Send echo messages",
+    [SW_CMD_ID_EXIT]    = "Exit from the EXEC",
+    [SW_CMD_ID_LOGOUT]  = "Exit from the EXEC",
+    [SW_CMD_ID_ENABLE]  = "Turn on priviledged commands",
+    [SW_CMD_ID_PING]    = "Send echo messages",
+    [SW_CMD_ID_CONNECT] = "Open a terminal connection",
+    [SW_CMD_ID_DISABLE] = "Turn off priveleged commands",
 };
 size_t switch_user_command_descriptions_count = ARRAY_LEN(switch_user_command_descriptions);
 
@@ -175,6 +179,12 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
             case SW_CMD_ID_PING: {
                 log_error_a(*console, "%s", "`ping` is UNIMPLEMENTED!");
             } break;
+            case SW_CMD_ID_CONNECT: {
+                log_error_a(*console, "%s", "`connect` is UNIMPLEMENTED!");
+            } break;
+            case SW_CMD_ID_DISABLE: {
+                switch_change_mode(switchh, SW_CNSL_MODE_USER);
+            } break;
             case SW_CMD_ID_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
         }
@@ -260,6 +270,16 @@ Switch_console_args get_args_for_switch_cmd(const char *cmd) {
         Switch_console_arg arg = {
             .name = "WORD",
             .desc = "Ping destination address or hostname",
+        };
+
+        darr_append(arg.types, SW_CNSL_ARG_TYPE_WORD);
+        darr_append(arg.types, SW_CNSL_ARG_TYPE_ABCD);
+
+        darr_append(res, arg);
+    } else if MATCH_CMD("ping") {
+        Switch_console_arg arg = {
+            .name = "WORD",
+            .desc = "IP address or hostname of a remote system",
         };
 
         darr_append(arg.types, SW_CNSL_ARG_TYPE_WORD);
