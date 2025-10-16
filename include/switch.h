@@ -15,6 +15,8 @@ extern size_t switch_user_command_descriptions_count;
 
 extern const char *switch_enabled_commands[];
 extern size_t switch_enabled_commands_count;
+extern const char *switch_enabled_command_descriptions[];
+extern size_t switch_enabled_command_descriptions_count;
 
 extern const char *switch_config_commands[];
 extern size_t switch_config_commands_count;
@@ -65,6 +67,13 @@ typedef enum {
     SW_CMD_ID_PING,
     SW_CMD_ID_CONNECT,
     SW_CMD_ID_DISABLE,
+    SW_CMD_ID_DISCONNECT,
+    SW_CMD_ID_RESUME,
+    SW_CMD_ID_SHOW,
+    SW_CMD_ID_SSH,
+    SW_CMD_ID_TELNET,
+    SW_CMD_ID_TERMINAL,
+    SW_CMD_ID_TRACEROUTE,
     SW_CMD_ID_COUNT,
 } Switch_console_cmd_id;
 

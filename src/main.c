@@ -849,13 +849,14 @@ exec_command:
                             char *buff = get_current_console_line_buff(active_switch_console);
                             const char **switch_commands = NULL;
                             size_t switch_commands_count = 0;
+
                             get_switch_console_commands(active_switch, &switch_commands, &switch_commands_count);
 
                             Ids matched_command_ids = match_command(buff, switch_commands, switch_commands_count);
 
                             if (matched_command_ids.count == 1) {
                                 const char *cmd = switch_commands[matched_command_ids.items[0]];
-                                if (str_starts_with(buff, cmd)) {
+                                if (strcmp(buff, cmd) == 0) {
                                     // TODO: Get next argument for cmd if exists
                                     String_array current_args = get_current_console_args(active_switch_console);
 

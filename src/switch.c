@@ -2,31 +2,65 @@
 #include <raylib.h>
 #include <common.h>
 
+/// USER EXEC
 const char *switch_user_commands[] = {
+    [SW_CMD_ID_EXIT]       = "exit",
+    [SW_CMD_ID_LOGOUT]     = "logout",
+    [SW_CMD_ID_ENABLE]     = "enable",
+    [SW_CMD_ID_PING]       = "ping",
+    [SW_CMD_ID_CONNECT]    = "connect",
+    [SW_CMD_ID_DISABLE]    = "disable",
+    [SW_CMD_ID_DISCONNECT] = "disconnect",
+    [SW_CMD_ID_RESUME]     = "resume",
+    [SW_CMD_ID_SHOW]       = "show",
+    [SW_CMD_ID_SSH]        = "ssh",
+    [SW_CMD_ID_TELNET]     = "telnet",
+    [SW_CMD_ID_TERMINAL]   = "terminal",
+    [SW_CMD_ID_TRACEROUTE] = "traceroute",
+};
+size_t switch_user_commands_count = ARRAY_LEN(switch_user_commands);
+
+const char *switch_user_command_descriptions[] = {
+    [SW_CMD_ID_EXIT]       = "Exit from the EXEC",
+    [SW_CMD_ID_LOGOUT]     = "Exit from the EXEC",
+    [SW_CMD_ID_ENABLE]     = "Turn on priviledged commands",
+    [SW_CMD_ID_PING]       = "Send echo messages",
+    [SW_CMD_ID_CONNECT]    = "Open a terminal connection",
+    [SW_CMD_ID_DISABLE]    = "Turn off priveleged commands",
+    [SW_CMD_ID_DISCONNECT] = "Disconnect an existing network connection",
+    [SW_CMD_ID_RESUME]     = "Resume an existing network connection",
+    [SW_CMD_ID_SHOW]       = "Show running system information",
+    [SW_CMD_ID_SSH]        = "Open a secure shell client connection",
+    [SW_CMD_ID_TELNET]     = "Open a telnet connection",
+    [SW_CMD_ID_TERMINAL]   = "Set terminal line parameters",
+    [SW_CMD_ID_TRACEROUTE] = "Trace route to destination",
+};
+size_t switch_user_command_descriptions_count = ARRAY_LEN(switch_user_command_descriptions);
+///--------------------------------------------------
+/// ENABLED | PRIVEGED
+const char *switch_enabled_commands[] = {
     [SW_CMD_ID_EXIT]    = "exit",
     [SW_CMD_ID_LOGOUT]  = "logout",
     [SW_CMD_ID_ENABLE]  = "enable",
     [SW_CMD_ID_PING]    = "ping",
     [SW_CMD_ID_CONNECT] = "connect",
     [SW_CMD_ID_DISABLE] = "disable"
-};
-size_t switch_user_commands_count = ARRAY_LEN(switch_user_commands);
 
-const char *switch_user_command_descriptions[] = {
+};
+size_t switch_enabled_commands_count = ARRAY_LEN(switch_enabled_commands);
+
+const char *switch_enabled_command_descriptions[] = {
+};
+size_t switch_enabled_command_descriptions_count = ARRAY_LEN(switch_enabled_command_descriptions);
+///--------------------------------------------------
+/// CONFIG
+const char *switch_config_commands[] = {
     [SW_CMD_ID_EXIT]    = "Exit from the EXEC",
     [SW_CMD_ID_LOGOUT]  = "Exit from the EXEC",
     [SW_CMD_ID_ENABLE]  = "Turn on priviledged commands",
     [SW_CMD_ID_PING]    = "Send echo messages",
     [SW_CMD_ID_CONNECT] = "Open a terminal connection",
     [SW_CMD_ID_DISABLE] = "Turn off priveleged commands",
-};
-size_t switch_user_command_descriptions_count = ARRAY_LEN(switch_user_command_descriptions);
-
-const char *switch_enabled_commands[] = {
-};
-size_t switch_enabled_commands_count = ARRAY_LEN(switch_enabled_commands);
-
-const char *switch_config_commands[] = {
 };
 size_t switch_config_commands_count = ARRAY_LEN(switch_config_commands);
 
@@ -44,6 +78,7 @@ const char *switch_console_arg_types[] = {
     [SW_CNSL_ARG_TYPE_INVALID] = "INVALID",
 };
 size_t switch_console_arg_types_count = ARRAY_LEN(switch_console_arg_types);
+///--------------------------------------------------
 
 Switch_console_arg_type switch_console_arg_type_from_str(const char *t) {
     // TODO: Implemente str_to_upper() in commonlib.h
@@ -184,6 +219,27 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
             } break;
             case SW_CMD_ID_DISABLE: {
                 switch_change_mode(switchh, SW_CNSL_MODE_USER);
+            } break;
+            case SW_CMD_ID_DISCONNECT: {
+                log_error_a(*console, "%s", "`disconnect` is UNIMPLEMENTED!");
+            } break;
+            case SW_CMD_ID_RESUME: {
+                log_error_a(*console, "%s", "`resume` is UNIMPLEMENTED!");
+            } break;
+            case SW_CMD_ID_SHOW: {
+                log_error_a(*console, "%s", "`show` is UNIMPLEMENTED!");
+            } break;
+            case SW_CMD_ID_SSH: {
+                log_error_a(*console, "%s", "`ssh` is UNIMPLEMENTED!");
+            } break;
+            case SW_CMD_ID_TELNET: {
+                log_error_a(*console, "%s", "`telnet` is UNIMPLEMENTED!");
+            } break;
+            case SW_CMD_ID_TERMINAL: {
+                log_error_a(*console, "%s", "`terminal` is UNIMPLEMENTED!");
+            } break;
+            case SW_CMD_ID_TRACEROUTE: {
+                log_error_a(*console, "%s", "`traceroute` is UNIMPLEMENTED!");
             } break;
             case SW_CMD_ID_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
