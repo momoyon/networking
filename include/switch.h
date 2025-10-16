@@ -8,10 +8,13 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
-extern const char *switch_user_commands[];
-extern size_t switch_user_commands_count;
-extern const char *switch_user_command_descriptions[];
-extern size_t switch_user_command_descriptions_count;
+typedef struct Switch_console_cmd Switch_console_cmd;
+typedef struct Switch_console_arg Switch_console_arg;
+typedef struct Switch_console_args Switch_console_args;
+typedef struct Switch_console_arg_types Switch_console_arg_types;
+typedef enum Switch_console_arg_type Switch_console_arg_type;
+
+extern Switch_console_cmd switch_user_commands[];
 
 extern const char *switch_enabled_commands[];
 extern size_t switch_enabled_commands_count;
@@ -20,11 +23,6 @@ extern size_t switch_enabled_command_descriptions_count;
 
 extern const char *switch_config_commands[];
 extern size_t switch_config_commands_count;
-
-typedef struct Switch_console_arg Switch_console_arg;
-typedef struct Switch_console_args Switch_console_args;
-typedef struct Switch_console_arg_types Switch_console_arg_types;
-typedef enum Switch_console_arg_type Switch_console_arg_type;
 
 enum Switch_console_arg_type {
     SW_CNSL_ARG_TYPE_WORD,
@@ -40,6 +38,12 @@ extern size_t switch_console_arg_types_count;
 const char *switch_console_arg_type_as_str(const Switch_console_arg_type t);
 Switch_console_arg_type switch_console_arg_type_from_str(const char *t);
 bool valid_switch_console_arg(const char *cmd, Switch_console_arg_type type);
+
+struct Switch_console_cmd {
+    const char *name;
+    const char *desc;
+    int id;
+};
 
 struct Switch_console_arg_types {
     Switch_console_arg_type *items;
@@ -59,22 +63,40 @@ struct Switch_console_args {
     size_t capacity;
 };
 
+#define ITEM(name) SW_CMD_ID_##name
+#define LIST \
+    ITEM(EXIT),\
+    ITEM(ENABLE),\
+    ITEM(LOGOUT),\
+    ITEM(PING),\
+    ITEM(CONNECT),\
+    ITEM(DISABLE),\
+    ITEM(DISCONNECT),\
+    ITEM(RESUME),\
+    ITEM(SHOW),\
+    ITEM(SSH),\
+    ITEM(TELNET),\
+    ITEM(TERMINAL),\
+    ITEM(TRACEROUTE),\
+    ITEM(CLEAR),\
+    ITEM(CLOCK),\
+    ITEM(CONFIGURE),\
+    ITEM(COPY),\
+    ITEM(DEBUG),\
+    ITEM(DELETE),\
+    ITEM(DIR),\
+    ITEM(ERASE),\
+    ITEM(MORE),\
+    ITEM(NO),\
+    ITEM(RELOAD),\
+    ITEM(SETUP),\
+    ITEM(UNDEBUG),\
+    ITEM(WRITE),\
+    ITEM(COUNT)
+
 
 typedef enum {
-    SW_CMD_ID_EXIT = 0,
-    SW_CMD_ID_ENABLE,
-    SW_CMD_ID_LOGOUT,
-    SW_CMD_ID_PING,
-    SW_CMD_ID_CONNECT,
-    SW_CMD_ID_DISABLE,
-    SW_CMD_ID_DISCONNECT,
-    SW_CMD_ID_RESUME,
-    SW_CMD_ID_SHOW,
-    SW_CMD_ID_SSH,
-    SW_CMD_ID_TELNET,
-    SW_CMD_ID_TERMINAL,
-    SW_CMD_ID_TRACEROUTE,
-    SW_CMD_ID_COUNT,
+    LIST
 } Switch_console_cmd_id;
 
 typedef struct Entity Entity;

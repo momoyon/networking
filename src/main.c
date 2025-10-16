@@ -847,7 +847,7 @@ exec_command:
                         bool was_question = false;
                         if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_SLASH)) {
                             char *buff = get_current_console_line_buff(active_switch_console);
-                            const char **switch_commands = NULL;
+                            Switch_console_cmd *switch_commands = NULL;
                             size_t switch_commands_count = 0;
 
                             get_switch_console_commands(active_switch, &switch_commands, &switch_commands_count);
@@ -855,8 +855,8 @@ exec_command:
                             Ids matched_command_ids = match_command(buff, switch_commands, switch_commands_count);
 
                             if (matched_command_ids.count == 1) {
-                                const char *cmd = switch_commands[matched_command_ids.items[0]];
-                                if (strcmp(buff, cmd) == 0) {
+                                Switch_console_cmd cmd = switch_commands[matched_command_ids.items[0]];
+                                if (strcmp(buff, cmd.name) == 0) {
                                     // TODO: Get next argument for cmd if exists
                                     String_array current_args = get_current_console_args(active_switch_console);
 
@@ -872,8 +872,8 @@ exec_command:
                                 }
                             } else {
                                 for (int i = 0; i < matched_command_ids.count; ++i) {
-                                    char *cmd = (char *)switch_commands[matched_command_ids.items[i]];
-                                    char *cmd_with_desc = (char*)arena_alloc_str(temp_arena, "%s    - %s", cmd, switch_user_command_descriptions[i]);
+                                    Switch_console_cmd cmd = switch_commands[matched_command_ids.items[i]];
+                                    char *cmd_with_desc = (char*)arena_alloc_str(temp_arena, "%s    - %s", cmd.name, cmd.desc);
                                     add_line_to_console_simple(active_switch_console, cmd_with_desc, YELLOW, false);
                                 }
                             }
@@ -908,24 +908,24 @@ exec_command:
 
                         if (IsKeyPressed(KEY_TAB)) {
                             char *buff = get_current_console_line_buff(active_switch_console);
-                            const char **switch_commands = NULL;
+                            Switch_console_cmd *switch_commands = NULL;
                             size_t switch_commands_count = 0;
                             get_switch_console_commands(active_switch, &switch_commands, &switch_commands_count);
 
                             Ids matched_command_ids = match_command(buff, switch_commands, switch_commands_count);
                             if (matched_command_ids.count == 1) {
-                                const char *cmd = switch_commands[matched_command_ids.items[0]];
-                                size_t cmd_len = strlen(cmd);
+                                Switch_console_cmd cmd = switch_commands[matched_command_ids.items[0]];
+                                size_t cmd_len = strlen(cmd.name);
                                 memcpy(buff, cmd, cmd_len);
 
                                 active_switch_console->cursor = cmd_len;
                             } else {
-                                const char **switch_commands = NULL;
+                                Switch_console_cmd *switch_commands = NULL;
                                 size_t switch_commands_count = 0;
                                 get_switch_console_commands(active_switch, &switch_commands, &switch_commands_count);
                                 for (int i = 0; i < matched_command_ids.count; ++i) {
-                                    char *cmd = (char *)switch_commands[matched_command_ids.items[i]];
-                                    add_line_to_console_simple(active_switch_console, cmd, YELLOW, false);
+                                    Switch_console_cmd cmd = switch_commands[matched_command_ids.items[i]];
+                                    add_line_to_console_simple(active_switch_console, cmd.name, YELLOW, false);
                                 }
                             }
                         }

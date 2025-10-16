@@ -3,53 +3,84 @@
 #include <common.h>
 
 /// USER EXEC
-const char *switch_user_commands[] = {
-    [SW_CMD_ID_EXIT]       = "exit",
-    [SW_CMD_ID_LOGOUT]     = "logout",
-    [SW_CMD_ID_ENABLE]     = "enable",
-    [SW_CMD_ID_PING]       = "ping",
-    [SW_CMD_ID_CONNECT]    = "connect",
-    [SW_CMD_ID_DISABLE]    = "disable",
-    [SW_CMD_ID_DISCONNECT] = "disconnect",
-    [SW_CMD_ID_RESUME]     = "resume",
-    [SW_CMD_ID_SHOW]       = "show",
-    [SW_CMD_ID_SSH]        = "ssh",
-    [SW_CMD_ID_TELNET]     = "telnet",
-    [SW_CMD_ID_TERMINAL]   = "terminal",
-    [SW_CMD_ID_TRACEROUTE] = "traceroute",
+ Switch_console_cmd switch_user_commands[] = {
+    { .name = "exit",       .desc = "Exit from the EXEC",                               .id = ITEM(EXIT) },
+    { .name = "logout",     .desc = "Exit from the EXEC",                               .id = ITEM(LOGOUT) },
+    { .name = "enable",     .desc = "Turn on priviledged commands",                     .id = ITEM(ENABLE) },
+    { .name = "ping",       .desc = "Send echo messages",                               .id = ITEM(PING) },
+    { .name = "connect",    .desc = "Open a terminal connection",                       .id = ITEM(CONNECT) },
+    { .name = "disable",    .desc = "Turn off priveleged commands",                     .id = ITEM(DISABLE) },
+    { .name = "disconnect", .desc = "Disconnect an existing network connection",        .id = ITEM(DISCONNECT) },
+    { .name = "resume",     .desc = "Resume an existing network connection",            .id = ITEM(RESUME) },
+    { .name = "show",       .desc = "Show running system information",                  .id = ITEM(SHOW) },
+    { .name = "ssh",        .desc = "Open a secure shell client connection",            .id = ITEM(SSH) },
+    { .name = "telnet",     .desc = "Open a telnet connection",                         .id = ITEM(TELNET) },
+    { .name = "terminal",   .desc = "Set terminal line parameters",                    .id = ITEM(TERMINAL) },
+    { .name = "traceroute", .desc = "Trace route to destination",                       .id = ITEM(TRACEROUTE) },
 };
 size_t switch_user_commands_count = ARRAY_LEN(switch_user_commands);
-
-const char *switch_user_command_descriptions[] = {
-    [SW_CMD_ID_EXIT]       = "Exit from the EXEC",
-    [SW_CMD_ID_LOGOUT]     = "Exit from the EXEC",
-    [SW_CMD_ID_ENABLE]     = "Turn on priviledged commands",
-    [SW_CMD_ID_PING]       = "Send echo messages",
-    [SW_CMD_ID_CONNECT]    = "Open a terminal connection",
-    [SW_CMD_ID_DISABLE]    = "Turn off priveleged commands",
-    [SW_CMD_ID_DISCONNECT] = "Disconnect an existing network connection",
-    [SW_CMD_ID_RESUME]     = "Resume an existing network connection",
-    [SW_CMD_ID_SHOW]       = "Show running system information",
-    [SW_CMD_ID_SSH]        = "Open a secure shell client connection",
-    [SW_CMD_ID_TELNET]     = "Open a telnet connection",
-    [SW_CMD_ID_TERMINAL]   = "Set terminal line parameters",
-    [SW_CMD_ID_TRACEROUTE] = "Trace route to destination",
-};
-size_t switch_user_command_descriptions_count = ARRAY_LEN(switch_user_command_descriptions);
 ///--------------------------------------------------
 /// ENABLED | PRIVEGED
 const char *switch_enabled_commands[] = {
-    [SW_CMD_ID_EXIT]    = "exit",
-    [SW_CMD_ID_LOGOUT]  = "logout",
-    [SW_CMD_ID_ENABLE]  = "enable",
-    [SW_CMD_ID_PING]    = "ping",
-    [SW_CMD_ID_CONNECT] = "connect",
-    [SW_CMD_ID_DISABLE] = "disable"
-
+    [ITEM(CLEAR)]     = "clear",
+    [ITEM(CLOCK)]     = "clock",
+    [ITEM(CONFIGURE)] = "configure",
+    [ITEM(CONNECT)]   = "connect",
+    [ITEM(COPY)]      = "copy",
+    [ITEM(DEBUG)]     = "debug",
+    [ITEM(DELETE)]    = "delete",
+    [ITEM(DIR)]       = "dir",
+    [ITEM(DISABLE)]   = "disable",
+    [ITEM(DISCONNECT)]= "disconnect",
+    [ITEM(ENABLE)]    = "enable",
+    [ITEM(ERASE)]     = "erase",
+    [ITEM(EXIT)]      = "exit",
+    [ITEM(LOGOUT)]    = "logout",
+    [ITEM(MORE)]      = "more",
+    [ITEM(NO)]        = "no",
+    [ITEM(PING)]      = "ping",
+    [ITEM(RELOAD)]    = "reload",
+    [ITEM(RESUME)]    = "resume",
+    [ITEM(SETUP)]     = "setup",
+    [ITEM(SHOW)]      = "show",
+    [ITEM(SSH)]       = "ssh",
+    [ITEM(TELNET)]    = "telnet",
+    [ITEM(TERMINAL)]  = "terminal",
+    [ITEM(TRACEROUTE)]= "traceroute",
+    [ITEM(UNDEBUG)]   = "undebug",
+    [ITEM(WRITE)]     = "write",
 };
+
 size_t switch_enabled_commands_count = ARRAY_LEN(switch_enabled_commands);
 
 const char *switch_enabled_command_descriptions[] = {
+    [ITEM(CLEAR)]     = "Reset functions",
+    [ITEM(CLOCK)]     = "Manage the system clock",
+    [ITEM(CONFIGURE)] = "Enter configuration mode",
+    [ITEM(CONNECT)]   = "Open a terminal connection",
+    [ITEM(COPY)]      = "Copy from one file to another",
+    [ITEM(DEBUG)]     = "Debugging functions (see also 'undebug')",
+    [ITEM(DELETE)]    = "Delete a file",
+    [ITEM(DIR)]       = "List files on a filesystem",
+    [ITEM(DISABLE)]   = "Turn off privileged commands",
+    [ITEM(DISCONNECT)]= "Disconnect an existing network connection",
+    [ITEM(ENABLE)]    = "Turn on privileged commands",
+    [ITEM(ERASE)]     = "Erase a filesystem",
+    [ITEM(EXIT)]      = "Exit from the EXEC",
+    [ITEM(LOGOUT)]    = "Exit from the EXEC",
+    [ITEM(MORE)]      = "Display the contents of a file",
+    [ITEM(NO)]        = "Disable debugging informations",
+    [ITEM(PING)]      = "Send echo messages",
+    [ITEM(RELOAD)]    = "Halt and perform a cold restart",
+    [ITEM(RESUME)]    = "Resume an active network connection",
+    [ITEM(SETUP)]     = "Run the SETUP command facility",
+    [ITEM(SHOW)]      = "Show running system information",
+    [ITEM(SSH)]       = "Open a secure shell client connection",
+    [ITEM(TELNET)]    = "Open a telnet connection",
+    [ITEM(TERMINAL)]  = "Set terminal line parameters",
+    [ITEM(TRACEROUTE)]= "Trace route to destination",
+    [ITEM(UNDEBUG)]   = "Disable debugging functions (see also 'debug')",
+    [ITEM(WRITE)]     = "Write running configuration to memory, network, or terminal",
 };
 size_t switch_enabled_command_descriptions_count = ARRAY_LEN(switch_enabled_command_descriptions);
 ///--------------------------------------------------
@@ -272,7 +303,7 @@ void switch_change_mode(Switch *switchh, Switch_console_mode new_mode) {
 }
 
 
-void get_switch_console_commands(Switch *switchh, const char ***commands_out, size_t *commands_count_out) {
+void get_switch_console_commands(Switch *switchh, Switch_console_cmd **commands_out, size_t *commands_count_out) {
 
     switch (switchh->mode) {
         case SW_CNSL_MODE_USER: {
