@@ -282,6 +282,8 @@ int main(void)
 	float camera_speed = 400.f;
     Vector2 mpos_from = { 0 };
 
+    bool currently_moving_entity = false;
+
     bool is_changing = false;
     Changing_type changing_type = CHANGE_IPV4;
 
@@ -766,29 +768,38 @@ exec_command:
                 }
 
                 // Move selected entities
-                if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE) || IsKeyPressed(KEY_Z)) {
-                    for (int i = (int)entities.count - 1; i >= 0; --i) {
-                        Entity* e = &entities.items[i];
-                        if (e->state & (1 << ESTATE_DEAD))
-                            continue;
-                        e->offset = Vector2Subtract(e->pos, m_world);
-                    }
-                }
 
-                if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsKeyDown(KEY_Z)) {
-                    if (hovering_entity) {
-                        hovering_entity->pos = Vector2Add(m_world, hovering_entity->offset);
-                    } else {
-                        for (int i = (int)entities.count - 1; i >= 0; --i) {
-                            Entity* e = &entities.items[i];
-                            if (e->state & (1 << ESTATE_DEAD))
-                                continue;
-                            if (e->state & (1 << ESTATE_SELECTED)) {
-                                e->pos = Vector2Add(m_world, e->offset);
+                // TODO: Fix moving bug (try to move entity(s) and intersect with a non-selected entity)
+                if (currently_moving_entity) {
+                    if (IsMouseButtonReleased(MOUSE_BUTTON_MIDDLE)) {
+                        currently_moving_entity = false;
+                    }
+                } else {
+                    // if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE) || IsKeyPressed(KEY_Z)) {
+                    //     for (int i = (int)entities.count - 1; i >= 0; --i) {
+                    //         Entity* e = &entities.items[i];
+                    //         if (e->state & (1 << ESTATE_DEAD))
+                    //             continue;
+                    //         e->offset = Vector2Subtract(e->pos, m_world);
+                    //     }
+                    // }
+
+                    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsKeyDown(KEY_Z)) {
+                        if (hovering_entity) {
+                            hovering_entity->pos = Vector2Add(m_world, hovering_entity->offset);
+                        } else {
+                            for (int i = (int)entities.count - 1; i >= 0; --i) {
+                                Entity* e = &entities.items[i];
+                                if (e->state & (1 << ESTATE_DEAD))
+                                    continue;
+                                if (e->state & (1 << ESTATE_SELECTED)) {
+                                    e->pos = Vector2Add(m_world, e->offset);
+                                }
                             }
                         }
                     }
                 }
+
 
                 // Connect
                 if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) || IsKeyPressed(KEY_X)) {

@@ -15,16 +15,16 @@
     { .name = "show",       .desc = "Show running system information",                  .id = ITEM(SHOW) },
     { .name = "ssh",        .desc = "Open a secure shell client connection",            .id = ITEM(SSH) },
     { .name = "telnet",     .desc = "Open a telnet connection",                         .id = ITEM(TELNET) },
-    { .name = "terminal",   .desc = "Set terminal line parameters",                    .id = ITEM(TERMINAL) },
+    { .name = "terminal",   .desc = "Set terminal line parameters",                     .id = ITEM(TERMINAL) },
     { .name = "traceroute", .desc = "Trace route to destination",                       .id = ITEM(TRACEROUTE) },
 };
 size_t switch_user_commands_count = ARRAY_LEN(switch_user_commands);
 ///--------------------------------------------------
 /// ENABLED | PRIVEGED
 Switch_console_cmd switch_enabled_commands[] = {
-    { .name = "clear",      .desc = "Reset functions",                                              .id = ITEM(CLEAR) },
-    { .name = "clock",      .desc = "Manage the system clock",                                        .id = ITEM(CLOCK) },
-    { .name = "configure",  .desc = "Enter configuration mode",                                       .id = ITEM(CONFIGURE) },
+    { .name = "clear",      .desc = "Reset functions",                                                 .id = ITEM(CLEAR) },
+    { .name = "clock",      .desc = "Manage the system clock",                                         .id = ITEM(CLOCK) },
+    { .name = "configure",  .desc = "Enter configuration mode",                                        .id = ITEM(CONFIGURE) },
     { .name = "connect",    .desc = "Open a terminal connection",                                      .id = ITEM(CONNECT) },
     { .name = "copy",       .desc = "Copy from one file to another",                                   .id = ITEM(COPY) },
     { .name = "debug",      .desc = "Debugging functions (see also 'undebug')",                        .id = ITEM(DEBUG) },
@@ -38,7 +38,7 @@ Switch_console_cmd switch_enabled_commands[] = {
     { .name = "logout",     .desc = "Exit from the EXEC",                                              .id = ITEM(LOGOUT) },
     { .name = "more",       .desc = "Display the contents of a file",                                  .id = ITEM(MORE) },
     { .name = "no",         .desc = "Disable debugging informations",                                  .id = ITEM(NO) },
-    { .name = "ping",       .desc = "Send echo messages",                                               .id = ITEM(PING) },
+    { .name = "ping",       .desc = "Send echo messages",                                              .id = ITEM(PING) },
     { .name = "reload",     .desc = "Halt and perform a cold restart",                                 .id = ITEM(RELOAD) },
     { .name = "resume",     .desc = "Resume an active network connection",                             .id = ITEM(RESUME) },
     { .name = "setup",      .desc = "Run the SETUP command facility",                                  .id = ITEM(SETUP) },
@@ -145,6 +145,15 @@ const char *switch_console_mode_as_str(const Switch_console_mode m) {
     return "*PIC OF SCP-096*";
 }
 
+const char *switch_console_config_mode_as_str(const Switch_console_config_mode m) {
+    switch (m) {
+        case SW_CNSL_CONF_MODE_TERMINAL: return "terminal";
+        case SW_CNSL_CONF_MODE_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+
+    return "NO";
+}
 void boot_switch(Switch *switchh, float dt) {
     Console *console = &switchh->console;
 
@@ -213,6 +222,13 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
             case SW_CMD_ID_CONNECT: {
                 log_error_a(*console, "%s", "`connect` is UNIMPLEMENTED!");
             } break;
+            case SW_CMD_ID_CONFIGURE: {
+                if (cmd_args.count-1 == 0) {
+                    add_line_to_console_simple(console, "Configuring from terminal, memory, or network [terminal]?", YELLOW, false);
+                } else {
+                    log_error_a(*console, "%s", "`configure` is UNIMPLEMENTED!");
+                }
+            } break;
             case SW_CMD_ID_DISABLE: {
                 switch_change_mode(switchh, SW_CNSL_MODE_USER);
             } break;
@@ -256,6 +272,7 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
 void switch_change_mode(Switch *switchh, Switch_console_mode new_mode) {
     switchh->mode = new_mode;
     switchh->console.prefix = switchh->hostname;
+    switchh->console.prefix2 = "";
     switch (switchh->mode) {
         case SW_CNSL_MODE_USER: {
             switchh->console.prefix_symbol = '>';
@@ -265,14 +282,12 @@ void switch_change_mode(Switch *switchh, Switch_console_mode new_mode) {
         } break;
         case SW_CNSL_MODE_CONFIG: {
             switchh->console.prefix_symbol = '#';
-            // TODO: Have to change prefix
-            // switchh->prefix = 
+            switchh->console.prefix2 = "(config)";
         } break;
         case SW_CNSL_MODE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
 }
-
 
 void get_switch_console_commands(Switch *switchh, Switch_console_cmd **commands_out, size_t *commands_count_out) {
 

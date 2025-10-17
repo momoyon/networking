@@ -115,6 +115,7 @@ enum Switch_model {
 const char *switch_model_as_str(const Switch_model sw_m);
 
 typedef enum Switch_console_mode Switch_console_mode;
+typedef enum Switch_console_config_mode Switch_console_config_mode;
 
 enum Switch_console_mode {
     SW_CNSL_MODE_USER,
@@ -124,6 +125,13 @@ enum Switch_console_mode {
 };
 
 const char *switch_console_mode_as_str(const Switch_console_mode m);
+
+enum Switch_console_config_mode {
+    SW_CNSL_CONF_MODE_TERMINAL,
+    SW_CNSL_CONF_MODE_COUNT,
+};
+
+const char *switch_console_config_mode_as_str(const Switch_console_config_mode m);
 
 typedef struct Switch Switch;
 struct Switch {
@@ -139,6 +147,7 @@ struct Switch {
 
     // Console stuff
     Switch_console_mode mode;
+    Switch_console_config_mode config_mode;
     const char *hostname;
 
     Arena *tmp_arena;

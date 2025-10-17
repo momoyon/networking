@@ -108,6 +108,14 @@ enum Console_flag {
     CONSOLE_FLAG_COUNT,
 };
 
+// NOTE: Not really related to console exclusively
+typedef struct String_array String_array;
+struct String_array {
+    char **items;
+    size_t count;
+    size_t capacity;
+};
+
 struct Console {
 	Console_lines lines;
     Console_lines unprefixed_lines;
@@ -116,16 +124,12 @@ struct Console {
     Font font;
     int hist_lookup_idx; // idx for Ctrl+P and Ctrl+N
     const char *prefix;
+    const char *prefix2;
     char prefix_symbol;
     int flags; // int so can have 32 flags
-};
-
-// NOTE: Not really related to console exclusively
-typedef struct String_array String_array;
-struct String_array {
-    char **items;
-    size_t count;
-    size_t capacity;
+    bool prompting;
+    bool expecting_values;
+    String_array expected_prompt_values;
 };
 
 Console make_console(int flags, Font font);
@@ -499,7 +503,7 @@ void add_line_to_console(Console *console, char *buff, size_t buff_size, Color c
 }
 
 void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color, bool readline_hist) {
-    const char *prefixed = arena_alloc_str(*tmp_arena, "%s%c%s", console->prefix, console->prefix_symbol, buff);
+    const char *prefixed = arena_alloc_str(*tmp_arena, "%s%s%c%s", console->prefix, console->prefix2, console->prefix_symbol, buff);
     size_t prefixed_len = strlen(prefixed);
 
     Console_line ucl = { .count = strlen(buff) };
@@ -612,6 +616,22 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
         if (ignore) continue;
 
         if (IsKeyPressed(KEY_ENTER)) {
+
+            if (console->prompting && console->expecting_values) {
+                bool found = false;
+                for (size_t i = 0; i < console->expected_prompt_values.count; ++i) {
+                    const char *expecting = console->expected_prompt_values.items[i]; 
+                    if (strcmp(line->buff, expecting) == 0) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    log_error_console((*console), "Prompt expects: ");
+                    // TODO: Log all expecting prompt values
+                }
+            }
+
             return true;
         }
 
@@ -761,11 +781,8 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size, 
 
     // @SPEED
     char actual_prefix[1024] = {0};
-
-    size_t prefix_len = console->prefix ? strlen(console->prefix) : 0;
     
-    memcpy(actual_prefix, console->prefix, prefix_len);
-    actual_prefix[prefix_len] = console->prefix_symbol;
+    snprintf(actual_prefix, 1024, "%s%s%c", console->prefix, console->prefix2, console->prefix_symbol);
 
     draw_text(console->font, actual_prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, ColorAlpha(WHITE, alpha));
     float prefix_offset = MeasureTextEx(console->font, actual_prefix, font_size, 2.5f).x + 10.f;
