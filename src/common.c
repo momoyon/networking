@@ -99,3 +99,23 @@ Ids match_command(const char *command, const char **commands, size_t commands_co
 
     return matched_command_ids;
 }
+
+Ids match_switch_console_command(const char *command, Switch_console_cmd *commands, size_t commands_count) {
+    char **command_names = (char **)malloc(sizeof(char *) * commands_count);
+
+    for (size_t i = 0; i < commands_count; ++i) {
+        size_t command_name_len = strlen(commands[i].name);
+        command_names[i] = (char *)malloc(sizeof(char) * command_name_len+1);
+        memcpy(command_names[i], commands[i].name, command_name_len);
+    }
+
+    Ids res = match_command(command, (const char**)command_names, commands_count);
+
+    for (size_t i = 0; i < commands_count; ++i) {
+        free(command_names[i]);
+    }
+
+    free(command_names);
+
+    return res;
+}

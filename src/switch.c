@@ -21,77 +21,41 @@
 size_t switch_user_commands_count = ARRAY_LEN(switch_user_commands);
 ///--------------------------------------------------
 /// ENABLED | PRIVEGED
-const char *switch_enabled_commands[] = {
-    [ITEM(CLEAR)]     = "clear",
-    [ITEM(CLOCK)]     = "clock",
-    [ITEM(CONFIGURE)] = "configure",
-    [ITEM(CONNECT)]   = "connect",
-    [ITEM(COPY)]      = "copy",
-    [ITEM(DEBUG)]     = "debug",
-    [ITEM(DELETE)]    = "delete",
-    [ITEM(DIR)]       = "dir",
-    [ITEM(DISABLE)]   = "disable",
-    [ITEM(DISCONNECT)]= "disconnect",
-    [ITEM(ENABLE)]    = "enable",
-    [ITEM(ERASE)]     = "erase",
-    [ITEM(EXIT)]      = "exit",
-    [ITEM(LOGOUT)]    = "logout",
-    [ITEM(MORE)]      = "more",
-    [ITEM(NO)]        = "no",
-    [ITEM(PING)]      = "ping",
-    [ITEM(RELOAD)]    = "reload",
-    [ITEM(RESUME)]    = "resume",
-    [ITEM(SETUP)]     = "setup",
-    [ITEM(SHOW)]      = "show",
-    [ITEM(SSH)]       = "ssh",
-    [ITEM(TELNET)]    = "telnet",
-    [ITEM(TERMINAL)]  = "terminal",
-    [ITEM(TRACEROUTE)]= "traceroute",
-    [ITEM(UNDEBUG)]   = "undebug",
-    [ITEM(WRITE)]     = "write",
+Switch_console_cmd switch_enabled_commands[] = {
+    { .name = "clear",      .desc = "Reset functions",                                              .id = ITEM(CLEAR) },
+    { .name = "clock",      .desc = "Manage the system clock",                                        .id = ITEM(CLOCK) },
+    { .name = "configure",  .desc = "Enter configuration mode",                                       .id = ITEM(CONFIGURE) },
+    { .name = "connect",    .desc = "Open a terminal connection",                                      .id = ITEM(CONNECT) },
+    { .name = "copy",       .desc = "Copy from one file to another",                                   .id = ITEM(COPY) },
+    { .name = "debug",      .desc = "Debugging functions (see also 'undebug')",                        .id = ITEM(DEBUG) },
+    { .name = "delete",     .desc = "Delete a file",                                                   .id = ITEM(DELETE) },
+    { .name = "dir",        .desc = "List files on a filesystem",                                      .id = ITEM(DIR) },
+    { .name = "disable",    .desc = "Turn off privileged commands",                                    .id = ITEM(DISABLE) },
+    { .name = "disconnect", .desc = "Disconnect an existing network connection",                       .id = ITEM(DISCONNECT) },
+    { .name = "enable",     .desc = "Turn on privileged commands",                                     .id = ITEM(ENABLE) },
+    { .name = "erase",      .desc = "Erase a filesystem",                                              .id = ITEM(ERASE) },
+    { .name = "exit",       .desc = "Exit from the EXEC",                                              .id = ITEM(EXIT) },
+    { .name = "logout",     .desc = "Exit from the EXEC",                                              .id = ITEM(LOGOUT) },
+    { .name = "more",       .desc = "Display the contents of a file",                                  .id = ITEM(MORE) },
+    { .name = "no",         .desc = "Disable debugging informations",                                  .id = ITEM(NO) },
+    { .name = "ping",       .desc = "Send echo messages",                                               .id = ITEM(PING) },
+    { .name = "reload",     .desc = "Halt and perform a cold restart",                                 .id = ITEM(RELOAD) },
+    { .name = "resume",     .desc = "Resume an active network connection",                             .id = ITEM(RESUME) },
+    { .name = "setup",      .desc = "Run the SETUP command facility",                                  .id = ITEM(SETUP) },
+    { .name = "show",       .desc = "Show running system information",                                 .id = ITEM(SHOW) },
+    { .name = "ssh",        .desc = "Open a secure shell client connection",                           .id = ITEM(SSH) },
+    { .name = "telnet",     .desc = "Open a telnet connection",                                        .id = ITEM(TELNET) },
+    { .name = "terminal",   .desc = "Set terminal line parameters",                                    .id = ITEM(TERMINAL) },
+    { .name = "traceroute", .desc = "Trace route to destination",                                      .id = ITEM(TRACEROUTE) },
+    { .name = "undebug",    .desc = "Disable debugging functions (see also 'debug')",                  .id = ITEM(UNDEBUG) },
+    { .name = "write",      .desc = "Write running configuration to memory, network, or terminal",     .id = ITEM(WRITE) },
 };
 
 size_t switch_enabled_commands_count = ARRAY_LEN(switch_enabled_commands);
 
-const char *switch_enabled_command_descriptions[] = {
-    [ITEM(CLEAR)]     = "Reset functions",
-    [ITEM(CLOCK)]     = "Manage the system clock",
-    [ITEM(CONFIGURE)] = "Enter configuration mode",
-    [ITEM(CONNECT)]   = "Open a terminal connection",
-    [ITEM(COPY)]      = "Copy from one file to another",
-    [ITEM(DEBUG)]     = "Debugging functions (see also 'undebug')",
-    [ITEM(DELETE)]    = "Delete a file",
-    [ITEM(DIR)]       = "List files on a filesystem",
-    [ITEM(DISABLE)]   = "Turn off privileged commands",
-    [ITEM(DISCONNECT)]= "Disconnect an existing network connection",
-    [ITEM(ENABLE)]    = "Turn on privileged commands",
-    [ITEM(ERASE)]     = "Erase a filesystem",
-    [ITEM(EXIT)]      = "Exit from the EXEC",
-    [ITEM(LOGOUT)]    = "Exit from the EXEC",
-    [ITEM(MORE)]      = "Display the contents of a file",
-    [ITEM(NO)]        = "Disable debugging informations",
-    [ITEM(PING)]      = "Send echo messages",
-    [ITEM(RELOAD)]    = "Halt and perform a cold restart",
-    [ITEM(RESUME)]    = "Resume an active network connection",
-    [ITEM(SETUP)]     = "Run the SETUP command facility",
-    [ITEM(SHOW)]      = "Show running system information",
-    [ITEM(SSH)]       = "Open a secure shell client connection",
-    [ITEM(TELNET)]    = "Open a telnet connection",
-    [ITEM(TERMINAL)]  = "Set terminal line parameters",
-    [ITEM(TRACEROUTE)]= "Trace route to destination",
-    [ITEM(UNDEBUG)]   = "Disable debugging functions (see also 'debug')",
-    [ITEM(WRITE)]     = "Write running configuration to memory, network, or terminal",
-};
-size_t switch_enabled_command_descriptions_count = ARRAY_LEN(switch_enabled_command_descriptions);
 ///--------------------------------------------------
 /// CONFIG
-const char *switch_config_commands[] = {
-    [SW_CMD_ID_EXIT]    = "Exit from the EXEC",
-    [SW_CMD_ID_LOGOUT]  = "Exit from the EXEC",
-    [SW_CMD_ID_ENABLE]  = "Turn on priviledged commands",
-    [SW_CMD_ID_PING]    = "Send echo messages",
-    [SW_CMD_ID_CONNECT] = "Open a terminal connection",
-    [SW_CMD_ID_DISABLE] = "Turn off priveleged commands",
+Switch_console_cmd switch_config_commands[] = {
 };
 size_t switch_config_commands_count = ARRAY_LEN(switch_config_commands);
 
@@ -218,19 +182,20 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
     const char *cmd = cmd_args.items[0];
 
 
-    const char **switch_commands = NULL;
+    Switch_console_cmd *switch_commands = NULL;
     size_t switch_commands_count = 0;
 
     get_switch_console_commands(switchh, &switch_commands, &switch_commands_count);
 
 
-    Ids matched_command_ids = match_command(cmd, switch_commands, switch_commands_count);
+    Ids matched_command_ids = match_switch_console_command(cmd, switch_commands, switch_commands_count);
 
     if (matched_command_ids.count == 0) {
         char *err_msg = arena_alloc_str(*(switchh->tmp_arena), "%s is not a valid command!", cmd);
         add_line_to_console_simple(console, err_msg, RED, false);
     } else if (matched_command_ids.count == 1) {
-        switch (matched_command_ids.items[0]) {
+        Switch_console_cmd cmd = switch_commands[matched_command_ids.items[0]];
+        switch (cmd.id) {
             case SW_CMD_ID_LOGOUT:
             case SW_CMD_ID_EXIT: {
                 if (switchh->mode == SW_CNSL_MODE_ENABLED) {
@@ -271,6 +236,12 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
             } break;
             case SW_CMD_ID_TRACEROUTE: {
                 log_error_a(*console, "%s", "`traceroute` is UNIMPLEMENTED!");
+            } break;
+            case SW_CMD_ID_UNDEBUG: {
+                log_error_a(*console, "%s", "`undebug` is UNIMPLEMENTED!");
+            } break;
+            case SW_CMD_ID_WRITE: {
+                log_error_a(*console, "%s", "`write` is UNIMPLEMENTED!");
             } break;
             case SW_CMD_ID_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
@@ -378,3 +349,4 @@ Switch_console_args get_args_for_switch_cmd(const char *cmd) {
 
     return res;
 }
+

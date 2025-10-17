@@ -9,6 +9,8 @@
 #include <entity.h>
 #include <ap.h>
 
+typedef Switch_console_cmd Switch_console_cmd;
+
 #define log_info_a(console, fmt, ...) log_info_console((console), fmt, __VA_ARGS__); log_info(fmt, __VA_ARGS__)
 #define log_warning_a(console, fmt, ...) log_warning_console((console), fmt, __VA_ARGS__); log_warning(fmt, __VA_ARGS__)
 #define log_error_a(console, fmt, ...) log_error_console((console), fmt, __VA_ARGS__); log_error(fmt, __VA_ARGS__)
@@ -39,6 +41,8 @@ void emit_wifi(Vector2 pos, Color color, float dead_zone);
 
 bool str_starts_with(const char *str, const char *suffix);
 Ids match_command(const char *command, const char **commands, size_t commands_count);
+Ids match_switch_console_command(const char *command, Switch_console_cmd *commands, size_t commands_count);
+
 bool parse_n_octet_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count, bool for_mask);
 bool parse_n_octet_with_mask_from_data(int n, String_view *sv, uint8 *octets, size_t octets_count, uint8 *mask);
 

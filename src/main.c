@@ -852,7 +852,7 @@ exec_command:
 
                             get_switch_console_commands(active_switch, &switch_commands, &switch_commands_count);
 
-                            Ids matched_command_ids = match_command(buff, switch_commands, switch_commands_count);
+                            Ids matched_command_ids = match_switch_console_command(buff, switch_commands, switch_commands_count);
 
                             if (matched_command_ids.count == 1) {
                                 Switch_console_cmd cmd = switch_commands[matched_command_ids.items[0]];
@@ -867,7 +867,7 @@ exec_command:
                                     }
 
                                 } else {
-                                    char *cmd_with_desc = (char*)arena_alloc_str(temp_arena, "%s    - %s", cmd, switch_user_command_descriptions[matched_command_ids.items[0]]);
+                                    char *cmd_with_desc = (char*)arena_alloc_str(temp_arena, "%s    - %s", cmd.name, cmd.desc);
                                     add_line_to_console_simple(active_switch_console, cmd_with_desc, YELLOW, false);
                                 }
                             } else {
@@ -912,11 +912,11 @@ exec_command:
                             size_t switch_commands_count = 0;
                             get_switch_console_commands(active_switch, &switch_commands, &switch_commands_count);
 
-                            Ids matched_command_ids = match_command(buff, switch_commands, switch_commands_count);
+                            Ids matched_command_ids = match_switch_console_command(buff, switch_commands, switch_commands_count);
                             if (matched_command_ids.count == 1) {
                                 Switch_console_cmd cmd = switch_commands[matched_command_ids.items[0]];
                                 size_t cmd_len = strlen(cmd.name);
-                                memcpy(buff, cmd, cmd_len);
+                                memcpy(buff, cmd.name, cmd_len);
 
                                 active_switch_console->cursor = cmd_len;
                             } else {
@@ -925,7 +925,7 @@ exec_command:
                                 get_switch_console_commands(active_switch, &switch_commands, &switch_commands_count);
                                 for (int i = 0; i < matched_command_ids.count; ++i) {
                                     Switch_console_cmd cmd = switch_commands[matched_command_ids.items[i]];
-                                    add_line_to_console_simple(active_switch_console, cmd.name, YELLOW, false);
+                                    add_line_to_console_simple(active_switch_console, (char *)cmd.name, YELLOW, false);
                                 }
                             }
                         }
