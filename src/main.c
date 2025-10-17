@@ -167,6 +167,8 @@ typedef enum {
     CMD_ID_LS_VARS,
     CMD_ID_GET,
     CMD_ID_TEST_SWITCH_CONSOLE_ARG_TYPE,
+    CMD_ID_SELECT,
+    CMD_ID_DESELECT,
     CMD_ID_COUNT,
 } Command_id;
 
@@ -185,6 +187,8 @@ const char *commands[] = {
     [CMD_ID_LS_VARS]   = "ls_vars",
     [CMD_ID_GET]       = "get",
     [CMD_ID_TEST_SWITCH_CONSOLE_ARG_TYPE] = "test_sw",
+    [CMD_ID_SELECT]    = "select",
+    [CMD_ID_DESELECT]  = "deselect",
 };
 size_t commands_count = ARRAY_LEN(commands);
 
@@ -536,6 +540,60 @@ exec_command:
                                 is_in_command = true;
                                 clear_current_console_line(&command_hist);
                             } break;
+                            case CMD_ID_SELECT: {
+                                if (args.count-1 < 1) {
+                                    log_error_a(command_hist, "%s", "Please provide the entity id to select");
+                                    is_in_command = true;
+                                    break;
+                                }
+                                const char *entity_id_str = args.items[1];
+                                String_view entity_id_sv = SV(entity_id_str);
+                                int entity_id_count = -1;
+                                int entity_id = sv_to_int(entity_id_sv, &entity_id_count, 10);
+                                if (entity_id_count == -1) {
+                                    log_error_a(command_hist, "Please provide an integer as the id: Failed to convert `%s` to int!", entity_id_str);
+                                    is_in_command = true;
+                                    break;
+                                }
+
+                                Entity *e = get_entity_by_id(entity_id);
+
+                                if (e == NULL) {
+                                    log_error_a(command_hist, "Failed to get entity with the id: %d", entity_id);
+                                    is_in_command = true;
+                                    break;
+                                }
+
+                                SET_FLAG(e->state, ESTATE_SELECTED);
+                            } break;
+                            case CMD_ID_DESELECT: {
+                                // TODO: Maybe refactor to func with above code?
+                                if (args.count-1 < 1) {
+                                    log_error_a(command_hist, "%s", "Please provide the entity id to deselect");
+                                    is_in_command = true;
+                                    break;
+                                }
+                                const char *entity_id_str = args.items[1];
+                                String_view entity_id_sv = SV(entity_id_str);
+                                int entity_id_count = -1;
+                                int entity_id = sv_to_int(entity_id_sv, &entity_id_count, 10);
+                                if (entity_id_count == -1) {
+                                    log_error_a(command_hist, "Please provide an integer as the id: Failed to convert `%s` to int!", entity_id_str);
+                                    is_in_command = true;
+                                    break;
+                                }
+
+                                Entity *e = get_entity_by_id(entity_id);
+
+                                if (e == NULL) {
+                                    log_error_a(command_hist, "Failed to get entity with the id: %d", entity_id);
+                                    is_in_command = true;
+                                    break;
+                                }
+
+                                UNSET_FLAG(e->state, ESTATE_SELECTED);
+
+                            } break;
                             case CMD_ID_COUNT:
                             default: ASSERT(false, "UNREACHABLE!");
                         }
@@ -775,15 +833,6 @@ exec_command:
                         currently_moving_entity = false;
                     }
                 } else {
-                    // if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE) || IsKeyPressed(KEY_Z)) {
-                    //     for (int i = (int)entities.count - 1; i >= 0; --i) {
-                    //         Entity* e = &entities.items[i];
-                    //         if (e->state & (1 << ESTATE_DEAD))
-                    //             continue;
-                    //         e->offset = Vector2Subtract(e->pos, m_world);
-                    //     }
-                    // }
-
                     if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsKeyDown(KEY_Z)) {
                         if (hovering_entity) {
                             hovering_entity->pos = Vector2Add(m_world, hovering_entity->offset);
@@ -799,7 +848,6 @@ exec_command:
                         }
                     }
                 }
-
 
                 // Connect
                 if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) || IsKeyPressed(KEY_X)) {

@@ -23,6 +23,14 @@ typedef struct {
     size_t capacity;
 } Ids; // @darr
 
+
+
+extern size_t entities_count; // NOTE: We need to maintain this cuz we use instance pooling
+extern Entities entities;
+extern Entity_indices free_entity_indices;
+// NOTE: How we add new entities:
+//		- If `free_entity_indices` empty: arr_append(entities)
+//		- If `free_entity_indices` not empty: pop last index from free_entity_indices and insert new entity there.
 extern RenderTexture2D ren_tex;
 extern Arena entity_arena;
 extern Arena temp_arena;
@@ -38,6 +46,8 @@ void crash(void);
 Texture2D load_texture_checked(const char *filepath);
 void add_entity(Entity e);
 void emit_wifi(Vector2 pos, Color color, float dead_zone);
+
+Entity *get_entity_by_id(size_t id);
 
 bool str_starts_with(const char *str, const char *suffix);
 Ids match_command(const char *command, const char **commands, size_t commands_count);

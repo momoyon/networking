@@ -782,7 +782,7 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size, 
     // @SPEED
     char actual_prefix[1024] = {0};
     
-    snprintf(actual_prefix, 1024, "%s%s%c", console->prefix, console->prefix2, console->prefix_symbol);
+    snprintf(actual_prefix, 1024, "%s%s%c", console->prefix ? console->prefix : "", console->prefix2 ? console->prefix2 : "", console->prefix_symbol);
 
     draw_text(console->font, actual_prefix, v2(rect.x + 4.f, rect.y + rect.height), font_size, ColorAlpha(WHITE, alpha));
     float prefix_offset = MeasureTextEx(console->font, actual_prefix, font_size, 2.5f).x + 10.f;

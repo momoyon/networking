@@ -63,6 +63,17 @@ void emit_wifi(Vector2 pos, Color color, float dead_zone) {
     darr_append(wifi_waves, ww);
 }
 
+Entity *get_entity_by_id(size_t id) {
+    for (size_t i = 0; entities_count; ++i) {
+        Entity *e = &entities.items[i];
+        if (GET_FLAG(e->state, ESTATE_DEAD)) continue;
+
+        if (e->id == id) return e;
+    }
+
+    return NULL;
+}
+
 bool str_starts_with(const char *str, const char *suffix) {
     if (str == NULL) return false;
     while (*str != 0 && *suffix != 0) {

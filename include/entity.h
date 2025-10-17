@@ -54,14 +54,6 @@ typedef struct {
 	size_t capacity;
 } Entity_indices; // NOTE: are the indices in the entities static array @Darr
 
-extern size_t entities_count; // NOTE: We need to maintain this cuz we use instance pooling
-extern Entities entities;
-extern Entity_indices free_entity_indices;
-
-// NOTE: How we add new entities:
-//		- If `free_entity_indices` empty: arr_append(entities)
-//		- If `free_entity_indices` not empty: pop last index from free_entity_indices and insert new entity there.
-
 struct Entity {
     Vector2 offset; // We use this to move with offset
     Vector2 pos;
