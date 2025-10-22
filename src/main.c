@@ -26,6 +26,25 @@
         ((byte) & 0x08 ? '1' : '0'), ((byte) & 0x04 ? '1' : '0'), \
         ((byte) & 0x02 ? '1' : '0'), ((byte) & 0x01 ? '1' : '0')
 
+
+// Console prompt callbacks
+void select_all_or_no(Console *console, void *userdata) {
+    bool *is_in_command = NULL;
+    if (userdata != NULL) is_in_command = (bool *)userdata;
+    if (console->selected_prompt_value_id == 0) {
+        for (int i = (int)entities.count - 1; i >= 0; --i) {
+            Entity* e = &entities.items[i];
+            if (e->state & (1 << ESTATE_DEAD))
+                continue;
+
+            SET_FLAG(e->state, ESTATE_SELECTED);
+        }
+    } else {
+    }
+    if (is_in_command)
+        *is_in_command = false;
+}
+
 typedef enum {
     MODE_NORMAL,
     MODE_COPY,
@@ -542,29 +561,36 @@ exec_command:
                             } break;
                             case CMD_ID_SELECT: {
                                 if (args.count-1 < 1) {
-                                    log_error_a(command_hist, "%s", "Please provide the entity id to select");
+                                    String_array expect = {0};
+                                    darr_append(expect, "yes"); // 0
+                                    darr_append(expect, "no"); // 1
+                                    console_prompt(&command_hist, "Select all entities[yes/no]?", &expect);
+                                    command_hist.prompt_userdata = (void *)&is_in_command;
+                                    command_hist.prompt_done_func = select_all_or_no;
                                     is_in_command = true;
-                                    break;
-                                }
-                                const char *entity_id_str = args.items[1];
-                                String_view entity_id_sv = SV(entity_id_str);
-                                int entity_id_count = -1;
-                                int entity_id = sv_to_int(entity_id_sv, &entity_id_count, 10);
-                                if (entity_id_count == -1) {
-                                    log_error_a(command_hist, "Please provide an integer as the id: Failed to convert `%s` to int!", entity_id_str);
-                                    is_in_command = true;
-                                    break;
-                                }
+                                    clear_current_console_line(&command_hist);
 
-                                Entity *e = get_entity_by_id(entity_id);
+                                } else {
+                                    const char *entity_id_str = args.items[1];
+                                    String_view entity_id_sv = SV(entity_id_str);
+                                    int entity_id_count = -1;
+                                    int entity_id = sv_to_int(entity_id_sv, &entity_id_count, 10);
+                                    if (entity_id_count == -1) {
+                                        log_error_a(command_hist, "Please provide an integer as the id: Failed to convert `%s` to int!", entity_id_str);
+                                        is_in_command = true;
+                                        break;
+                                    }
 
-                                if (e == NULL) {
-                                    log_error_a(command_hist, "Failed to get entity with the id: %d", entity_id);
-                                    is_in_command = true;
-                                    break;
+                                    Entity *e = get_entity_by_id(entity_id);
+
+                                    if (e == NULL) {
+                                        log_error_a(command_hist, "Failed to get entity with the id: %d", entity_id);
+                                        is_in_command = true;
+                                        break;
+                                    }
+
+                                    SET_FLAG(e->state, ESTATE_SELECTED);
                                 }
-
-                                SET_FLAG(e->state, ESTATE_SELECTED);
                             } break;
                             case CMD_ID_DESELECT: {
                                 // TODO: Maybe refactor to func with above code?

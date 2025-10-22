@@ -129,7 +129,11 @@ struct Console {
     int flags; // int so can have 32 flags
     bool prompting;
     bool expecting_values;
+    void (*prompt_done_func)(Console *, void *);
+    void *prompt_userdata;
     String_array expected_prompt_values;
+    size_t selected_prompt_value_id;
+    size_t prompt_line_id;
 };
 
 Console make_console(int flags, Font font);
@@ -146,6 +150,7 @@ String_array get_current_console_args(Console *console);
 bool input_to_console(Console *console, char *ignore_characters, size_t ignore_characters_count);
 float get_cursor_offset(Console *console, int font_size);
 void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size, Color fill_color, Color border_color, float alpha);
+void console_prompt(Console *console, const char *prompt, String_array *expected_prompt_values);
 
 #define log_info_console(console, fmt, ...) do {\
         Console_line l = {\
@@ -616,20 +621,34 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
         if (ignore) continue;
 
         if (IsKeyPressed(KEY_ENTER)) {
-
             if (console->prompting && console->expecting_values) {
                 bool found = false;
                 for (size_t i = 0; i < console->expected_prompt_values.count; ++i) {
                     const char *expecting = console->expected_prompt_values.items[i]; 
                     if (strcmp(line->buff, expecting) == 0) {
+                        console->selected_prompt_value_id = i;
                         found = true;
                         break;
                     }
                 }
                 if (!found) {
                     log_error_console((*console), "Prompt expects: ");
-                    // TODO: Log all expecting prompt values
+                    for (int i = 0; i < console->expected_prompt_values.count; ++i) {
+                        log_error_console((*console), "    - %s", console->expected_prompt_values.items[i]);
+                    }
                 }
+
+                console->prompting = false;
+                if (console->prompt_done_func)
+                    console->prompt_done_func(console, console->prompt_userdata);
+
+                console->prompt_done_func = NULL;
+                console->prompt_userdata = NULL;
+                clear_current_console_line(console);
+
+                darr_delete(console->lines, Console_line, console->prompt_line_id);
+
+                return false;
             }
 
             return true;
@@ -797,6 +816,19 @@ void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size, 
     // DrawRectangleRec(cursor_rec, WHITE);
 
     // log_debug("console->cursor: %d", console->cursor);
+}
+
+void console_prompt(Console *console, const char *prompt, String_array *expected_prompt_values) {
+    console->prompting = true;
+    add_line_to_console_simple(console, (char *)prompt, GOLD, false);
+    console->prompt_line_id = console->lines.count-1;
+    console->expecting_values = expected_prompt_values != NULL;
+    if (expected_prompt_values != NULL) {
+        console->expected_prompt_values.count = 0;
+        for (int i = 0; i < expected_prompt_values->count; ++i) {
+            darr_append(console->expected_prompt_values, expected_prompt_values->items[i]);
+        }
+    }
 }
 
 // Timer and Alarm
