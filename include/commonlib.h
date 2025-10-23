@@ -688,7 +688,7 @@ void* c_arena_alloc(c_Arena* a, size_t size) {
 
             size_t diff = free_block.size - size;
 
-            darr_delete(a->free_blocks, c_Mem_block, i);
+            c_darr_delete(a->free_blocks, c_Mem_block, i);
 
             if (diff > 0) {
                 c_Mem_block residue_block = {
@@ -696,7 +696,7 @@ void* c_arena_alloc(c_Arena* a, size_t size) {
                     .size = diff,
                 };
 
-                darr_append(a->free_blocks, residue_block);
+                c_darr_append(a->free_blocks, residue_block);
             }
 
             free_block_found = true;

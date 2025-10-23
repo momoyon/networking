@@ -14,6 +14,10 @@
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
 
+#include "icon.c"
+
+#define VERSION "v0.0.10a"
+
 #define FACTOR 105
 #define SCREEN_WIDTH (16 * FACTOR)
 #define SCREEN_HEIGHT (9 * FACTOR)
@@ -275,7 +279,6 @@ int main(void)
     int width = 0;
     int height = 0;
 
-
 #if defined(DEBUG)
     bool debug_draw = true;
 #else
@@ -286,6 +289,11 @@ int main(void)
     ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, window_name,
         &width, &height);
     SetExitKey(0);
+
+    Image icon = LoadImageFromMemory(".png", icon_bytes, icon_size);
+
+// RLAPI Image LoadImageFromMemory(const char *fileType, const unsigned char *fileData, int dataSize);      // Load image from memory buffer, fileType refers to extension: i.e. '.png'
+    SetWindowIcon(icon);
 
     // Font font = GetFontDefault();
     //
@@ -367,7 +375,7 @@ int main(void)
 
     while (!quit && !WindowShouldClose()) {
         arena_reset(&temp_arena);
-        const char* title_str = arena_alloc_str(temp_arena, "%s | %d FPS", window_name, GetFPS());
+        const char* title_str = arena_alloc_str(temp_arena, "%s %s | %d FPS", window_name, VERSION, GetFPS());
 
         SetWindowTitle(title_str);
 
@@ -1196,11 +1204,10 @@ exec_command:
         EndMode2D();
 
         int y = (ENTITY_DEFAULT_RADIUS * 0.5) * 2 + (2 * 2);
+        draw_text_aligned(GetFontDefault(), mode_as_str(current_mode), v2(2, 2),
+            ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_TOP,
+            TEXT_ALIGN_H_LEFT, GOLD);
         if (debug_draw) {
-            draw_text_aligned(GetFontDefault(), mode_as_str(current_mode), v2(2, 2),
-                ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_TOP,
-                TEXT_ALIGN_H_LEFT, GOLD);
-
             const char* hovering_entity_str = arena_alloc_str(temp_arena, "Hovering: %p", hovering_entity);
             const char* connecting_from_str = arena_alloc_str(temp_arena, "From: %p", connecting_from);
             const char* connecting_to_str = arena_alloc_str(temp_arena, "To: %p", connecting_to);

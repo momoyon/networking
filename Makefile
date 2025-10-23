@@ -18,6 +18,9 @@ generate_mac_addr_list: generate_mac_addr_list.c
 test_ipv4: test_ipv4.c
 	$(CC) $(CFLAGS) -ggdb -DDEBUG -I./include -o $@ $< src/nic.c
 
+embeded: tools\embed.c
+	$(CC) $(CFLAGS) -ggdb -I./include -o $@ $<
+
 all: networking debug test_ipv4
 
 clean:
