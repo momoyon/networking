@@ -888,6 +888,14 @@ exec_command:
                         currently_moving_entity = false;
                     }
                 } else {
+                    if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE) || IsKeyPressed(KEY_Z)) {
+                        for (int i = (int)entities.count - 1; i >= 0; --i) {
+                            Entity* e = &entities.items[i];
+                            if (GET_FLAG(e->state, ESTATE_DEAD)) continue;
+
+                            e->offset = Vector2Subtract(e->pos, m_world);
+                        }
+                    }
                     if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsKeyDown(KEY_Z)) {
                         if (hovering_entity) {
                             hovering_entity->pos = Vector2Add(m_world, hovering_entity->offset);
@@ -1065,6 +1073,9 @@ exec_command:
                                 hovering_entity->ap->on = !hovering_entity->ap->on;
                             }
                         } break;
+                        case EK_PC: {
+
+                        } break;
                         case EK_COUNT:
                         default: ASSERT(false, "UNREACHABLE!");
                     }
@@ -1179,7 +1190,7 @@ exec_command:
         // Draw Entities
         for (int i = (int)entities.count - 1; i >= 0; --i) {
             Entity* e = &entities.items[i];
-            if (e->state & (1 << ESTATE_DEAD))
+            if (GET_FLAG(e->state, ESTATE_DEAD))
                 continue;
             draw_entity(e, debug_draw);
         }
@@ -1278,6 +1289,12 @@ exec_command:
                     ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
             }
+
+            const char* currently_moving_entity_str = arena_alloc_str( temp_arena, "Currently moving entity: %s", currently_moving_entity ? "true" : "false");
+            draw_text(GetFontDefault(), currently_moving_entity_str, v2(2, y),
+                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+
 
             const char* e_arena_count_str = arena_alloc_str(
                 temp_arena, "entity_arena.count: %zu",
@@ -1421,6 +1438,9 @@ exec_command:
                             y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
                         }
 
+                    } break;
+                    case EK_PC: {
+                        
                     } break;
                     case EK_COUNT:
                     default: ASSERT(false, "UNREACHABLE!");

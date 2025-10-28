@@ -6,6 +6,7 @@
 
 #include <switch.h>
 #include <ap.h>
+#include <pc.h>
 
 #include <misc.h>
 
@@ -19,6 +20,7 @@ char *entity_texture_path_map[EK_COUNT] = {
     [EK_NIC] = "resources/gfx/nic.png",
     [EK_SWITCH] = "resources/gfx/switch.png",
     [EK_ACCESS_POINT] = "resources/gfx/ap.png",
+    [EK_PC] = "resources/gfx/pc.png",
 };
 
 static size_t get_unique_id(void) {
@@ -37,8 +39,25 @@ const char *entity_kind_as_str(const Entity_kind k) {
         case EK_NIC: return "NIC";
         case EK_SWITCH: return "Switch";
         case EK_ACCESS_POINT: return "Access Point";
+        case EK_PC: return "PC";
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
+    }
+}
+
+static void draw_nic_connections(Entity *e, Nic *nic) {
+    if (nic->connected_entity) {
+        if (nic->connected_entity->kind == EK_NIC) {
+            if (nic->drawing_connection) {
+                DrawLineBezier(e->pos, nic->connected_entity->pos, 1, WHITE);
+            }
+        } else if (nic->connected_entity->kind == EK_SWITCH) {
+            DrawLineBezier(e->pos, nic->connected_entity->pos, 1, WHITE);
+        } else if (nic->connected_entity->kind == EK_PC) {
+            DrawLineBezier(e->pos, nic->connected_entity->pos, 1, WHITE);
+        } else {
+            ASSERT(false, "THIS SHOULDN'T HAPPEN!");
+        }
     }
 }
 
@@ -47,71 +66,62 @@ static void draw_info_text(Vector2 *p, const char *text, int font_size, Color co
     p->y += font_size + 2;
 }
 
+static void draw_nic_info_text(Vector2 *p, Entity *e, Nic *nic) {
+    Ipv4_class ipv4_class = determine_ipv4_class(nic->ipv4_address);
+    const char *ipv4_class_info = ipv4_class_additional_info(ipv4_class);
+    draw_info_text(p, arena_alloc_str(*e->temp_arena,
+                "ipv4: %d.%d.%d.%d (%s | %s) [%s]",
+                nic->ipv4_address[0],
+                nic->ipv4_address[1],
+                nic->ipv4_address[2],
+                nic->ipv4_address[3],
+                ipv4_class_as_str(ipv4_class),
+                ipv4_class_info,
+                ipv4_type_as_str(determine_ipv4_type(nic->ipv4_address))),
+            ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+    draw_info_text(p, arena_alloc_str(*e->temp_arena,
+                "subnet mask: %d.%d.%d.%d",
+                nic->subnet_mask[0],
+                nic->subnet_mask[1],
+                nic->subnet_mask[2],
+                nic->subnet_mask[3]),
+            ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+    draw_info_text(p, arena_alloc_str(*e->temp_arena,
+                "mac: %02X:%02X:%02X:%02X:%02X:%02X",
+                nic->mac_address[0],
+                nic->mac_address[1],
+                nic->mac_address[2],
+                nic->mac_address[3],
+                nic->mac_address[4],
+                nic->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+}
+
 void draw_entity(Entity *e, bool debug) {
     switch (e->kind) {
         case EK_NIC: {
             ASSERT(e->nic, "We failed to allocate nic!");
             // DrawCircle(e->pos.x, e->pos.y, e->radius, BLUE);
 
-	    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
+            if (GET_FLAG(e->state, ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
-
-                Ipv4_class ipv4_class = determine_ipv4_class(e->nic->ipv4_address);
-                const char *ipv4_class_info = ipv4_class_additional_info(ipv4_class);
-                draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                            "ipv4: %d.%d.%d.%d (%s | %s) [%s]",
-                            e->nic->ipv4_address[0],
-                            e->nic->ipv4_address[1],
-                            e->nic->ipv4_address[2],
-                            e->nic->ipv4_address[3],
-                            ipv4_class_as_str(ipv4_class),
-                            ipv4_class_info,
-                            ipv4_type_as_str(determine_ipv4_type(e->nic->ipv4_address))),
-                        ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-                draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                            "subnet mask: %d.%d.%d.%d",
-                            e->nic->subnet_mask[0],
-                            e->nic->subnet_mask[1],
-                            e->nic->subnet_mask[2],
-                            e->nic->subnet_mask[3]),
-                        ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-                draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                            "mac: %02X:%02X:%02X:%02X:%02X:%02X",
-                            e->nic->mac_address[0],
-                            e->nic->mac_address[1],
-                            e->nic->mac_address[2],
-                            e->nic->mac_address[3],
-                            e->nic->mac_address[4],
-                            e->nic->mac_address[5]), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                draw_nic_info_text(&p, e, e->nic);
                 Entity *switch_ptr = NULL;
                 if (e->nic->connected_entity && e->nic->connected_entity->kind == EK_SWITCH) {
                     switch_ptr = e->nic->connected_entity;
                 }
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena,
-                            "switch: %p",
-                            switch_ptr),
-                        ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-
+                        "switch: %p",
+                        switch_ptr),
+                    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
             }
 
-            // Draw connections
-            if (e->nic->connected_entity) {
-                if (e->nic->connected_entity->kind == EK_NIC) {
-                    if (e->nic->drawing_connection) {
-                        DrawLineBezier(e->pos, e->nic->connected_entity->pos, 1, WHITE);
-                    }
-                } else if (e->nic->connected_entity->kind == EK_SWITCH) {
-                    DrawLineBezier(e->pos, e->nic->connected_entity->pos, 1, WHITE);
-                } else {
-                    ASSERT(false, "THIS SHOULDN'T HAPPEN!");
-                }
-            }
+            draw_nic_connections(e, e->nic);
         } break;
         case EK_SWITCH: {
             ASSERT(e->switchh, "We failed to allocate switch!");
-	    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
+            if (GET_FLAG(e->state, ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
                 ASSERT(e->temp_arena, "BRUH");
@@ -121,8 +131,8 @@ void draw_entity(Entity *e, bool debug) {
                     for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
                         Entity *conn = e->switchh->fe[i][j].conn;
                         if (!conn) continue;
-                        if (conn->kind == EK_NIC) {
-                            Nic *nic = conn->nic;
+                        if (conn->kind == EK_NIC || conn->kind == EK_PC) {
+                            Nic *nic = conn->kind == EK_NIC ? conn->nic : conn->pc->nic;
                             draw_info_text(&p, arena_alloc_str(*e->temp_arena,
                                         "eth%zu/%zu: %d.%d.%d.%d | %d.%d.%d.%d", i, j,
                                         nic->ipv4_address[0],
@@ -166,6 +176,17 @@ void draw_entity(Entity *e, bool debug) {
                 } else {
                     ASSERT(false, "THIS SHOULDN'T HAPPEN!");
                 }
+            }
+        } break;
+        case EK_PC: {
+            draw_nic_connections(e, e->pc->nic);
+            if (GET_FLAG(e->state, ESTATE_SELECTED)) {
+                Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
+                DrawLineV(e->pos, p, WHITE);
+                ASSERT(e->temp_arena, "BRUH");
+                draw_info_text(&p, arena_alloc_str(*e->temp_arena, "HOSTNAME: %s", e->pc->hostname), ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+
+                draw_nic_info_text(&p, e, e->pc->nic);
             }
         } break;
         case EK_COUNT:
@@ -222,6 +243,9 @@ void update_entity(Entity *e) {
         case EK_ACCESS_POINT: {
             update_ap(e);
         } break;
+        case EK_PC: {
+            // update_ap(e);
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -255,6 +279,10 @@ static bool copy_ipv4(Entity *e) {
         case EK_ACCESS_POINT: {
             ipv4_str = arena_alloc_str(*e->temp_arena, IPV4_FMT, IPV4_ARG(e->ap->mgmt_ipv4));
         } break;
+        case EK_PC: {
+            ASSERT(e && e->pc && e->pc->nic, "These must be allocated");
+            ipv4_str = arena_alloc_str(*e->temp_arena, IPV4_FMT, IPV4_ARG(e->pc->nic->ipv4_address));
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -277,6 +305,10 @@ static bool copy_subnet_mask(Entity *e) {
         case EK_ACCESS_POINT: {
             submask_str = arena_alloc_str(*e->temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask));
         } break;
+        case EK_PC: {
+            ASSERT(e && e->pc && e->pc->nic, "These must be allocated");
+            submask_str = arena_alloc_str(*e->temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->pc->nic->subnet_mask));
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -298,6 +330,10 @@ static bool copy_mac_address(Entity *e) {
         } break;
         case EK_ACCESS_POINT: {
             ASSERT(false, "EK_ACCESS_POINT copy_mac_address is UNIMPLEMENTED!");
+        } break;
+        case EK_PC: {
+            ASSERT(e && e->pc && e->pc->nic, "These must be allocated");
+            mac_str = arena_alloc_str(*e->temp_arena, MAC_FMT, MAC_ARG(e->pc->nic->mac_address));
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -393,6 +429,9 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
         case EK_ACCESS_POINT: {
             ASSERT(false, "EK_ACCESS_POINT connect_nic_to is UNIMPLEMENTED!");
         } break;
+        case EK_PC: {
+            ASSERT(false, "EK_PC connect_nic_to is UNIMPLEMENTED!");
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -445,6 +484,9 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
             log_warning("Cannot connect two APs directly bro");
             return false;
         } break;
+        case EK_PC: {
+            ASSERT(false, "EK_PC connect_ap_to is UNIMPLEMENTED!");
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -453,7 +495,7 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
 
 static bool connect_switch_to(Entity *switchh, Entity *other) {
     if (switchh->kind != EK_SWITCH) {
-        log_warning("That isn't a NIC brochacho _/\\_");
+        log_warning("That isn't a Switch brochacho _/\\_");
         return false;
     }
 
@@ -468,11 +510,92 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
         case EK_ACCESS_POINT: {
             return connect_ap_to(other, switchh);
         } break;
+        case EK_PC: {
+            ASSERT(other->pc, "bo");
+
+            Nic *nic = other->pc->nic;
+
+            if (nic->connected_entity != NULL && nic->connected_entity->kind == EK_SWITCH && nic->connected_entity != other) {
+                log_error_to_console("Please disconnect the PC from any other switch!");
+                return false;
+            }
+
+            bool found = false;
+
+            for (size_t i = 0; i < ARRAY_LEN(switchh->switchh->fe); ++i) {
+                for (size_t j = 0; j < ARRAY_LEN(switchh->switchh->fe[i]); ++j) {
+                    Entity *conn = switchh->switchh->fe[i][j].conn;
+                    if (conn && conn->nic == nic) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (!found) { 
+                if (!connect_to_next_free_port(other, switchh)) {
+                    log_error_to_console("No free port available!");
+                    return false;
+                }
+            } else {
+                log_debug("RAH");
+            }
+
+            nic->connected_entity = switchh;
+            return true;
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
     return false;
 }
+
+static bool connect_pc_to(Entity *pc, Entity *other) {
+    if (pc->kind != EK_PC) {
+        log_warning("That isn't a PC brochacho _/\\_");
+        return false;
+    }
+
+    switch (other->kind) {
+        case EK_NIC: {
+            Entity *a = pc;
+            Entity *b = other;
+
+            if (b->nic->connected_entity != NULL && b->nic->connected_entity != a) {
+                log_error_to_console("The other NIC is already connected to something!");
+                return false;
+            }
+
+            a->pc->nic->connected_entity = b;
+            b->nic->connected_entity = a;
+            a->pc->nic->drawing_connection = true;
+            return true;
+        } break;
+        case EK_SWITCH: {
+            return connect_switch_to(other, pc);
+        } break;
+        case EK_ACCESS_POINT: {
+            ASSERT(false, "EK_ACCESS_POINT connect_pc_to is UNIMPLEMENTED!");
+        } break;
+        case EK_PC: {
+            Nic *a = pc->nic;
+            Nic *b = other->nic;
+
+            if (b->connected_entity != NULL && b->connected_entity != pc) {
+                log_error_to_console("The other PC is already connected to something!");
+                return false;
+            }
+
+            a->connected_entity = other;
+            b->connected_entity = pc;
+            a->drawing_connection = true;
+            return true;
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+    return false;
+}
+
 
 bool connect_entity(Entities *entities, Entity *a, Entity *b) {
     ASSERT(entities, "Bro pass an array of entities!");
@@ -491,6 +614,10 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b) {
         } break;
         case EK_ACCESS_POINT: {
             connected = connect_ap_to(a, b);
+            return false;
+        } break;
+        case EK_PC: {
+            connected = connect_pc_to(a, b);
             return false;
         } break;
         case EK_COUNT:
@@ -528,6 +655,12 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_a
             e->ap = (Access_point *)arena_alloc(arena, sizeof(Access_point));
             make_ap(e, e->ap, arena);
             e->tex = load_texture_checked(entity_texture_path_map[EK_ACCESS_POINT]);
+        } break;
+        case EK_PC: {
+            e->pc = (Pc *)arena_alloc(arena, sizeof(Pc));
+            // TODO: Dynamically generate pc name (incrementing id)
+            make_pc(e->pc, "PC", arena);
+            e->tex = load_texture_checked(entity_texture_path_map[EK_PC]);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -626,6 +759,12 @@ void make_ap(Entity *e, Access_point *ap_out, Arena *arena) {
     } while (is_mac_address_assigned(e->entities, ap_out->mac_address));
 }
 
+void make_pc(Pc *pc_out, const char *hostname, Arena *arena) {
+    pc_out->hostname = hostname;
+    pc_out->nic = (Nic *)arena_alloc(arena, sizeof(Nic));
+    memset(pc_out->nic, 0, sizeof(Nic));
+}
+
 // Disconnect-ers
 void disconnect_entity(Entity *e) {
     switch (e->kind) {
@@ -637,6 +776,9 @@ void disconnect_entity(Entity *e) {
         } break;
         case EK_ACCESS_POINT: {
             disconnect_ap(e);
+        } break;
+        case EK_PC: {
+            disconnect_pc(e);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -662,6 +804,9 @@ void set_connected_entity(Entity *e, Entity *to) {
         case EK_ACCESS_POINT: {
             e->ap->connected_entity = to;
         } break;
+        case EK_PC: {
+            e->pc->nic->connected_entity = to;
+        } break;
         case EK_COUNT: 
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -672,6 +817,7 @@ Entity *get_connected_entity(Entity *e) {
         case EK_NIC: return e->nic->connected_entity;
         case EK_SWITCH: return NULL;
         case EK_ACCESS_POINT: return e->ap->connected_entity;
+        case EK_PC: return e->pc->nic->connected_entity;
         case EK_COUNT: 
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -715,6 +861,12 @@ void disconnect_nic(Entity *e) {
     log_debug("Disconnected NIC with ID: %zu", e->id);
 }
 
+void disconnect_pc(Entity *e) {
+    ASSERT(e->kind == EK_PC, "BRO");
+    disconnect_connected_entity(e);
+    log_debug("Disconnected PC with ID: %zu", e->id);
+}
+
 void disconnect_switch(Entity *e) {
     ASSERT(e->kind == EK_SWITCH, "BRO");
     for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
@@ -744,6 +896,9 @@ void free_entity(Entity *e) {
             free_switch(e);
         } break;
         case EK_ACCESS_POINT: {
+            // @Pass
+        } break;
+        case EK_PC: {
             // @Pass
         } break;
         case EK_COUNT:
@@ -875,6 +1030,9 @@ bool recieve(Entity *dst, Entity *src, Ethernet_frame frame) {
         case EK_ACCESS_POINT: {
             ASSERT(false, "EK_ACCESS_POINT recieve is UNIMPLEMENTED!");
         } break;
+        case EK_PC: {
+            ASSERT(false, "EK_PC recieve is UNIMPLEMENTED!");
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -902,7 +1060,8 @@ bool is_entities_saved(Entities *entities) {
 const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
     switch (e->kind) {
         case EK_NIC: {
-            return arena_alloc_str(*temp_arena, IPV4_FMT" "SUBNET_MASK_FMT" %d.%d.%d.%d.%d.%d %d", 
+            return arena_alloc_str(*temp_arena, 
+                    IPV4_FMT" "SUBNET_MASK_FMT" %d.%d.%d.%d.%d.%d %d", 
                     IPV4_ARG(e->nic->ipv4_address),
                     SUBNET_MASK_ARG(e->nic->subnet_mask),
                     e->nic->mac_address[0],
@@ -939,6 +1098,21 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
                     SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask),
                     MAC_ARG(e->ap->mac_address),
                     e->ap->on ? 1 : 0);
+        } break;
+        case EK_PC: {
+            return arena_alloc_str(*temp_arena, 
+                    "%s "IPV4_FMT" "SUBNET_MASK_FMT" %d.%d.%d.%d.%d.%d %d", 
+
+                    e->pc->hostname,
+                    IPV4_ARG(e->pc->nic->ipv4_address),
+                    SUBNET_MASK_ARG(e->pc->nic->subnet_mask),
+                    e->pc->nic->mac_address[0],
+                    e->pc->nic->mac_address[1],
+                    e->pc->nic->mac_address[2],
+                    e->pc->nic->mac_address[3],
+                    e->pc->nic->mac_address[4],
+                    e->pc->nic->mac_address[5],
+                    e->pc->nic && e->pc->nic->connected_entity && e->pc->nic->connected_entity->kind == EK_NIC ? (int)e->pc->nic->connected_entity->id : -1);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -1158,6 +1332,32 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
             memcpy(e->ap->mac_address, mac_address, sizeof(uint8)*6);
             memcpy(e->ap->mgmt_ipv4, ipv4, sizeof(uint8)*4);
             memcpy(e->ap->mgmt_subnet_mask, subnet_mask, sizeof(uint8)*4);
+
+            return true;
+        } break;
+        case EK_PC: {
+            uint8 ipv4[4] = {0};
+            uint8 subnet_mask[4] = {0};
+            uint8 mac_address[6] = {0};
+
+            String_view hostname_sv = sv_lpop_until_char(sv, ' ');
+            sv_lremove(sv, 1);
+
+            if (!parse_four_octet_from_data(sv, ipv4)) {
+                return false;
+            }
+            if (!parse_four_octet_from_data(sv, subnet_mask)) {
+                return false;
+            }
+            if (!parse_n_octet_from_data(6, sv, mac_address, 6, false)) {
+                return false;
+            }
+            sv_ltrim(sv);
+
+            e->pc->hostname = arena_alloc_str(*e->str_arena, SV_FMT, SV_ARG(hostname_sv));
+            memcpy(e->pc->nic->ipv4_address, ipv4, sizeof(uint8)*4);
+            memcpy(e->pc->nic->mac_address, mac_address, sizeof(uint8)*6);
+            memcpy(e->pc->nic->subnet_mask, subnet_mask, sizeof(uint8)*4);
 
             return true;
         } break;
@@ -1385,6 +1585,10 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
             log_error_to_console("Cannot change the ipv4 of a switch!");
             return false;
         } break;
+        case EK_PC: {
+            ASSERT(e->pc && e->pc->nic, "These must be allocated!");
+            return four_octet_from_input(e->pc->nic->ipv4_address, chars_buff, chars_buff_count, chars_buff_cap);
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -1401,6 +1605,10 @@ bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_coun
             log_error_to_console("Cannot change the subnet mask of a switch!");
             return false;
         } break;
+        case EK_PC: {
+            ASSERT(e->pc && e->pc->nic, "These must be allocated!");
+            return four_octet_from_input(e->pc->nic->subnet_mask, chars_buff, chars_buff_count, chars_buff_cap);
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -1408,8 +1616,8 @@ bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_coun
 }
 
 bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
-    if (!e || (e->kind != EK_NIC && e->kind != EK_ACCESS_POINT)) {
-        log_error_to_console("Cannot connect to port: the NIC or AP is not valid!");
+    if (!e || (e->kind != EK_NIC && e->kind != EK_ACCESS_POINT && e->kind != EK_PC)) {
+        log_error_to_console("Cannot connect to port: the NIC or AP or PC is not valid!");
         return false;
     }
     if (!switch_e || switch_e->kind != EK_SWITCH) {
@@ -1420,7 +1628,8 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
     for (size_t i = 0; i < ARRAY_LEN(switch_e->switchh->fe); ++i) {
         for (size_t j = 0; j < ARRAY_LEN(switch_e->switchh->fe[i]); ++j) {
             Port *port = &switch_e->switchh->fe[i][j];
-            if (e->kind == EK_NIC || e->kind == EK_ACCESS_POINT) {
+            // NOTE: Honestly this is already checked above, but whatever ig
+            if (e->kind == EK_NIC || e->kind == EK_ACCESS_POINT || e->kind == EK_PC) {
                 if (port->conn == NULL) {
                     port->conn = (Entity *)arena_alloc(e->arena, sizeof(Entity));
                     memcpy(port->conn, e, sizeof(Entity));

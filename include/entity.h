@@ -4,14 +4,17 @@
 #include <switch.h>
 #include <engine.h>
 #include <nic.h>
+#include <pc.h>
 #include <ethernet_frame.h>
 
 typedef struct Access_point Access_point;
 
+// NOTE: Do not change the current order of enums! (Will affect current saves)
 typedef enum {
     EK_NIC,
     EK_SWITCH,
     EK_ACCESS_POINT,
+    EK_PC,
     EK_COUNT,
 } Entity_kind;
 
@@ -72,6 +75,7 @@ struct Entity {
     Nic    *nic;
     Switch *switchh; // switch is a keyword in C
     Access_point *ap;
+    Pc *pc;
 
     Entities *entities;
 };
@@ -85,6 +89,7 @@ void disconnect_entity(Entity *e);
 void disconnect_nic(Entity *e);
 void disconnect_switch(Entity *e);
 void disconnect_ap(Entity *e);
+void disconnect_pc(Entity *e);
 void free_entity(Entity *e);
 void free_nic(Entity *e);
 void free_switch(Entity *e);
