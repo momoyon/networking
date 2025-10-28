@@ -833,9 +833,6 @@ void console_prompt(Console *console, const char *prompt, String_array *expected
 
 // Timer and Alarm
 void update_timer(Timer *t, float dt) {
-    if (dt <= 0) {
-        log_error("Timer dt is <= 0: %f", dt);
-    }
     t->time += dt;
 }
 
