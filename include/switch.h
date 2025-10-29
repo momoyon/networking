@@ -136,7 +136,9 @@ const char *switch_console_config_mode_as_str(const Switch_console_config_mode m
 typedef struct Switch Switch;
 struct Switch {
 	Console console;
-	Port fe[1][4];
+	Port **fe; // FastEthernet
+    size_t module_count;
+    size_t port_count;
     Switch_model model;
     const char *version;
 
@@ -154,7 +156,7 @@ struct Switch {
     Arena *str_arena;
 };
 
-void make_switch(Switch_model model, const char *version, Switch *switch_out, Arena *arena, Arena *tmp_arena, Arena *str_arena);
+void make_switch(Switch_model model, const char *version, Switch *switch_out, size_t module_count, size_t port_count, Arena *arena, Arena *tmp_arena, Arena *str_arena);
 void make_switch_console(Console *console_out, Arena *arena);
 void boot_switch(Switch *switchh, float dt);
 bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args);

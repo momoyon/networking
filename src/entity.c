@@ -123,8 +123,8 @@ void draw_entity(Entity *e, bool debug) {
                 ASSERT(e->temp_arena, "BRUH");
                 draw_info_text(&p, arena_alloc_str(*e->temp_arena, "%s", switch_model_as_str(e->switchh->model)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 
-                for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
-                    for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
+                for (size_t i = 0; i < e->switchh->module_count; ++i) {
+                    for (size_t j = 0; j < e->switchh->port_count; ++j) {
                         Entity *conn = e->switchh->fe[i][j].conn;
                         if (!conn) continue;
                         if (conn->kind == EK_NIC || conn->kind == EK_PC) {
@@ -367,6 +367,7 @@ bool copy_entity_info(Entity *e) {
     return true;
 }
 
+static bool connect_pc_to(Entity *pc, Entity *other);
 static bool connect_nic_to(Entity *nic, Entity *other) {
     if (nic->kind != EK_NIC) {
         log_debug("That isn't a NIC brotato _/\\_");
@@ -403,8 +404,8 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
 
             bool found = false;
 
-            for (size_t i = 0; i < ARRAY_LEN(other->switchh->fe); ++i) {
-                for (size_t j = 0; j < ARRAY_LEN(other->switchh->fe[i]); ++j) {
+            for (size_t i = 0; i < other->switchh->module_count; ++i) {
+                for (size_t j = 0; j < other->switchh->port_count; ++j) {
                     Entity *conn = other->switchh->fe[i][j].conn;
                     if (conn && conn->nic == nic->nic) {
                         found = true;
@@ -428,6 +429,7 @@ static bool connect_nic_to(Entity *nic, Entity *other) {
             ASSERT(false, "EK_ACCESS_POINT connect_nic_to is UNIMPLEMENTED!");
         } break;
         case EK_PC: {
+            return connect_pc_to(other, nic);
             ASSERT(false, "EK_PC connect_nic_to is UNIMPLEMENTED!");
         } break;
         case EK_COUNT:
@@ -457,8 +459,8 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
 
             bool found = false;
 
-            for (size_t i = 0; i < ARRAY_LEN(other->switchh->fe); ++i) {
-                for (size_t j = 0; j < ARRAY_LEN(other->switchh->fe[i]); ++j) {
+            for (size_t i = 0; i < other->switchh->module_count; ++i) {
+                for (size_t j = 0; j < other->switchh->port_count; ++j) {
                     Entity *conn = other->switchh->fe[i][j].conn;
                     if (conn && conn->ap == ap->ap) {
                         found = true;
@@ -483,7 +485,7 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
             return false;
         } break;
         case EK_PC: {
-            ASSERT(false, "EK_PC connect_ap_to is UNIMPLEMENTED!");
+            return connect_pc_to(other, ap);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -520,8 +522,8 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
 
             bool found = false;
 
-            for (size_t i = 0; i < ARRAY_LEN(switchh->switchh->fe); ++i) {
-                for (size_t j = 0; j < ARRAY_LEN(switchh->switchh->fe[i]); ++j) {
+            for (size_t i = 0; i < other->switchh->module_count; ++i) {
+                for (size_t j = 0; j < other->switchh->port_count; ++j) {
                     Entity *conn = switchh->switchh->fe[i][j].conn;
                     if (conn && conn->nic == nic) {
                         found = true;
@@ -661,7 +663,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_a
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
             // TODO: Take switch model as input
-            make_switch(SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, arena, temp_arena, str_arena);
+            make_switch(SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, 1, 4, arena, temp_arena, str_arena);
             e->tex = load_texture_checked(entity_texture_path_map[EK_SWITCH]);
         } break;
         case EK_ACCESS_POINT: {
@@ -735,8 +737,15 @@ void make_nic(Entity *e, Nic *nic, Arena *arena) {
     } while (is_mac_address_assigned(e->entities, nic->mac_address));
 }
 
-void make_switch(Switch_model model, const char *version, Switch *switch_out, Arena *arena, Arena *tmp_arena, Arena *str_arena) {
+void make_switch(Switch_model model, const char *version, Switch *switch_out, size_t module_count, size_t port_count, Arena *arena, Arena *tmp_arena, Arena *str_arena) {
     Switch s = {.model = model};
+    s.module_count = module_count;
+    s.fe = (Port **)malloc(sizeof(Port *) * module_count);
+
+    for (int i = 0; i < s.module_count; ++i) {
+        s.fe[i] = (Port *)malloc(sizeof(Port) * port_count);
+    }
+
     s.tmp_arena = tmp_arena;
     s.str_arena = str_arena;
     s.version = version;
@@ -855,9 +864,10 @@ static void disconnect_connected_entity(Entity *e) {
     if (connected_entity) {
         if (connected_entity->kind == EK_NIC) {
             ASSERT(connected_entity->nic->connected_entity == e, "This should be true if the connection logic is correct");
+            connected_entity->nic->connected_entity = NULL;
         } else if (connected_entity->kind == EK_SWITCH) {
-            for (size_t i = 0; i < ARRAY_LEN(connected_entity->switchh->fe); ++i) {
-                for (size_t j = 0; j < ARRAY_LEN(connected_entity->switchh->fe[i]); ++j) {
+            for (size_t i = 0; i < e->switchh->module_count; ++i) {
+                for (size_t j = 0; j < e->switchh->port_count; ++j) {
                     Port *port = &connected_entity->switchh->fe[i][j];
                     if (match_port_kind(e, port)) {
                         disconnect_port(port);
@@ -867,6 +877,10 @@ static void disconnect_connected_entity(Entity *e) {
             }
         } else if (connected_entity->kind == EK_PC) {
             ASSERT(connected_entity->pc->nic->connected_entity == e, "This should be true if the connection logic is correct");
+            connected_entity->pc->nic->connected_entity = NULL;
+        } else if (connected_entity->kind == EK_ACCESS_POINT) {
+            ASSERT(connected_entity->ap->connected_entity == e, "This should be true if the connection logic is correct");
+            connected_entity->ap->connected_entity = NULL;
         } else {
             const char *s = arena_alloc_str(*e->temp_arena, "Case not handled for %s", entity_kind_as_str(connected_entity->kind));
             ASSERT(false, s);
@@ -890,8 +904,8 @@ void disconnect_pc(Entity *e) {
 
 void disconnect_switch(Entity *e) {
     ASSERT(e->kind == EK_SWITCH, "BRO");
-    for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
-        for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
+    for (size_t i = 0; i < e->switchh->module_count; ++i) {
+        for (size_t j = 0; j < e->switchh->port_count; ++j) {
             Port *port = &e->switchh->fe[i][j];
             disconnect_port(port);
         }
@@ -950,8 +964,8 @@ void free_nic(Entity *e) {
 
     if (e->nic->connected_entity != NULL && e->nic->connected_entity->kind == EK_SWITCH) {
         Entity *e_switch = e->nic->connected_entity;
-        for (size_t i = 0; i < ARRAY_LEN(e_switch->switchh->fe); ++i) {
-            for (size_t j = 0; j < ARRAY_LEN(e_switch->switchh->fe[i]); ++j) {
+        for (size_t i = 0; i < e->switchh->module_count; ++i) {
+            for (size_t j = 0; j < e->switchh->port_count; ++j) {
                 Entity *conn = e_switch->switchh->fe[i][j].conn;
                 if (conn && conn->nic == e->nic) {
                     e_switch->switchh->fe[i][j].conn = NULL;
@@ -967,14 +981,19 @@ void free_switch(Entity *e) {
     ASSERT(e->kind == EK_SWITCH, "Br");
 
     // Remove any reference to this switch from the connected NICs
-    for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
-        for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
+    for (size_t i = 0; i < e->switchh->module_count; ++i) {
+        for (size_t j = 0; j < e->switchh->port_count; ++j) {
             Entity *conn = e->switchh->fe[i][j].conn;
             if (conn && conn->nic && conn->nic->connected_entity == e && conn->nic->connected_entity->kind == EK_SWITCH) {
                 conn->nic->connected_entity = NULL;
             }
         }
     }
+
+    for (int i = 0; i < e->switchh->module_count; ++i) {
+        free(e->switchh->fe[i]);
+    }
+    free(e->switchh->fe);
 }
 
 // Data-transfer
@@ -1011,8 +1030,8 @@ bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
 // static bool forward_frame_via_switch(Entity *se, Ethernet_frame frame) {
 //     ASSERT(se->kind == EK_SWITCH, "brother");
 //
-//     for (size_t i = 0; i < ARRAY_LEN(se->switchh->fe); ++i) {
-//         for (size_t j = 0; j < ARRAY_LEN(se->switchh->fe[i]); ++j) {
+//     for (size_t i = 0; i < e->switchh->module_count; ++i) {
+//         for (size_t j = 0; j < e->switchh->port_count; ++j) {
 //             Entity *conn = e->switchh->fe[i][j].conn;
 //             if (is_frame_for_conn(conn, frame)) {
 //                 log_debug("Received Ethernet Frame from "MAC_FMT" to "MAC_FMT, MAC_ARG(frame.src), MAC_ARG(frame.dst));
@@ -1095,8 +1114,8 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
         } break;
         case EK_SWITCH: {
             const char *res = (const char *)temp_arena->ptr;
-            for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
-                for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
+            for (size_t i = 0; i < e->switchh->module_count; ++i) {
+                for (size_t j = 0; j < e->switchh->port_count; ++j) {
                     Port *port = &e->switchh->fe[i][j];
                     arena_alloc_str(*temp_arena, "%zu/%zu: %d ", i, j, (port->conn ? (int)port->conn->id : -1));
                     temp_arena->ptr--;
@@ -1315,11 +1334,11 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
                     return false;
                 }
                 log_debug("Parsed port %d/%d: %d", i, j, port_conn_id);
-                if (i < 0 || i > ARRAY_LEN(e->switchh->fe)-1) {
-                    log_error_to_console("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, ARRAY_LEN(e->switchh->fe));
+                if (i < 0 || i > e->switchh->module_count-1) {
+                    log_error_to_console("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, e->switchh->module_count);
                 }
-                if (j < 0 || j > ARRAY_LEN(e->switchh->fe[0])-1) {
-                    log_error_to_console("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, ARRAY_LEN(e->switchh->fe[0]));
+                if (j < 0 || j > e->switchh->port_count-1) {
+                    log_error_to_console("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, e->switchh->port_count);
                 }
                 e->switchh->fe[i][j].conn_id = port_conn_id;
             }
@@ -1503,8 +1522,8 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
     for (size_t i = 0; i < entities->count; ++i) {
         Entity *e = &entities->items[i];
         if (e->kind == EK_SWITCH) {
-            for (size_t i = 0; i < ARRAY_LEN(e->switchh->fe); ++i) {
-                for (size_t j = 0; j < ARRAY_LEN(e->switchh->fe[i]); ++j) {
+            for (size_t i = 0; i < e->switchh->module_count; ++i) {
+                for (size_t j = 0; j < e->switchh->port_count; ++j) {
                     Port *port = &e->switchh->fe[i][j];
                     if (port->conn_id >= 0) {
                         Entity *conn = get_entity_ptr_by_id(entities, port->conn_id);
@@ -1636,8 +1655,8 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
         return false;
     }
 
-    for (size_t i = 0; i < ARRAY_LEN(switch_e->switchh->fe); ++i) {
-        for (size_t j = 0; j < ARRAY_LEN(switch_e->switchh->fe[i]); ++j) {
+    for (size_t i = 0; i < e->switchh->module_count; ++i) {
+        for (size_t j = 0; j < e->switchh->port_count; ++j) {
             Port *port = &switch_e->switchh->fe[i][j];
             // NOTE: Honestly this is already checked above, but whatever ig
             if (e->kind == EK_NIC || e->kind == EK_ACCESS_POINT || e->kind == EK_PC) {
