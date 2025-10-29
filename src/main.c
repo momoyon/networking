@@ -16,7 +16,7 @@
 
 #include "icon.c"
 
-#define VERSION "v0.0.10a"
+#define VERSION "v0.0.11a"
 
 #define FACTOR 105
 #define SCREEN_WIDTH (16 * FACTOR)
@@ -1222,6 +1222,7 @@ exec_command:
             const char* hovering_entity_str = arena_alloc_str(temp_arena, "Hovering: %p", hovering_entity);
             const char* connecting_from_str = arena_alloc_str(temp_arena, "From: %p", connecting_from);
             const char* connecting_to_str = arena_alloc_str(temp_arena, "To: %p", connecting_to);
+
             draw_text(GetFontDefault(), hovering_entity_str, v2(2, y),
                 ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
             y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
@@ -1241,6 +1242,20 @@ exec_command:
                 const char* hovering_pos = arena_alloc_str(temp_arena, "Hovering pos: %.2f, %.2f",
                     hovering_entity->pos.x, hovering_entity->pos.y);
                 draw_text(GetFontDefault(), hovering_pos, v2(2, y),
+                    ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+
+
+                Entity *hovering_entity_connected_entity = get_connected_entity(hovering_entity);
+                const char *connected_to_entity_str = arena_alloc_str(temp_arena, "%s", "Connected to: Nothing");
+
+                if (hovering_entity_connected_entity) {
+                    connected_to_entity_str = arena_alloc_str(temp_arena, "Connected to: %p (%s [%zu])", 
+                            hovering_entity_connected_entity,
+                            entity_kind_as_str(hovering_entity_connected_entity->kind),
+                            hovering_entity_connected_entity->id);
+                }
+                draw_text(GetFontDefault(), connected_to_entity_str, v2(2, y),
                     ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
             }

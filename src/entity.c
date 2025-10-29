@@ -51,12 +51,8 @@ static void draw_nic_connections(Entity *e, Nic *nic) {
             if (nic->drawing_connection) {
                 DrawLineBezier(e->pos, nic->connected_entity->pos, 1, WHITE);
             }
-        } else if (nic->connected_entity->kind == EK_SWITCH) {
-            DrawLineBezier(e->pos, nic->connected_entity->pos, 1, WHITE);
-        } else if (nic->connected_entity->kind == EK_PC) {
-            DrawLineBezier(e->pos, nic->connected_entity->pos, 1, WHITE);
         } else {
-            ASSERT(false, "THIS SHOULDN'T HAPPEN!");
+            DrawLineBezier(e->pos, nic->connected_entity->pos, 1, WHITE);
         }
     }
 }
@@ -171,12 +167,14 @@ void draw_entity(Entity *e, bool debug) {
 
             // Draw connections
             if (e->ap->connected_entity) {
-                if (e->ap->connected_entity->kind == EK_SWITCH) {
-                    DrawLineBezier(e->pos, e->ap->connected_entity->pos, 1, WHITE);
-                } else {
-                    ASSERT(false, "THIS SHOULDN'T HAPPEN!");
-                }
+                // if (e->ap->connected_entity->kind == EK_SWITCH) {
+                //     DrawLineBezier(e->pos, e->ap->connected_entity->pos, 1, WHITE);
+                // } else {
+                //     ASSERT(false, "THIS SHOULDN'T HAPPEN!");
+                // }
+                DrawLineBezier(e->pos, e->ap->connected_entity->pos, 1, WHITE);
             }
+
         } break;
         case EK_PC: {
             draw_nic_connections(e, e->pc->nic);
@@ -574,7 +572,22 @@ static bool connect_pc_to(Entity *pc, Entity *other) {
             return connect_switch_to(other, pc);
         } break;
         case EK_ACCESS_POINT: {
-            ASSERT(false, "EK_ACCESS_POINT connect_pc_to is UNIMPLEMENTED!");
+            ASSERT(other->ap, "bo");
+            Entity *ap = other;
+
+            if (ap->ap->connected_entity != NULL && ap->ap->connected_entity != other) {
+                log_error_to_console("Please disconnect the AP from any other device!");
+                return false;
+            }
+
+            if (pc->pc->nic->connected_entity != NULL) {
+                log_error_to_console("Please disconnect the PC from any other device!");
+                return false;
+            }
+
+            pc->pc->nic->connected_entity = ap;
+            ap->ap->connected_entity = pc;
+            return false;
         } break;
         case EK_PC: {
             Nic *a = pc->nic;
@@ -659,7 +672,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_a
         case EK_PC: {
             e->pc = (Pc *)arena_alloc(arena, sizeof(Pc));
             // TODO: Dynamically generate pc name (incrementing id)
-            make_pc(e->pc, "PC", arena);
+            make_pc(e, e->pc, "PC", arena);
             e->tex = load_texture_checked(entity_texture_path_map[EK_PC]);
         } break;
         case EK_COUNT:
@@ -759,10 +772,15 @@ void make_ap(Entity *e, Access_point *ap_out, Arena *arena) {
     } while (is_mac_address_assigned(e->entities, ap_out->mac_address));
 }
 
-void make_pc(Pc *pc_out, const char *hostname, Arena *arena) {
+void make_pc(Entity *e, Pc *pc_out, const char *hostname, Arena *arena) {
     pc_out->hostname = hostname;
     pc_out->nic = (Nic *)arena_alloc(arena, sizeof(Nic));
     memset(pc_out->nic, 0, sizeof(Nic));
+    do {
+        float64 tp1 = GetTime();
+        get_unique_mac_address(pc_out->nic->mac_address);
+        log_debug("get_unique_mac_address() took %.2lfs", GetTime() - tp1);
+    } while (is_mac_address_assigned(e->entities, pc_out->nic->mac_address));
 }
 
 // Disconnect-ers
@@ -834,21 +852,24 @@ void disconnect_port(Port *port) {
 static void disconnect_connected_entity(Entity *e) {
     Entity *connected_entity = get_connected_entity(e);
 
-    if (connected_entity && 
-        connected_entity->kind == EK_NIC &&
-        connected_entity->nic->connected_entity == e) {
-        connected_entity->nic->connected_entity = NULL;
-    }
-    if (connected_entity && 
-        connected_entity->kind == EK_SWITCH) {
-        for (size_t i = 0; i < ARRAY_LEN(connected_entity->switchh->fe); ++i) {
-            for (size_t j = 0; j < ARRAY_LEN(connected_entity->switchh->fe[i]); ++j) {
-                Port *port = &connected_entity->switchh->fe[i][j];
-                if (match_port_kind(e, port)) {
-                    disconnect_port(port);
-                    break; // We shouldn't have duplicate entries
+    if (connected_entity) {
+        if (connected_entity->kind == EK_NIC) {
+            ASSERT(connected_entity->nic->connected_entity == e, "This should be true if the connection logic is correct");
+        } else if (connected_entity->kind == EK_SWITCH) {
+            for (size_t i = 0; i < ARRAY_LEN(connected_entity->switchh->fe); ++i) {
+                for (size_t j = 0; j < ARRAY_LEN(connected_entity->switchh->fe[i]); ++j) {
+                    Port *port = &connected_entity->switchh->fe[i][j];
+                    if (match_port_kind(e, port)) {
+                        disconnect_port(port);
+                        break; // We shouldn't have duplicate entries
+                    }
                 }
             }
+        } else if (connected_entity->kind == EK_PC) {
+            ASSERT(connected_entity->pc->nic->connected_entity == e, "This should be true if the connection logic is correct");
+        } else {
+            const char *s = arena_alloc_str(*e->temp_arena, "Case not handled for %s", entity_kind_as_str(connected_entity->kind));
+            ASSERT(false, s);
         }
     }
 
@@ -1336,28 +1357,12 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
             return true;
         } break;
         case EK_PC: {
-            uint8 ipv4[4] = {0};
-            uint8 subnet_mask[4] = {0};
-            uint8 mac_address[6] = {0};
-
             String_view hostname_sv = sv_lpop_until_char(sv, ' ');
             sv_lremove(sv, 1);
 
-            if (!parse_four_octet_from_data(sv, ipv4)) {
-                return false;
-            }
-            if (!parse_four_octet_from_data(sv, subnet_mask)) {
-                return false;
-            }
-            if (!parse_n_octet_from_data(6, sv, mac_address, 6, false)) {
-                return false;
-            }
-            sv_ltrim(sv);
+            if (!parse_nic_from_data(e->pc->nic, sv)) return false;
 
             e->pc->hostname = arena_alloc_str(*e->str_arena, SV_FMT, SV_ARG(hostname_sv));
-            memcpy(e->pc->nic->ipv4_address, ipv4, sizeof(uint8)*4);
-            memcpy(e->pc->nic->mac_address, mac_address, sizeof(uint8)*6);
-            memcpy(e->pc->nic->subnet_mask, subnet_mask, sizeof(uint8)*4);
 
             return true;
         } break;
@@ -1512,6 +1517,11 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
                             conn->nic->connected_entity = e;
                         } else if (conn->kind == EK_ACCESS_POINT) {
                             conn->ap->connected_entity = e;
+                        } else if (conn->kind == EK_PC) {
+                            conn->pc->nic->connected_entity = e;
+                        } else {
+                            const char *s = arena_alloc_str(*e->temp_arena, "Case not handled for %s", entity_kind_as_str(conn->kind));
+                            ASSERT(false, s);
                         }
                     }
                 }
@@ -1546,6 +1556,7 @@ static bool four_octet_from_input(uint8 *four_octet, char *chars_buff, size_t *c
     do {
         ch = GetCharPressed();
         if (IsKeyPressed(KEY_ENTER)) {
+            if (*chars_buff_count <= 0) return false;
             String_view four_octet_sv = (String_view) {
                 .data  = chars_buff,
                 .count = *chars_buff_count,
@@ -1582,7 +1593,7 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
         case EK_ACCESS_POINT:
             return four_octet_from_input(e->ap->mgmt_ipv4, chars_buff, chars_buff_count, chars_buff_cap);
         case EK_SWITCH: {
-            log_error_to_console("Cannot change the ipv4 of a switch!");
+            // log_error_to_console("Cannot change the ipv4 of a switch!");
             return false;
         } break;
         case EK_PC: {
@@ -1602,7 +1613,7 @@ bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_coun
         case EK_ACCESS_POINT:
             return four_octet_from_input(e->ap->mgmt_subnet_mask, chars_buff, chars_buff_count, chars_buff_cap);
         case EK_SWITCH: {
-            log_error_to_console("Cannot change the subnet mask of a switch!");
+            // log_error_to_console("Cannot change the subnet mask of a switch!");
             return false;
         } break;
         case EK_PC: {

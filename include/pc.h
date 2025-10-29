@@ -18,4 +18,4 @@ struct Pc {
 
 #endif // _PC_H_
 
-void make_pc(Pc *pc_out, const char *hostname, Arena *arena);
+void make_pc(Entity *e, Pc *pc_out, const char *hostname, Arena *arena);

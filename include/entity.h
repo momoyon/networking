@@ -82,6 +82,7 @@ struct Entity {
 
 Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena, Arena *str_arena);
 void draw_entity(Entity *e, bool debug);
+Entity *get_connected_entity(Entity *e);
 void update_entity(Entity *e);
 void update_ap(Entity *ap_e);
 bool copy_entity_info(Entity *e);
