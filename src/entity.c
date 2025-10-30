@@ -493,6 +493,7 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
     return false;
 }
 
+// TODO: Connecting switch to other entities doesn't remove their connections(Eg: Try to connect to a PC which is connected to an AP)
 static bool connect_switch_to(Entity *switchh, Entity *other) {
     if (switchh->kind != EK_SWITCH) {
         log_warning("That isn't a Switch brochacho _/\\_");
@@ -522,8 +523,8 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
 
             bool found = false;
 
-            for (size_t i = 0; i < other->switchh->module_count; ++i) {
-                for (size_t j = 0; j < other->switchh->port_count; ++j) {
+            for (size_t i = 0; i < switchh->switchh->module_count; ++i) {
+                for (size_t j = 0; j < switchh->switchh->port_count; ++j) {
                     Entity *conn = switchh->switchh->fe[i][j].conn;
                     if (conn && conn->nic == nic) {
                         found = true;
@@ -740,6 +741,7 @@ void make_nic(Entity *e, Nic *nic, Arena *arena) {
 void make_switch(Switch_model model, const char *version, Switch *switch_out, size_t module_count, size_t port_count, Arena *arena, Arena *tmp_arena, Arena *str_arena) {
     Switch s = {.model = model};
     s.module_count = module_count;
+    s.port_count = port_count;
     s.fe = (Port **)malloc(sizeof(Port *) * module_count);
 
     for (int i = 0; i < s.module_count; ++i) {
@@ -866,8 +868,8 @@ static void disconnect_connected_entity(Entity *e) {
             ASSERT(connected_entity->nic->connected_entity == e, "This should be true if the connection logic is correct");
             connected_entity->nic->connected_entity = NULL;
         } else if (connected_entity->kind == EK_SWITCH) {
-            for (size_t i = 0; i < e->switchh->module_count; ++i) {
-                for (size_t j = 0; j < e->switchh->port_count; ++j) {
+            for (size_t i = 0; i < connected_entity->switchh->module_count; ++i) {
+                for (size_t j = 0; j < connected_entity->switchh->port_count; ++j) {
                     Port *port = &connected_entity->switchh->fe[i][j];
                     if (match_port_kind(e, port)) {
                         disconnect_port(port);
@@ -1114,6 +1116,7 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
         } break;
         case EK_SWITCH: {
             const char *res = (const char *)temp_arena->ptr;
+            arena_alloc_str(*temp_arena, "%zu/%zu", e->switchh->module_count, e->switchh->port_count);
             for (size_t i = 0; i < e->switchh->module_count; ++i) {
                 for (size_t j = 0; j < e->switchh->port_count; ++j) {
                     Port *port = &e->switchh->fe[i][j];
@@ -1166,7 +1169,9 @@ const char *save_entity_to_data(Entity *e, Arena *arena, Arena *temp_arena, int 
         case 1: {
             s = arena_alloc_str(*arena, "v%d %.2f %.2f %d %zu %d ", version, e->pos.x, e->pos.y, e->kind, e->id, e->state);
         } break;
-        case 2: {
+        // Switch's module and port count added to format in version 3
+        case 2:
+        case 3: {
             s = arena_alloc_str(*arena, "v%d %.2f %.2f %d %zu %d %s ", version, e->pos.x, e->pos.y, e->kind, e->id, e->state, entity_kind_save_format(e, temp_arena));
         } break;
         default: ASSERT(false, "UNREACHABLE!");
@@ -1391,6 +1396,106 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
     return false;
 }
 
+// static bool load_entity_from_data_v3(Entity *e, String_view *sv) {
+//     if (!load_entity_from_data_v1(e, sv)) {
+//         return false;
+//     }
+//
+//     switch (e->kind) {
+//         case EK_NIC: {
+//             if (!parse_nic_from_data(e->nic, sv)) return false;
+//             return true;
+//         } break;
+//         case EK_SWITCH: {
+//             if (e->switchh == NULL) {
+//                 log_error_to_console("Please allocate the switch before trying to load from data!");
+//                 ASSERT(false, "DEBUG");
+//                 return false;
+//             }
+//
+//             log_debug("Parsing Switch...");
+//
+//             sv_ltrim(sv);
+//
+//             String_view switch_sv = sv_lpop_until_char(sv, '|');
+//             sv_lremove(sv, 1); // Remove |
+//
+//             while (switch_sv.count > 0) {
+//                 int i = -1;
+//                 int j = -1;
+//
+//                 if (!parse_i_j_from_sv(&switch_sv, &i, &j)) {
+//                     return false;
+//                 }
+//                 sv_ltrim(&switch_sv);
+//
+//                 String_view port_conn_id_sv = sv_lpop_until_char(&switch_sv, ' ');
+//                 sv_ltrim(&switch_sv);
+//
+//                 int port_conn_id_count = -1;
+//                 int port_conn_id = sv_to_int(port_conn_id_sv, &port_conn_id_count, 10);
+//                 if (port_conn_id_count < 0) {
+//                     log_error_to_console("Failed to convert port conn id `"SV_FMT"` to int!", SV_ARG(port_conn_id_sv));
+//                     return false;
+//                 }
+//                 log_debug("Parsed port %d/%d: %d", i, j, port_conn_id);
+//                 if (i < 0 || i > e->switchh->module_count-1) {
+//                     log_error_to_console("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, e->switchh->module_count);
+//                 }
+//                 if (j < 0 || j > e->switchh->port_count-1) {
+//                     log_error_to_console("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, e->switchh->port_count);
+//                 }
+//                 e->switchh->fe[i][j].conn_id = port_conn_id;
+//             }
+//             return true;
+//         } break;
+//         case EK_ACCESS_POINT: {
+//             uint8 ipv4[4] = {0};
+//             uint8 subnet_mask[4] = {0};
+//             uint8 mac_address[6] = {0};
+//
+//             if (!parse_four_octet_from_data(sv, ipv4)) {
+//                 return false;
+//             }
+//             if (!parse_four_octet_from_data(sv, subnet_mask)) {
+//                 return false;
+//             }
+//             if (!parse_n_octet_from_data(6, sv, mac_address, 6, false)) {
+//                 return false;
+//             }
+//             sv_ltrim(sv);
+//
+//             String_view on_sv = sv_lpop_until_char(sv, ' ');
+//             if (on_sv.data[0] == '0') {
+//                 e->ap->on = false;
+//             } else if (on_sv.data[0] == '1') {
+//                 e->ap->on = true;
+//             } else {
+//                 ASSERT(false, "WE GOT NEITHER 0 NOR 1 FOR AP POWER!");
+//             }
+//
+//             memcpy(e->ap->mac_address, mac_address, sizeof(uint8)*6);
+//             memcpy(e->ap->mgmt_ipv4, ipv4, sizeof(uint8)*4);
+//             memcpy(e->ap->mgmt_subnet_mask, subnet_mask, sizeof(uint8)*4);
+//
+//             return true;
+//         } break;
+//         case EK_PC: {
+//             String_view hostname_sv = sv_lpop_until_char(sv, ' ');
+//             sv_lremove(sv, 1);
+//
+//             if (!parse_nic_from_data(e->pc->nic, sv)) return false;
+//
+//             e->pc->hostname = arena_alloc_str(*e->str_arena, SV_FMT, SV_ARG(hostname_sv));
+//
+//             return true;
+//         } break;
+//         case EK_COUNT:
+//         default: ASSERT(false, "UNREACHABLE!");
+//     }
+//     return false;
+// }
+
 bool load_entity_from_data(Entity *e, String_view *data_sv) {
     sv_ltrim(data_sv);
     String_view version_sv = sv_lpop_until_char(data_sv, ' ');
@@ -1406,6 +1511,7 @@ bool load_entity_from_data(Entity *e, String_view *data_sv) {
     switch (version) {
         case 1: return load_entity_from_data_v1(e, data_sv);
         case 2: return load_entity_from_data_v2(e, data_sv);
+        // case 3: return load_entity_from_data_v3(e, data_sv);
         default: {
             log_debug("Got version %d", version);
             ASSERT(false, "UNREACHABLE!");
@@ -1655,8 +1761,8 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
         return false;
     }
 
-    for (size_t i = 0; i < e->switchh->module_count; ++i) {
-        for (size_t j = 0; j < e->switchh->port_count; ++j) {
+    for (size_t i = 0; i < switch_e->switchh->module_count; ++i) {
+        for (size_t j = 0; j < switch_e->switchh->port_count; ++j) {
             Port *port = &switch_e->switchh->fe[i][j];
             // NOTE: Honestly this is already checked above, but whatever ig
             if (e->kind == EK_NIC || e->kind == EK_ACCESS_POINT || e->kind == EK_PC) {

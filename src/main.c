@@ -30,6 +30,11 @@
         ((byte) & 0x08 ? '1' : '0'), ((byte) & 0x04 ? '1' : '0'), \
         ((byte) & 0x02 ? '1' : '0'), ((byte) & 0x01 ? '1' : '0')
 
+#define DEBUG_TEXT(color, font, font_size, x, fmt, ...) do {\
+        const char *str = arena_alloc_str(temp_arena, fmt, ##__VA_ARGS__);\
+        draw_text((font), str, v2((x), y), (font_size), (color));\
+        y += (font_size) + 2;\
+    } while (0)
 
 // Console prompt callbacks
 void select_all_or_no(Console *console, void *userdata) {
@@ -1215,36 +1220,19 @@ exec_command:
         EndMode2D();
 
         int y = (ENTITY_DEFAULT_RADIUS * 0.5) * 2 + (2 * 2);
+        const int font_size = ENTITY_DEFAULT_RADIUS * 0.5f;
         draw_text_aligned(GetFontDefault(), mode_as_str(current_mode), v2(2, 2),
             ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_TOP,
             TEXT_ALIGN_H_LEFT, GOLD);
         if (debug_draw) {
-            const char* hovering_entity_str = arena_alloc_str(temp_arena, "Hovering: %p", hovering_entity);
-            const char* connecting_from_str = arena_alloc_str(temp_arena, "From: %p", connecting_from);
-            const char* connecting_to_str = arena_alloc_str(temp_arena, "To: %p", connecting_to);
+            Font f = GetFontDefault();
 
-            draw_text(GetFontDefault(), hovering_entity_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+            DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering: %p", hovering_entity);
+
             if (hovering_entity) {
-                const char* hovering_entity_state_str = arena_alloc_str(
-                    temp_arena, "Hovering state: " BYTE_TO_BINARY_PATTERN,
-                    BYTE_TO_BINARY(hovering_entity->state & 0xFF));
-                draw_text(GetFontDefault(), hovering_entity_state_str, v2(2, y),
-                    ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-                const char* hovering_id = arena_alloc_str(
-                    temp_arena, "Hovering ID: %zu", hovering_entity->id);
-                draw_text(GetFontDefault(), hovering_id, v2(2, y),
-                    ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-
-                const char* hovering_pos = arena_alloc_str(temp_arena, "Hovering pos: %.2f, %.2f",
-                    hovering_entity->pos.x, hovering_entity->pos.y);
-                draw_text(GetFontDefault(), hovering_pos, v2(2, y),
-                    ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-
+                DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering state: " BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(hovering_entity->state & 0xFF));
+                DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering ID: %zu", hovering_entity->id);
+                DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering pos: %.2f, %.2f", hovering_entity->pos.x, hovering_entity->pos.y);
 
                 Entity *hovering_entity_connected_entity = get_connected_entity(hovering_entity);
                 const char *connected_to_entity_str = arena_alloc_str(temp_arena, "%s", "Connected to: Nothing");
@@ -1258,77 +1246,32 @@ exec_command:
                 draw_text(GetFontDefault(), connected_to_entity_str, v2(2, y),
                     ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
                 y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-            }
-            draw_text(GetFontDefault(), connecting_from_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-            draw_text(GetFontDefault(), connecting_to_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
 
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-            const char* entities_array_count_str = arena_alloc_str(temp_arena, "Entities.count: %zu", entities.count);
-            draw_text(GetFontDefault(), entities_array_count_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-
-            const char* entities_count_str = arena_alloc_str(temp_arena, "Entities count: %zu", entities_count);
-            draw_text(GetFontDefault(), entities_count_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-
-            const char* free_entity_indices_count_str = arena_alloc_str(temp_arena, "Free entity indices count: %zu",
-                free_entity_indices.count);
-            draw_text(GetFontDefault(), free_entity_indices_count_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-
-            if (hovering_entity) {
-                if (hovering_entity->kind == EK_NIC) {
-                    if (hovering_entity->nic->connected_entity) {
-                        y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-                        const char* dst_str = arena_alloc_str(
-                            temp_arena, "Hovering NIC connected to %s: %p", entity_kind_as_str(hovering_entity->nic->connected_entity->kind), 
-                            hovering_entity->nic->connected_entity);
-                        draw_text(GetFontDefault(), dst_str, v2(2, y),
-                            ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                        y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-                    }
+                if (hovering_entity->kind == EK_SWITCH) {
+                    DEBUG_TEXT(GRAY, f, font_size, 8, "Switch module_count: %zu", hovering_entity->switchh->module_count);
+                    DEBUG_TEXT(GRAY, f, font_size, 8, "Switch port_count: %zu", hovering_entity->switchh->port_count);
                 }
             }
+            DEBUG_TEXT(WHITE, f, font_size, 2, "From: %p", connecting_from);
+            DEBUG_TEXT(WHITE, f, font_size, 2, "To: %p", connecting_to);
+
+            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+
+            DEBUG_TEXT(WHITE, f, font_size, 2, "Entities.count: %zu", entities.count);
+            DEBUG_TEXT(WHITE, f, font_size, 2, "Entities count: %zu", entities_count);
+            DEBUG_TEXT(WHITE, f, font_size, 2, "Free entity indices count: %zu", free_entity_indices.count);
 
             if (active_switch_console) {
-                const char* switch_console_str = arena_alloc_str(temp_arena, "Active Console: %p",
-                    active_switch_console);
-                draw_text(GetFontDefault(), switch_console_str, v2(2, y),
-                    ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+                DEBUG_TEXT(WHITE, f, font_size, 2, "Active Console: %p", active_switch_console);
             }
 
-            const char* currently_moving_entity_str = arena_alloc_str( temp_arena, "Currently moving entity: %s", currently_moving_entity ? "true" : "false");
-            draw_text(GetFontDefault(), currently_moving_entity_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+            DEBUG_TEXT(WHITE, f, font_size, 2, "Currently moving entity: %s", currently_moving_entity ? "true" : "false");
 
 
-            const char* e_arena_count_str = arena_alloc_str(
-                temp_arena, "entity_arena.count: %zu",
-                (size_t)((char*)entity_arena.ptr - (char*)entity_arena.buff));
-            draw_text(GetFontDefault(), e_arena_count_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, RED);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-
-            const char* free_mac_count_str = arena_alloc_str(
-                temp_arena, "Freed MacAddr count: %zu", free_mac_addresses.count);
-            draw_text(GetFontDefault(), free_mac_count_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, RED);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
-
-            const char* wifi_waves_count_str = arena_alloc_str(
-                temp_arena, "Wifi waves count: %zu", wifi_waves.count);
-            draw_text(GetFontDefault(), wifi_waves_count_str, v2(2, y),
-                ENTITY_DEFAULT_RADIUS * 0.5, RED);
-            y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+            // RED
+            DEBUG_TEXT(RED, f, font_size, 2, "entity_arena.count: %zu", (size_t)((char*)entity_arena.ptr - (char*)entity_arena.buff));
+            DEBUG_TEXT(RED, f, font_size, 2, "Freed MacAddr count: %zu", free_mac_addresses.count);
+            DEBUG_TEXT(RED, f, font_size, 2, "Wifi waves count: %zu", wifi_waves.count);
 
             //// Right
             int yr = 0;
