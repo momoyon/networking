@@ -255,8 +255,6 @@ Ids match_var(const char *var) {
     return matched_vars;
 }
 
-// Externs
-
 // int main(int argc, char **argv) {
 //     shift_args(argv, argc);
 //
@@ -277,12 +275,29 @@ Ids match_var(const char *var) {
 static int radius = 100;
 static bool blue = false;
 static float xoffset = 10.f;
+static float m_angle = 0;
+static Vector2 
 ///
 
 int main(void)
 {
     int width = 0;
     int height = 0;
+
+    {
+        Vector2 v1 = {1.0f, 0.0f};    // 0 radians
+        Vector2 v2 = {0.0f, 1.0f};    // π/2 radians
+        Vector2 v3 = {-1.0f, 0.0f};   // π radians
+        Vector2 v4 = {0.0f, -1.0f};   // -π/2 radians
+        Vector2 v5 = {1.0f, 1.0f};    // π/4 radians
+
+        printf("Angle of v1: %f radians\n", v2_radians(v1));
+        printf("Angle of v2: %f radians\n", v2_radians(v2));
+        printf("Angle of v3: %f radians\n", v2_radians(v3));
+        printf("Angle of v4: %f radians\n", v2_radians(v4));
+        printf("Angle of v5: %f radians\n", v2_radians(v5));
+    }
+
 
 #if defined(DEBUG)
     bool debug_draw = true;
@@ -314,6 +329,7 @@ int main(void)
     Entity* hovering_entity = NULL;
     Entity* connecting_from = NULL;
     Entity* connecting_to = NULL;
+    bool is_changing_entity_kind = false;
 
     Texture2D selected_entity_kind_tex = {0};
     ASSERT(load_texture(&tex_man, entity_texture_path_map[selected_entity_kind], &selected_entity_kind_tex), "THIS SHOULDNT FAIL!");
@@ -321,6 +337,7 @@ int main(void)
     Rectangle selection = { 0 };
     Vector2 selection_start = { 0 };
     bool selecting = false;
+
 
     entity_arena = arena_make(32 * 1024);
     temp_arena = arena_make(0);
@@ -790,6 +807,14 @@ exec_command:
 
 
                 // Change Entity kind
+                if (IsKeyPressed(KEY_TAB)) {
+                    SetMousePosition(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5);
+                }
+                is_changing_entity_kind = IsKeyDown(KEY_TAB);
+
+                if (is_changing_entity_kind) {
+                }
+                
                 if (IsKeyPressed(KEY_E)) {
                     selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
                     ASSERT(load_texture(&tex_man, entity_texture_path_map[selected_entity_kind], &selected_entity_kind_tex), "THIS SHOULDNT FAIL!");
@@ -1227,6 +1252,8 @@ exec_command:
         if (debug_draw) {
             Font f = GetFontDefault();
 
+            DEBUG_TEXT(ORANGE, f, font_size, 2, "m_angle: %f", m_angle);
+
             DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering: %p", hovering_entity);
 
             if (hovering_entity) {
@@ -1286,6 +1313,37 @@ exec_command:
         // Mode-specific Draw
         switch (current_mode) {
         case MODE_NORMAL: {
+            if (is_changing_entity_kind) {
+                // @DEBUG
+                DrawCircleV(v2(width*0.5, height*0.25), 2, ORANGE);
+
+                float radius = height*0.3;
+                DrawCircleLinesV(v2(width*0.5, height*0.5), radius, WHITE);
+
+                float angle = 0;
+                for (int i = 0; i < EK_COUNT; ++i) {
+                    Texture t = {0};
+                    ASSERT(load_texture(&tex_man, entity_texture_path_map[i], &t), "THIS SHOULDNT FAIL!");
+                    Vector2 mid = v2(width*0.5, height*0.5);
+
+                    mid = v2_sub(mid, v2(t.width*0.5, t.height*0.5));
+
+                    DrawTextureEx(t, v2_add(mid, v2_scale(v2_from_radians(angle), radius)), 0, 2, WHITE);
+
+                    float start_angle = angle;
+                    angle += 2 * PI / EK_COUNT;
+                    float end_angle = angle;
+
+                    m_angle = v2_radians(v2_sub(m_world, mid));
+
+                    if (m_angle >= start_angle && m_angle <= end_angle) {
+                        DrawCircleSector(v2(width*0.5, height*0.5), radius, RAD2DEG*start_angle, RAD2DEG*end_angle, 64, WHITE);
+                    }
+
+                    log_debug("Sector for %s: %f ~ %f", entity_kind_as_str(i), start_angle, end_angle);
+                }
+            }
+
             const char* selected_entity_kind_str = arena_alloc_str(temp_arena, "Entity Kind: %s",
                 entity_kind_as_str(selected_entity_kind));
             draw_text_aligned(GetFontDefault(), selected_entity_kind_str,

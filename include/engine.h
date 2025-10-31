@@ -15,8 +15,13 @@
 // Vector helpers
 Vector2 v2xx(float v);
 Vector2 v2(float x, float y);
+#define v2_normalize Vector2Normalize
+#define v2_add Vector2Add
 #define v2_sub Vector2Subtract
 #define v2_mag2 Vector2LengthSqr
+#define v2_scale Vector2Scale
+float v2_radians(Vector2 v);
+Vector2 v2_from_radians(float r);
 
 // Vector2i
 typedef struct {
@@ -215,6 +220,19 @@ bool on_alarm(Alarm *a, float dt);
 // Vector helpers
 Vector2 v2xx(float v) { return CLITERAL(Vector2) { v, v }; }
 Vector2 v2(float x, float y) { return CLITERAL(Vector2) { x, y }; }
+Vector2 v2_from_radians(float r) {
+    Vector2 v = {0};
+
+    v.x = cosf(r);
+    v.y = sinf(r);
+
+    return v;
+}
+
+float v2_radians(Vector2 v) {
+    float angle = atan2f(v.y, v.x);
+    return angle < 0 ? angle + (2*PI) : angle;  // Ensure the angle is positive
+}
 
 // Vector2i
 Vector2i v2vi(Vector2 v) { return CLITERAL(Vector2i) { (int)v.x, (int)v.y }; }
