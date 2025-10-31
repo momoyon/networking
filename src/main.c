@@ -276,7 +276,7 @@ static int radius = 100;
 static bool blue = false;
 static float xoffset = 10.f;
 static float m_angle = 0;
-static Vector2 
+static Vector2 mid_vs_m_world_diff = {0};
 ///
 
 int main(void)
@@ -1252,7 +1252,10 @@ exec_command:
         if (debug_draw) {
             Font f = GetFontDefault();
 
+            /// @DEBUG
             DEBUG_TEXT(ORANGE, f, font_size, 2, "m_angle: %f", m_angle);
+            DEBUG_TEXT(ORANGE, f, font_size, 2, "mid_vs_m_world_diff: %f, %f", mid_vs_m_world_diff.x, mid_vs_m_world_diff.y);
+            ///
 
             DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering: %p", hovering_entity);
 
@@ -1293,6 +1296,7 @@ exec_command:
             }
 
             DEBUG_TEXT(WHITE, f, font_size, 2, "Currently moving entity: %s", currently_moving_entity ? "true" : "false");
+            
 
 
             // RED
@@ -1321,27 +1325,41 @@ exec_command:
                 DrawCircleLinesV(v2(width*0.5, height*0.5), radius, WHITE);
 
                 float angle = 0;
+                Vector2 mid = v2(width*0.5, height*0.5);
+                Vector2 _ = get_mpos_scaled(SCREEN_SCALE);
+                mid_vs_m_world_diff = v2_sub(_, mid);
+
                 for (int i = 0; i < EK_COUNT; ++i) {
                     Texture t = {0};
                     ASSERT(load_texture(&tex_man, entity_texture_path_map[i], &t), "THIS SHOULDNT FAIL!");
-                    Vector2 mid = v2(width*0.5, height*0.5);
 
-                    mid = v2_sub(mid, v2(t.width*0.5, t.height*0.5));
+                    float t_scale = 2;
+                    Vector2 t_pos = v2_sub(mid, v2(t.width*t_scale*0.5, t.height*t_scale*0.5));
 
-                    DrawTextureEx(t, v2_add(mid, v2_scale(v2_from_radians(angle), radius)), 0, 2, WHITE);
+                    DrawTextureEx(t, v2_add(t_pos, v2_scale(v2_from_radians(angle), radius)), 0, t_scale, WHITE);
 
-                    float start_angle = angle;
+                    float prev = angle;
                     angle += 2 * PI / EK_COUNT;
-                    float end_angle = angle;
+                    float next = angle;
 
-                    m_angle = v2_radians(v2_sub(m_world, mid));
+                    float start_angle = prev + ((next - prev) * 0.5);
+                    float end_angle = next + ((next - prev) * 0.5);
 
-                    if (m_angle >= start_angle && m_angle <= end_angle) {
+                    m_angle = v2_radians(mid_vs_m_world_diff);
+
+                    if (m_angle < 0) m_angle += 2 * PI;
+                    if (start_angle < 0) start_angle += 2 * PI;
+                    if (end_angle < 0) end_angle += 2 * PI;
+
+                    if ((m_angle >= start_angle && m_angle <= end_angle)
+                        || (prev == 0 && (m_angle >= 0.f && m_angle <= PI/4))) {
                         DrawCircleSector(v2(width*0.5, height*0.5), radius, RAD2DEG*start_angle, RAD2DEG*end_angle, 64, WHITE);
                     }
 
-                    log_debug("Sector for %s: %f ~ %f", entity_kind_as_str(i), start_angle, end_angle);
+                    // log_debug("Sector for %s: %f ~ %f", entity_kind_as_str(i), start_angle, end_angle);
                 }
+                DrawCircleV(mid, 5.f, ORANGE);
+                DrawCircleV(get_mpos_scaled(SCREEN_SCALE), 10.f, RED);
             }
 
             const char* selected_entity_kind_str = arena_alloc_str(temp_arena, "Entity Kind: %s",
