@@ -16,7 +16,7 @@
 
 #include "icon.c"
 
-#define VERSION "v0.0.11a"
+#define VERSION "v0.0.12a"
 
 #define FACTOR 105
 #define SCREEN_WIDTH (16 * FACTOR)
@@ -75,6 +75,7 @@ typedef enum {
     MODE_COPY,
     MODE_CHANGE,
     MODE_INTERACT,
+    MODE_COMMUNICATE,
     MODE_COUNT,
 } Mode;
 
@@ -101,6 +102,8 @@ const char* mode_as_str(const Mode m)
         return "Change";
     case MODE_INTERACT:
         return "Interact";
+    case MODE_COMMUNICATE:
+        return "Communicate";
     case MODE_COUNT:
     default:
         ASSERT(false, "UNREACHABLE!");
@@ -213,6 +216,7 @@ typedef enum {
     CMD_ID_TEST_SWITCH_CONSOLE_ARG_TYPE,
     CMD_ID_SELECT,
     CMD_ID_DESELECT,
+    CMD_ID_COMMUNICATE,
     CMD_ID_COUNT,
 } Command_id;
 
@@ -233,6 +237,7 @@ const char *commands[] = {
     [CMD_ID_TEST_SWITCH_CONSOLE_ARG_TYPE] = "test_sw",
     [CMD_ID_SELECT]    = "select",
     [CMD_ID_DESELECT]  = "deselect",
+    [CMD_ID_COMMUNICATE] = "communicate",
 };
 size_t commands_count = ARRAY_LEN(commands);
 
@@ -338,7 +343,6 @@ int main(void)
     Vector2 selection_start = { 0 };
     bool selecting = false;
 
-
     entity_arena = arena_make(32 * 1024);
     temp_arena = arena_make(0);
     str_arena  = arena_make(0);
@@ -377,6 +381,10 @@ int main(void)
     };
 
 	error_console.font = GetFontDefault();
+
+    // MODE_COMMUNICATE vars
+    Entity *comm_dst = NULL;
+    Entity *comm_src = NULL;
 
 	Console_line cl = {0};
 	darr_append(error_console.lines, cl);
@@ -671,6 +679,9 @@ exec_command:
                                 }
 
                             } break;
+                            case CMD_ID_COMMUNICATE: {
+                                 CHANGE_MODE(MODE_COMMUNICATE);
+                            } break;
                             case CMD_ID_COUNT:
                             default: ASSERT(false, "UNREACHABLE!");
                         }
@@ -788,7 +799,7 @@ exec_command:
                 }
                 /// Keybinds to change modes
                 if (IsKeyDown(KEY_LEFT_CONTROL)) {
-                    if (IsKeyPressed(KEY_C)) {
+                    if (!IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_C)) {
                         CHANGE_MODE(MODE_COPY);
                     }
 
@@ -803,6 +814,10 @@ exec_command:
                     if (IsKeyPressed(KEY_N)) {
                         CHANGE_MODE(MODE_NORMAL);
                     }
+
+                    if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_C)) {
+                        CHANGE_MODE(MODE_COMMUNICATE);
+                    }
                 }
 
 
@@ -811,48 +826,7 @@ exec_command:
                     SetMousePosition(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5);
                 }
                 is_changing_entity_kind = IsKeyDown(KEY_TAB);
-
-                if (is_changing_entity_kind) {
-                }
                 
-                if (IsKeyPressed(KEY_E)) {
-                    selected_entity_kind = (selected_entity_kind + 1) % EK_COUNT;
-                    ASSERT(load_texture(&tex_man, entity_texture_path_map[selected_entity_kind], &selected_entity_kind_tex), "THIS SHOULDNT FAIL!");
-                }
-                if (IsKeyPressed(KEY_Q)) {
-                    if (selected_entity_kind == 0)
-                        selected_entity_kind = EK_COUNT - 1;
-                    else
-                        selected_entity_kind--;
-                    ASSERT(load_texture(&tex_man, entity_texture_path_map[selected_entity_kind], &selected_entity_kind_tex), "THIS SHOULDNT FAIL!");
-                }
-
-                // @DEBUG: Test ethernet frame transfer
-                if (IsKeyPressed(KEY_J)) {
-                    Entity* dst = NULL;
-                    Entity* src = NULL;
-                    for (int i = (int)entities.count - 1; i >= 0; --i) {
-                        Entity* e = &entities.items[i];
-                        if (e->state & (1 << ESTATE_DEAD))
-                            continue;
-                        if (e->state & (1 << ESTATE_SELECTED)) {
-                            if (e->kind == EK_NIC) {
-                                if (dst == NULL) {
-                                    dst = e;
-                                } else {
-                                    if (e != dst) {
-                                        src = e;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (dst && src) {
-                        send_arp_ethernet_frame(dst, src);
-                    }
-                }
-
                 // Add Entity
                 if (IsKeyPressed(KEY_SPACE)) {
                     float64 tp1 = GetTime();
@@ -964,6 +938,44 @@ exec_command:
                     }
                     connecting_from = NULL;
                     connecting_to = NULL;
+                }
+            } break;
+            case MODE_COMMUNICATE: {
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && hovering_entity) {
+                        if (comm_src == NULL) {
+                            comm_src = hovering_entity;
+                            SET_FLAG(comm_src->state, ESTATE_SELECTED);
+                        } else {
+                            if (hovering_entity != comm_src) {
+                                comm_dst = hovering_entity;
+                                SET_FLAG(comm_dst->state, ESTATE_SELECTED);
+                            }
+                        }
+                }
+                if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && hovering_entity) {
+                    if (hovering_entity == comm_src) {
+                        UNSET_FLAG(comm_src->state, ESTATE_SELECTED);
+                        comm_src = NULL;
+                    }
+                    if (hovering_entity == comm_dst) {
+                        UNSET_FLAG(comm_dst->state, ESTATE_SELECTED);
+                        comm_dst = NULL;
+                    }
+                }
+
+                if (IsKeyPressed(KEY_SPACE)) {
+                    if (!send_arp_ethernet_frame(comm_dst, comm_src)) {
+                        log_error_to_console("Failed ARP!");
+                    }
+
+                    UNSET_FLAG(comm_src->state, ESTATE_SELECTED);
+                    comm_src = NULL;
+                    UNSET_FLAG(comm_dst->state, ESTATE_SELECTED);
+                    comm_dst = NULL;
+                }
+
+                if (IsKeyPressed(KEY_ESCAPE)) {
+                    CHANGE_MODE(MODE_NORMAL);
                 }
             } break;
             case MODE_COPY: {
@@ -1210,6 +1222,8 @@ exec_command:
         } break;
         case MODE_INTERACT: {
         } break;
+        case MODE_COMMUNICATE: {
+        } break;
         case MODE_COUNT:
         default:
             ASSERT(false, "UNREACHABLE!");
@@ -1296,8 +1310,6 @@ exec_command:
             }
 
             DEBUG_TEXT(WHITE, f, font_size, 2, "Currently moving entity: %s", currently_moving_entity ? "true" : "false");
-            
-
 
             // RED
             DEBUG_TEXT(RED, f, font_size, 2, "entity_arena.count: %zu", (size_t)((char*)entity_arena.ptr - (char*)entity_arena.buff));
@@ -1318,10 +1330,17 @@ exec_command:
         switch (current_mode) {
         case MODE_NORMAL: {
             if (is_changing_entity_kind) {
-                // @DEBUG
-                DrawCircleV(v2(width*0.5, height*0.25), 2, ORANGE);
+                const int count = EK_COUNT;
 
+                float t_scale_reset = 2;
                 float radius = height*0.3;
+                if (count > 16)
+                    radius += ((count - 16) * 10.f);
+                if (radius > height*0.5f-10.f) {
+                    radius = height*0.5f-10.f;
+                } else {
+                    t_scale_reset -= ((count - 16) * 0.1f);
+                }
                 DrawCircleLinesV(v2(width*0.5, height*0.5), radius, WHITE);
 
                 float angle = 0;
@@ -1329,21 +1348,20 @@ exec_command:
                 Vector2 _ = get_mpos_scaled(SCREEN_SCALE);
                 mid_vs_m_world_diff = v2_sub(_, mid);
 
-                for (int i = 0; i < EK_COUNT; ++i) {
+                for (int i = 0; i < count; ++i) {
                     Texture t = {0};
                     ASSERT(load_texture(&tex_man, entity_texture_path_map[i], &t), "THIS SHOULDNT FAIL!");
 
-                    float t_scale = 2;
+                    float t_scale = t_scale_reset;
                     Vector2 t_pos = v2_sub(mid, v2(t.width*t_scale*0.5, t.height*t_scale*0.5));
 
-                    DrawTextureEx(t, v2_add(t_pos, v2_scale(v2_from_radians(angle), radius)), 0, t_scale, WHITE);
+                    float angle_diff = (2 * PI) / count;
 
                     float prev = angle;
-                    angle += 2 * PI / EK_COUNT;
-                    float next = angle;
+                    angle += angle_diff;
 
-                    float start_angle = prev + ((next - prev) * 0.5);
-                    float end_angle = next + ((next - prev) * 0.5);
+                    float start_angle = prev - (angle_diff * 0.5f);
+                    float end_angle = prev + (angle_diff * 0.5f);
 
                     m_angle = v2_radians(mid_vs_m_world_diff);
 
@@ -1351,15 +1369,32 @@ exec_command:
                     if (start_angle < 0) start_angle += 2 * PI;
                     if (end_angle < 0) end_angle += 2 * PI;
 
-                    if ((m_angle >= start_angle && m_angle <= end_angle)
-                        || (prev == 0 && (m_angle >= 0.f && m_angle <= PI/4))) {
-                        DrawCircleSector(v2(width*0.5, height*0.5), radius, RAD2DEG*start_angle, RAD2DEG*end_angle, 64, WHITE);
+                    bool sector_sel = false;
+                    if (start_angle > end_angle) {
+                        if ((m_angle <= 2 * PI && m_angle >= start_angle)
+                            || (m_angle >= 0 && m_angle <= end_angle)) {
+                            sector_sel = true;
+                            start_angle -= 2 * PI;
+                        }
+                    } else {
+                        if ((m_angle >= start_angle && m_angle <= end_angle)) {
+                            sector_sel = true;
+                        }
                     }
 
+                    if (sector_sel) {
+                        DrawCircleSector(v2(width*0.5, height*0.5), radius, RAD2DEG*start_angle, RAD2DEG*end_angle, 64, ColorAlpha(WHITE, 0.25f));
+                        t_scale *= 2.f;
+                        t_pos = v2_sub(mid, v2(t.width*t_scale*0.5, t.height*t_scale*0.5));
+                        draw_text_aligned(GetFontDefault(), entity_kind_as_str(i), mid, ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
+                        selected_entity_kind = i;
+                    }
+                    DrawTextureEx(t, v2_add(t_pos, v2_scale(v2_from_radians(prev), radius)), 0, t_scale, WHITE);
+                    //
                     // log_debug("Sector for %s: %f ~ %f", entity_kind_as_str(i), start_angle, end_angle);
                 }
-                DrawCircleV(mid, 5.f, ORANGE);
-                DrawCircleV(get_mpos_scaled(SCREEN_SCALE), 10.f, RED);
+                // DrawCircleV(mid, 5.f, ORANGE);
+                // DrawCircleV(get_mpos_scaled(SCREEN_SCALE), 10.f, RED);
             }
 
             const char* selected_entity_kind_str = arena_alloc_str(temp_arena, "Entity Kind: %s",
@@ -1485,6 +1520,17 @@ exec_command:
                 draw_console(active_switch_console, active_switch_console_rect, v2(8, -8), ENTITY_DEFAULT_RADIUS*0.5f, BLACK, WHITE, 1.f);
                 
             }
+        } break;
+        case MODE_COMMUNICATE: {
+            BeginMode2D(cam);
+            if (comm_src) {
+                DrawCircleV(comm_src->pos, comm_src->radius+4, ColorAlpha(RED, 0.25f));
+            }
+            if (comm_dst) {
+                DrawCircleV(comm_dst->pos, comm_dst->radius+4, ColorAlpha(GREEN, 0.25f));
+            }
+
+            EndMode2D();
         } break;
         case MODE_COUNT:
         default:

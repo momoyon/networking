@@ -998,6 +998,32 @@ void free_switch(Entity *e) {
     free(e->switchh->fe);
 }
 
+uint8 *get_mac_address(Entity *e) {
+    if (!e) {
+        log_error_to_console("Entity is NULL: %s", __func__);
+        return NULL;
+    }
+
+    switch (e->kind) {
+        case EK_NIC: {
+            return e->nic->mac_address;
+        } break;
+        case EK_SWITCH: {
+            log_error_to_console("Cannot get MAC Address of switch!");
+        } break;
+        case EK_ACCESS_POINT: {
+            return e->ap->mac_address;
+        } break;
+        case EK_PC: {
+            return e->pc->nic->mac_address;
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+
+    return NULL;
+}
+
 // Data-transfer
 bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
     Ethernet_frame eframe = {
@@ -1006,8 +1032,18 @@ bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
         .crc = 0,
     };
 
-    memcpy(eframe.dst, dst->nic->mac_address, sizeof(uint8)*6);
-    memcpy(eframe.src, src->nic->mac_address, sizeof(uint8)*6);
+    uint8 *dst_mac = get_mac_address(dst);
+    uint8 *src_mac = get_mac_address(src);
+
+    if (dst_mac == NULL) {
+        log_error_to_console("Failed to get dst mac!");
+    }
+    if (src_mac == NULL) {
+        log_error_to_console("Failed to get src mac!");
+    }
+
+    memcpy(eframe.dst, dst_mac, sizeof(uint8)*6);
+    memcpy(eframe.src, src_mac, sizeof(uint8)*6);
 
     return recieve(dst, src, eframe);
 }
@@ -1046,38 +1082,45 @@ bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
 // }
 
 bool recieve(Entity *dst, Entity *src, Ethernet_frame frame) {
-    (void)src;
-    switch (dst->kind) {
+    Entity *src_connected_entity = get_connected_entity(src);
+    switch (src_connected_entity->kind) {
         case EK_NIC: {
-            if (dst->nic->connected_entity != src) {
-                log_error_to_console("The dst NIC is not connected to the src NIC!");
-                // if (dst->nic->connected_entity != NULL && dst->nic->connected_entity == EK_SWITCH) {
-                //     return forward_frame_via_switch(dst->nic->connected_entity, frame);
-                // } else {
-                //     log_error_to_console("The dst NIC is not connected to a switch either");
-                // }
+            if (memcmp(frame.dst, src_connected_entity->nic->mac_address, sizeof(uint8)*6) != 0) {
+                log_error_to_console("The dst is not reachable via src!");
                 return false;
             }
-
-            if (memcmp(frame.dst, dst->nic->mac_address, sizeof(uint8)*6) != 0) {
-                log_error_to_console("Ethernet Frame destined for "MAC_FMT" is dropped at src's connected NIC "MAC_FMT, MAC_ARG(frame.dst), MAC_ARG(dst->nic->mac_address));
-                return false;
-            }
-            log_debug("Received Ethernet Frame from "MAC_FMT" to "MAC_FMT, MAC_ARG(frame.src), MAC_ARG(frame.dst));
-            return true;
         } break;
         case EK_SWITCH: {
-            ASSERT(false, "EK_SWITCH recieve is UNIMPLEMENTED!");
+            bool reached = false;
+            for (int i = 0; i < src_connected_entity->switchh->module_count; ++i) {
+                for (int j = 0; j < src_connected_entity->switchh->port_count; ++j) {
+                    Port *port = &src_connected_entity->switchh->fe[i][j];
+                    if (port->conn && port->conn != src) {
+                        reached = recieve(dst, port->conn, frame);
+                        // TODO: Here we probably want to calculate and store the shortest path
+                        if (reached) {
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!reached) {
+                log_error_to_console("The dst is not reachable via src!");
+                return false;
+            }
+            return true;
+
         } break;
         case EK_ACCESS_POINT: {
-            ASSERT(false, "EK_ACCESS_POINT recieve is UNIMPLEMENTED!");
         } break;
         case EK_PC: {
-            ASSERT(false, "EK_PC recieve is UNIMPLEMENTED!");
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
+
+    log_error_to_console("Received Ethernet Frame from "MAC_FMT" to "MAC_FMT, MAC_ARG(frame.src), MAC_ARG(frame.dst));
+    return true;
 }
 
 Entity *get_entity_ptr_by_id(Entities *entities, int id) {
