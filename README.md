@@ -1,8 +1,18 @@
 # Networking
 
+<p align="center">
+<img src="./resources/gfx/icon.png">
+</p>
+
+> [!WARNING]
+> THIS PROGRAM IS A WORK IN PROGRESS! ANYTHING CAN CHANGE AT ANY MOMENT WITHOUT ANY NOTICE! USE THIS PROGRAM AT YOUR OWN RISK!
+
 An graphical application to learn networking.
 
-## Usage
+## Build
+
+_must provide raylib 5.0 on your own (Change Makefile based on your needs)_
+
 ```bash
 $ make networking
 $ ./networking
