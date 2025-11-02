@@ -1,7 +1,7 @@
 # Networking
 
 <p align="center">
-<img src="./resources/gfx/icon.png">
+<img src="./resources/gfx/icon_mono.png">
 </p>
 
 > [!WARNING]
