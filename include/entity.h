@@ -11,7 +11,6 @@ typedef struct Access_point Access_point;
 
 // NOTE: Do not change the current order of enums! (Will affect current saves)
 typedef enum {
-    EK_NIC,
     EK_SWITCH,
     EK_ACCESS_POINT,
     EK_PC,
@@ -86,6 +85,7 @@ Entity *get_connected_entity(Entity *e);
 void update_entity(Entity *e);
 void update_ap(Entity *ap_e);
 bool copy_entity_info(Entity *e);
+uint8 *get_mac_address(Entity *e);
 void disconnect_entity(Entity *e);
 void disconnect_nic(Entity *e);
 void disconnect_switch(Entity *e);

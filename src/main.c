@@ -16,7 +16,7 @@
 
 #include "icon.c"
 
-#define VERSION "v0.0.12a"
+#define VERSION "v0.1.12a"
 
 #define FACTOR 105
 #define SCREEN_WIDTH (16 * FACTOR)
@@ -330,7 +330,7 @@ int main(void)
     Mode current_mode = MODE_NORMAL;
     bool changed_mode_this_frame = false;
 
-    Entity_kind selected_entity_kind = EK_NIC;
+    Entity_kind selected_entity_kind = EK_PC;
     Entity* hovering_entity = NULL;
     Entity* connecting_from = NULL;
     Entity* connecting_to = NULL;
@@ -1098,9 +1098,6 @@ exec_command:
 
                 } else if (hovering_entity) {
                     switch (hovering_entity->kind) {
-                        case EK_NIC: {
-
-                        } break;
                         case EK_SWITCH: {
                             if (IsKeyPressed(KEY_C)) {
                                 active_switch_console = &hovering_entity->switchh->console;
@@ -1488,9 +1485,6 @@ exec_command:
             }
             if (hovering_entity) {
                 switch (hovering_entity->kind) {
-                    case EK_NIC: {
-
-                    } break;
                     case EK_SWITCH: {
                         {
                             const char* a = arena_alloc_str(temp_arena, "%s", "[C]: Toggle switch console");
