@@ -1370,7 +1370,9 @@ exec_command:
                         t_pos = v2_sub(mid, v2(t.width*t_scale*0.5, t.height*t_scale*0.5));
                         draw_text_aligned(GetFontDefault(), entity_kind_as_str(i), mid, ENTITY_DEFAULT_RADIUS * 0.5, TEXT_ALIGN_V_CENTER, TEXT_ALIGN_H_CENTER, WHITE);
                         selected_entity_kind = i;
+                        ASSERT(load_texture(&tex_man, entity_texture_path_map[selected_entity_kind], &selected_entity_kind_tex), "THIS SHOULDNT FAIL!");
                     }
+
                     DrawTextureEx(t, v2_add(t_pos, v2_scale(v2_from_radians(prev), radius)), 0, t_scale, WHITE);
                     //
                     // log_debug("Sector for %s: %f ~ %f", entity_kind_as_str(i), start_angle, end_angle);
