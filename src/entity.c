@@ -567,6 +567,8 @@ static bool is_mac_address_assigned(Entities *entities, uint8 *mac_address) {
         if (GET_FLAG(e->state, ESTATE_DEAD)) continue;
 
         uint8 *mac = get_mac_address(e);
+        if (mac == NULL) continue;
+
         if (memcmp(mac_address, mac, 6) == 0) {
             return true;
         }
@@ -599,10 +601,10 @@ void make_switch(Switch_model model, const char *version, Switch *switch_out, si
     Switch s = {.model = model};
     s.module_count = module_count;
     s.port_count = port_count;
-    s.fe = (Port **)malloc(sizeof(Port *) * module_count);
+    s.fe = (Port **)calloc(module_count, sizeof(Port *));
 
     for (int i = 0; i < s.module_count; ++i) {
-        s.fe[i] = (Port *)malloc(sizeof(Port) * port_count);
+        s.fe[i] = (Port *)calloc(port_count, sizeof(Port));
     }
 
     s.tmp_arena = tmp_arena;
@@ -670,7 +672,13 @@ void disconnect_entity(Entity *e) {
 
 bool match_port_kind(Entity *e, Port *port) {
     if (!port || !port->conn) return false;
-    if (e->kind == EK_ACCESS_POINT) return port->conn->ap == e->ap;
+    if (e->kind == EK_PC) {
+        return port->conn->pc == e->pc;
+    } else if (e->kind == EK_ACCESS_POINT) {
+        return port->conn->ap == e->ap;
+    } else {
+        log_error("Unhandled case for %s in %s", entity_kind_as_str(e->kind), __func__);
+    }
     return false;
 }
 
@@ -811,13 +819,13 @@ void free_switch(Entity *e) {
 
 uint8 *get_mac_address(Entity *e) {
     if (!e) {
-        log_error_to_console("Entity is NULL: %s", __func__);
+        log_error("Entity is NULL: %s", __func__);
         return NULL;
     }
 
     switch (e->kind) {
         case EK_SWITCH: {
-            log_error_to_console("Cannot get MAC Address of switch!");
+            log_error("Cannot get MAC Address of switch!");
         } break;
         case EK_ACCESS_POINT: {
             return e->ap->mac_address;
@@ -948,7 +956,8 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
     switch (e->kind) {
         case EK_SWITCH: {
             const char *res = (const char *)temp_arena->ptr;
-            arena_alloc_str(*temp_arena, "%zu/%zu", e->switchh->module_count, e->switchh->port_count);
+            arena_alloc_str(*temp_arena, "%zu/%zu ", e->switchh->module_count, e->switchh->port_count);
+            temp_arena->ptr--;
             for (size_t i = 0; i < e->switchh->module_count; ++i) {
                 for (size_t j = 0; j < e->switchh->port_count; ++j) {
                     Port *port = &e->switchh->fe[i][j];
@@ -1128,6 +1137,93 @@ static bool parse_nic_from_data(Nic *nic, String_view *sv) {
     return true;
 }
 
+static bool parse_switch_v2(Entity *e, String_view *sv) {
+    if (e->switchh == NULL) {
+        log_error_to_console("Please allocate the switch before trying to load from data!");
+        ASSERT(false, "DEBUG");
+        return false;
+    }
+
+    log_debug("Parsing Switch...");
+
+    sv_ltrim(sv);
+
+    String_view switch_sv = sv_lpop_until_char(sv, '|');
+    sv_lremove(sv, 1); // Remove |
+
+    while (switch_sv.count > 0) {
+        int i = -1;
+        int j = -1;
+
+        if (!parse_i_j_from_sv(&switch_sv, true, &i, &j, "module_id", "port_id")) {
+            return false;
+        }
+        sv_ltrim(&switch_sv);
+
+        String_view port_conn_id_sv = sv_lpop_until_char(&switch_sv, ' ');
+        sv_ltrim(&switch_sv);
+
+        int port_conn_id_count = -1;
+        int port_conn_id = sv_to_int(port_conn_id_sv, &port_conn_id_count, 10);
+        if (port_conn_id_count < 0) {
+            log_error_to_console("Failed to convert port conn id `"SV_FMT"` to int!", SV_ARG(port_conn_id_sv));
+            return false;
+        }
+        log_debug("Parsed port %d/%d: %d", i, j, port_conn_id);
+        if (i < 0 || i > e->switchh->module_count-1) {
+            log_error_to_console("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, e->switchh->module_count);
+        }
+        if (j < 0 || j > e->switchh->port_count-1) {
+            log_error_to_console("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, e->switchh->port_count);
+        }
+        e->switchh->fe[i][j].conn_id = port_conn_id;
+    }
+    return true;
+}
+
+static bool parse_ap_v2(Entity *e, String_view *sv) {
+    uint8 ipv4[4] = {0};
+    uint8 subnet_mask[4] = {0};
+    uint8 mac_address[6] = {0};
+
+    if (!parse_four_octet_from_data(sv, ipv4)) {
+        return false;
+    }
+    if (!parse_four_octet_from_data(sv, subnet_mask)) {
+        return false;
+    }
+    if (!parse_n_octet_from_data(6, sv, mac_address, 6, false)) {
+        return false;
+    }
+    sv_ltrim(sv);
+
+    String_view on_sv = sv_lpop_until_char(sv, ' ');
+    if (on_sv.data[0] == '0') {
+        e->ap->on = false;
+    } else if (on_sv.data[0] == '1') {
+        e->ap->on = true;
+    } else {
+        ASSERT(false, "WE GOT NEITHER 0 NOR 1 FOR AP POWER!");
+    }
+
+    memcpy(e->ap->mac_address, mac_address, sizeof(uint8)*6);
+    memcpy(e->ap->mgmt_ipv4, ipv4, sizeof(uint8)*4);
+    memcpy(e->ap->mgmt_subnet_mask, subnet_mask, sizeof(uint8)*4);
+
+    return true;
+}
+
+static bool parse_pc_v2(Entity *e, String_view *sv) {
+    String_view hostname_sv = sv_lpop_until_char(sv, ' ');
+    sv_lremove(sv, 1);
+
+    if (!parse_nic_from_data(e->pc->nic, sv)) return false;
+
+    e->pc->hostname = arena_alloc_str(*e->str_arena, SV_FMT, SV_ARG(hostname_sv));
+
+    return true;
+}
+
 static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
     if (!load_entity_from_data_v1(e, sv)) {
         return false;
@@ -1135,88 +1231,13 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
 
     switch (e->kind) {
         case EK_SWITCH: {
-            if (e->switchh == NULL) {
-                log_error_to_console("Please allocate the switch before trying to load from data!");
-                ASSERT(false, "DEBUG");
-                return false;
-            }
-
-            log_debug("Parsing Switch...");
-
-            sv_ltrim(sv);
-
-            String_view switch_sv = sv_lpop_until_char(sv, '|');
-            sv_lremove(sv, 1); // Remove |
-
-            while (switch_sv.count > 0) {
-                int i = -1;
-                int j = -1;
-
-                if (!parse_i_j_from_sv(&switch_sv, &i, &j)) {
-                    return false;
-                }
-                sv_ltrim(&switch_sv);
-
-                String_view port_conn_id_sv = sv_lpop_until_char(&switch_sv, ' ');
-                sv_ltrim(&switch_sv);
-
-                int port_conn_id_count = -1;
-                int port_conn_id = sv_to_int(port_conn_id_sv, &port_conn_id_count, 10);
-                if (port_conn_id_count < 0) {
-                    log_error_to_console("Failed to convert port conn id `"SV_FMT"` to int!", SV_ARG(port_conn_id_sv));
-                    return false;
-                }
-                log_debug("Parsed port %d/%d: %d", i, j, port_conn_id);
-                if (i < 0 || i > e->switchh->module_count-1) {
-                    log_error_to_console("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, e->switchh->module_count);
-                }
-                if (j < 0 || j > e->switchh->port_count-1) {
-                    log_error_to_console("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, e->switchh->port_count);
-                }
-                e->switchh->fe[i][j].conn_id = port_conn_id;
-            }
-            return true;
+            return parse_switch_v2(e, sv);
         } break;
         case EK_ACCESS_POINT: {
-            uint8 ipv4[4] = {0};
-            uint8 subnet_mask[4] = {0};
-            uint8 mac_address[6] = {0};
-
-            if (!parse_four_octet_from_data(sv, ipv4)) {
-                return false;
-            }
-            if (!parse_four_octet_from_data(sv, subnet_mask)) {
-                return false;
-            }
-            if (!parse_n_octet_from_data(6, sv, mac_address, 6, false)) {
-                return false;
-            }
-            sv_ltrim(sv);
-
-            String_view on_sv = sv_lpop_until_char(sv, ' ');
-            if (on_sv.data[0] == '0') {
-                e->ap->on = false;
-            } else if (on_sv.data[0] == '1') {
-                e->ap->on = true;
-            } else {
-                ASSERT(false, "WE GOT NEITHER 0 NOR 1 FOR AP POWER!");
-            }
-
-            memcpy(e->ap->mac_address, mac_address, sizeof(uint8)*6);
-            memcpy(e->ap->mgmt_ipv4, ipv4, sizeof(uint8)*4);
-            memcpy(e->ap->mgmt_subnet_mask, subnet_mask, sizeof(uint8)*4);
-
-            return true;
+            return parse_ap_v2(e, sv);
         } break;
         case EK_PC: {
-            String_view hostname_sv = sv_lpop_until_char(sv, ' ');
-            sv_lremove(sv, 1);
-
-            if (!parse_nic_from_data(e->pc->nic, sv)) return false;
-
-            e->pc->hostname = arena_alloc_str(*e->str_arena, SV_FMT, SV_ARG(hostname_sv));
-
-            return true;
+            return parse_pc_v2(e, sv);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -1224,101 +1245,38 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
     return false;
 }
 
-// static bool load_entity_from_data_v3(Entity *e, String_view *sv) {
-//     if (!load_entity_from_data_v1(e, sv)) {
-//         return false;
-//     }
-//
-//     switch (e->kind) {
-//         case EK_SWITCH: {
-//             if (e->switchh == NULL) {
-//                 log_error_to_console("Please allocate the switch before trying to load from data!");
-//                 ASSERT(false, "DEBUG");
-//                 return false;
-//             }
-//
-//             log_debug("Parsing Switch...");
-//
-//             sv_ltrim(sv);
-//
-//             String_view switch_sv = sv_lpop_until_char(sv, '|');
-//             sv_lremove(sv, 1); // Remove |
-//
-//             while (switch_sv.count > 0) {
-//                 int i = -1;
-//                 int j = -1;
-//
-//                 if (!parse_i_j_from_sv(&switch_sv, &i, &j)) {
-//                     return false;
-//                 }
-//                 sv_ltrim(&switch_sv);
-//
-//                 String_view port_conn_id_sv = sv_lpop_until_char(&switch_sv, ' ');
-//                 sv_ltrim(&switch_sv);
-//
-//                 int port_conn_id_count = -1;
-//                 int port_conn_id = sv_to_int(port_conn_id_sv, &port_conn_id_count, 10);
-//                 if (port_conn_id_count < 0) {
-//                     log_error_to_console("Failed to convert port conn id `"SV_FMT"` to int!", SV_ARG(port_conn_id_sv));
-//                     return false;
-//                 }
-//                 log_debug("Parsed port %d/%d: %d", i, j, port_conn_id);
-//                 if (i < 0 || i > e->switchh->module_count-1) {
-//                     log_error_to_console("Failed to parse switch fmt: i is outofbounds: %d (0 ~ %zu)", i, e->switchh->module_count);
-//                 }
-//                 if (j < 0 || j > e->switchh->port_count-1) {
-//                     log_error_to_console("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, e->switchh->port_count);
-//                 }
-//                 e->switchh->fe[i][j].conn_id = port_conn_id;
-//             }
-//             return true;
-//         } break;
-//         case EK_ACCESS_POINT: {
-//             uint8 ipv4[4] = {0};
-//             uint8 subnet_mask[4] = {0};
-//             uint8 mac_address[6] = {0};
-//
-//             if (!parse_four_octet_from_data(sv, ipv4)) {
-//                 return false;
-//             }
-//             if (!parse_four_octet_from_data(sv, subnet_mask)) {
-//                 return false;
-//             }
-//             if (!parse_n_octet_from_data(6, sv, mac_address, 6, false)) {
-//                 return false;
-//             }
-//             sv_ltrim(sv);
-//
-//             String_view on_sv = sv_lpop_until_char(sv, ' ');
-//             if (on_sv.data[0] == '0') {
-//                 e->ap->on = false;
-//             } else if (on_sv.data[0] == '1') {
-//                 e->ap->on = true;
-//             } else {
-//                 ASSERT(false, "WE GOT NEITHER 0 NOR 1 FOR AP POWER!");
-//             }
-//
-//             memcpy(e->ap->mac_address, mac_address, sizeof(uint8)*6);
-//             memcpy(e->ap->mgmt_ipv4, ipv4, sizeof(uint8)*4);
-//             memcpy(e->ap->mgmt_subnet_mask, subnet_mask, sizeof(uint8)*4);
-//
-//             return true;
-//         } break;
-//         case EK_PC: {
-//             String_view hostname_sv = sv_lpop_until_char(sv, ' ');
-//             sv_lremove(sv, 1);
-//
-//             if (!parse_nic_from_data(e->pc->nic, sv)) return false;
-//
-//             e->pc->hostname = arena_alloc_str(*e->str_arena, SV_FMT, SV_ARG(hostname_sv));
-//
-//             return true;
-//         } break;
-//         case EK_COUNT:
-//         default: ASSERT(false, "UNREACHABLE!");
-//     }
-//     return false;
-// }
+
+static bool load_entity_from_data_v3(Entity *e, String_view *sv) {
+    if (!load_entity_from_data_v1(e, sv)) {
+        return false;
+    }
+
+    switch (e->kind) {
+        case EK_SWITCH: {
+
+            int module_count = -1;
+            int port_count = -1;
+
+            if (!parse_i_j_from_sv(sv, false, &module_count, &port_count, "module_count", "port_count")) {
+                return false;
+            }
+
+            e->switchh->module_count = module_count;
+            e->switchh->port_count = port_count;
+
+            return parse_switch_v2(e, sv);
+        } break;
+        case EK_ACCESS_POINT: {
+            return parse_ap_v2(e, sv);
+        } break;
+        case EK_PC: {
+            return parse_pc_v2(e, sv);
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+    return false;
+}
 
 bool load_entity_from_data(Entity *e, String_view *data_sv) {
     sv_ltrim(data_sv);
@@ -1335,7 +1293,7 @@ bool load_entity_from_data(Entity *e, String_view *data_sv) {
     switch (version) {
         case 1: return load_entity_from_data_v1(e, data_sv);
         case 2: return load_entity_from_data_v2(e, data_sv);
-        // case 3: return load_entity_from_data_v3(e, data_sv);
+        case 3: return load_entity_from_data_v3(e, data_sv);
         default: {
             log_debug("Got version %d", version);
             ASSERT(false, "UNREACHABLE!");

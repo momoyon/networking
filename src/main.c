@@ -173,7 +173,7 @@ Arena entity_arena;
 Arena temp_arena;
 Arena str_arena;
 Texture_manager tex_man;
-size_t entity_save_version = 2;
+size_t entity_save_version = 3;
 Wifi_waves wifi_waves = {0};
 Console error_console = {
 	.prefix = "",
@@ -288,21 +288,6 @@ int main(void)
 {
     int width = 0;
     int height = 0;
-
-    {
-        Vector2 v1 = {1.0f, 0.0f};    // 0 radians
-        Vector2 v2 = {0.0f, 1.0f};    // π/2 radians
-        Vector2 v3 = {-1.0f, 0.0f};   // π radians
-        Vector2 v4 = {0.0f, -1.0f};   // -π/2 radians
-        Vector2 v5 = {1.0f, 1.0f};    // π/4 radians
-
-        printf("Angle of v1: %f radians\n", v2_radians(v1));
-        printf("Angle of v2: %f radians\n", v2_radians(v2));
-        printf("Angle of v3: %f radians\n", v2_radians(v3));
-        printf("Angle of v4: %f radians\n", v2_radians(v4));
-        printf("Angle of v5: %f radians\n", v2_radians(v5));
-    }
-
 
 #if defined(DEBUG)
     bool debug_draw = true;
