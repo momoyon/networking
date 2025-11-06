@@ -15,6 +15,6 @@
 
 #define COMMAND_PRERUN_FILENAME "prerun_command.momo"
 
-#define ERROR_CONSOLE_ACTIVITY_VALUE 2.f
+#define MAIN_CONSOLE_ACTIVITY_VALUE 2.f
 
 #endif // _CONFIG_H_

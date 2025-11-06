@@ -15,15 +15,14 @@ typedef Switch_console_cmd Switch_console_cmd;
 #define log_warning_a(console, fmt, ...) log_warning_console((console), fmt, __VA_ARGS__); log_warning(fmt, __VA_ARGS__)
 #define log_error_a(console, fmt, ...) log_error_console((console), fmt, __VA_ARGS__); log_error(fmt, __VA_ARGS__)
 
-#define log_error_to_console(fmt, ...) log_error_console(error_console, fmt, ##__VA_ARGS__); log_error(fmt, ##__VA_ARGS__); error_console_activity = ERROR_CONSOLE_ACTIVITY_VALUE; error_console_alpha = 1.f;
+#define log_error_to_console(fmt, ...) log_error_console(main_console, fmt, ##__VA_ARGS__); log_error(fmt, ##__VA_ARGS__); main_console_activity = MAIN_CONSOLE_ACTIVITY_VALUE; main_console_alpha = 1.f;
+#define log_info_to_console(fmt, ...) log_info_console(main_console, fmt, ##__VA_ARGS__); log_info(fmt, ##__VA_ARGS__); main_console_activity = MAIN_CONSOLE_ACTIVITY_VALUE; main_console_alpha = 1.f;
 
 typedef struct {
     int *items;
     size_t count;
     size_t capacity;
 } Ids; // @darr
-
-
 
 extern size_t entities_count; // NOTE: We need to maintain this cuz we use instance pooling
 extern Entities entities;
@@ -37,9 +36,9 @@ extern Arena temp_arena;
 extern Texture_manager tex_man;
 extern size_t entity_save_version;
 extern Wifi_waves wifi_waves;
-extern Console error_console;
-extern float error_console_activity;
-extern float error_console_alpha;
+extern Console main_console;
+extern float main_console_activity;
+extern float main_console_alpha;
 
 void cleanup(void);
 void crash(void);

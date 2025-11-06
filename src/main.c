@@ -175,11 +175,11 @@ Arena str_arena;
 Texture_manager tex_man;
 size_t entity_save_version = 3;
 Wifi_waves wifi_waves = {0};
-Console error_console = {
+Console main_console = {
 	.prefix = "",
 };
-float error_console_activity = 0.f;
-float error_console_alpha = 0;
+float main_console_activity = 0.f;
+float main_console_alpha = 0;
 
 typedef enum {
     CHANGE_IPV4,
@@ -365,14 +365,14 @@ int main(void)
         .prefix_symbol = ':',
     };
 
-	error_console.font = GetFontDefault();
+	main_console.font = GetFontDefault();
 
     // MODE_COMMUNICATE vars
     Entity *comm_dst = NULL;
     Entity *comm_src = NULL;
 
 	Console_line cl = {0};
-	darr_append(error_console.lines, cl);
+	darr_append(main_console.lines, cl);
 
     // prerun cmd (only supports one line rn)
     // TODO: Support multiple commands on multiple lines
@@ -870,7 +870,6 @@ exec_command:
                 }
 
                 // Move selected entities
-
                 if (IsMouseButtonReleased(MOUSE_BUTTON_MIDDLE)) {
                     moving_entities.count = 0;
                 }
@@ -1122,12 +1121,12 @@ exec_command:
 		cam.zoom += (zoom_to - cam.zoom) * GetFrameTime() * 100.f;
 
 		// Error console activity
-		if (error_console_activity > 0.f) {
-			error_console_activity -= GetFrameTime();
-			if (error_console_activity < 0.f) error_console_activity = 0.f;
+		if (main_console_activity > 0.f) {
+			main_console_activity -= GetFrameTime();
+			if (main_console_activity < 0.f) main_console_activity = 0.f;
 		} else {
-			if (error_console_alpha > 0) {
-				error_console_alpha -= GetFrameTime();
+			if (main_console_alpha > 0) {
+				main_console_alpha -= GetFrameTime();
 			}
 		}
 
@@ -1526,7 +1525,7 @@ exec_command:
             draw_console(&command_hist, command_rect, v2(8, -8), console_font_size, ColorAlpha(BLACK, 0.7f), WHITE, 1.f);
         }
 
-		if (error_console_alpha > 0) {
+		if (main_console_alpha > 0) {
 			float pad = 10.f;
             Rectangle command_rect = {
                 .x = pad,
@@ -1534,7 +1533,7 @@ exec_command:
                 .width = width - pad*2,
                 .height = height - pad*2,
             };
-			draw_console(&error_console, command_rect, v2(8, -8), console_font_size, BLANK, WHITE, error_console_alpha);
+			draw_console(&main_console, command_rect, v2(8, -8), console_font_size, BLANK, WHITE, main_console_alpha);
 		}
 
         EndTextureMode();
