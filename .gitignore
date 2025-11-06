@@ -4,6 +4,5 @@ raylib-5.0_win64_mingw-w64/
 *.entities
 *.entity
 mac_address_list.c
-*.ico
 *.o
 *.zip
