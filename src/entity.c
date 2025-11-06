@@ -778,10 +778,10 @@ void free_entity(Entity *e) {
             free_switch(e);
         } break;
         case EK_ACCESS_POINT: {
-            // @Pass
+            free_ap(e);
         } break;
         case EK_PC: {
-            // @Pass
+            free_pc(e);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -815,6 +815,34 @@ void free_switch(Entity *e) {
         free(e->switchh->fe[i]);
     }
     free(e->switchh->fe);
+}
+
+void free_ap(Entity *e) {
+    ASSERT(e->kind == EK_ACCESS_POINT, "Br");
+
+    // Add free mac_address so it can be reused
+    Mac_address m = {0};
+    m.addr[0] = e->ap->mac_address[0];
+    m.addr[1] = e->ap->mac_address[1];
+    m.addr[2] = e->ap->mac_address[2];
+    m.addr[3] = e->ap->mac_address[3];
+    m.addr[4] = e->ap->mac_address[4];
+    m.addr[5] = e->ap->mac_address[5];
+    darr_append(free_mac_addresses, m);
+}
+
+void free_pc(Entity *e) {
+    ASSERT(e->kind == EK_PC, "Br");
+
+    // Add free mac_address so it can be reused
+    Mac_address m = {0};
+    m.addr[0] = e->pc->nic->mac_address[0];
+    m.addr[1] = e->pc->nic->mac_address[1];
+    m.addr[2] = e->pc->nic->mac_address[2];
+    m.addr[3] = e->pc->nic->mac_address[3];
+    m.addr[4] = e->pc->nic->mac_address[4];
+    m.addr[5] = e->pc->nic->mac_address[5];
+    darr_append(free_mac_addresses, m);
 }
 
 uint8 *get_mac_address(Entity *e) {

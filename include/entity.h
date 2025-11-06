@@ -51,6 +51,12 @@ typedef struct {
 } Entities;
 
 typedef struct {
+    Entity **items;
+    size_t count;
+    size_t capacity;
+} Entity_ptrs;
+
+typedef struct {
 	int *items;
 	size_t count;
 	size_t capacity;
@@ -92,8 +98,9 @@ void disconnect_switch(Entity *e);
 void disconnect_ap(Entity *e);
 void disconnect_pc(Entity *e);
 void free_entity(Entity *e);
-void free_nic(Entity *e);
 void free_switch(Entity *e);
+void free_ap(Entity *e);
+void free_pc(Entity *e);
 
 // Data-transfer
 bool send_arp_ethernet_frame(Entity *dst, Entity *src);
