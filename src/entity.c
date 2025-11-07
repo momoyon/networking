@@ -90,6 +90,18 @@ void draw_entity(Entity *e, bool debug) {
     switch (e->kind) {
         case EK_SWITCH: {
             ASSERT(e->switchh, "We failed to allocate switch!");
+
+            // Draw port conns
+            for (size_t i = 0; i < e->switchh->module_count; ++i) {
+                for (size_t j = 0; j < e->switchh->port_count; ++j) {
+                    Entity *port_e = &e->switchh->fe[i][j];
+
+                    if (port_e->port->nic->connected_entity) {
+                        DrawLineBezier(e->pos, port_e->port->nic->connected_entity->pos, 1, WHITE);
+                    }
+                }
+            }
+
             if (GET_FLAG(e->state, ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
@@ -396,8 +408,13 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
 
     switch (other->kind) {
         case EK_SWITCH: {
-            log_error_to_console("We can't connect two switches directly!");
-            return false;
+            Entity *port_e = get_switch_free_port(switchh);
+            if (!port_e) {
+                log_error_to_console("No free port on source switch!");
+                return false;
+            }
+
+            return connect_to_next_free_port(port_e, other);
         } break;
         case EK_ACCESS_POINT: {
             return connect_ap_to(other, switchh);
@@ -1731,9 +1748,22 @@ bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_coun
     return false;
 }
 
+Entity *get_switch_free_port(Entity *switch_e) {
+    for (size_t i = 0; i < switch_e->switchh->module_count; ++i) {
+        for (size_t j = 0; j < switch_e->switchh->port_count; ++j) {
+            Port *port = switch_e->switchh->fe[i][j].port;
+
+            if (port->nic->connected_entity == NULL) {
+                return &switch_e->switchh->fe[i][j];
+            }
+        }
+    }
+    return NULL;
+}
+
 bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
-    if (!e || (e->kind != EK_ACCESS_POINT && e->kind != EK_PC)) {
-        log_error_to_console("Cannot connect to port: the NIC or AP or PC is not valid!");
+    if (!e || (e->kind != EK_ACCESS_POINT && e->kind != EK_PC && e->kind != EK_PORT)) {
+        log_error_to_console("Cannot connect to port: the PORT or AP or PC is not valid!");
         return false;
     }
     if (!switch_e || switch_e->kind != EK_SWITCH) {
@@ -1744,14 +1774,13 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
     for (size_t i = 0; i < switch_e->switchh->module_count; ++i) {
         for (size_t j = 0; j < switch_e->switchh->port_count; ++j) {
             Port *port = switch_e->switchh->fe[i][j].port;
-            // NOTE: Honestly this is already checked above, but whatever ig
-            if (e->kind == EK_ACCESS_POINT || e->kind == EK_PC) {
-                if (port->nic->connected_entity == NULL) {
-                    port->nic->connected_entity = (Entity *)arena_alloc(e->arena, sizeof(Entity));
-                    memcpy(port->nic->connected_entity, e, sizeof(Entity));
-                    return true;
-                }
+
+            if (port->nic->connected_entity == NULL) {
+                port->nic->connected_entity = (Entity *)arena_alloc(e->arena, sizeof(Entity));
+                memcpy(port->nic->connected_entity, e, sizeof(Entity));
+                return true;
             }
+
         }
     }
     return false;

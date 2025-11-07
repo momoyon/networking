@@ -897,7 +897,9 @@ exec_command:
                     } else {
                         for (int i = 0; i < moving_entities.count; ++i) {
                             Entity* e = moving_entities.items[i];
-                            e->pos = Vector2Add(m_world, e->offset);
+
+                            // TODO: Implement update_entity_pos()
+                            update_entity_pos(e, Vector2Add(m_world, e->offset));
                         }
                     }
                 }

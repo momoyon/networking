@@ -162,6 +162,7 @@ void make_switch(Entity *e, Switch_model model, const char *version, Switch *swi
 void make_switch_console(Console *console_out, Arena *arena);
 void boot_switch(Switch *switchh, float dt);
 bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args);
+Entity *get_switch_free_port(Entity *switch_e);
 
 bool get_next_switch_console_command_arg(String_array current_args, Switch_console_arg *next_arg_out);
 void get_switch_console_commands(Switch *switchh, Switch_console_cmd **commands_out, size_t *commands_count_out);
