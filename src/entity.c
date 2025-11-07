@@ -59,7 +59,7 @@ static void draw_info_text(Vector2 *p, const char *text, int font_size, Color co
 static void draw_nic_info_text(Vector2 *p, Entity *e, Nic *nic) {
     Ipv4_class ipv4_class = determine_ipv4_class(nic->ipv4_address);
     const char *ipv4_class_info = ipv4_class_additional_info(ipv4_class);
-    draw_info_text(p, arena_alloc_str(*e->temp_arena,
+    draw_info_text(p, arena_alloc_str(*e->tmp_arena,
                 "ipv4: %d.%d.%d.%d (%s | %s) [%s]",
                 nic->ipv4_address[0],
                 nic->ipv4_address[1],
@@ -69,14 +69,14 @@ static void draw_nic_info_text(Vector2 *p, Entity *e, Nic *nic) {
                 ipv4_class_info,
                 ipv4_type_as_str(determine_ipv4_type(nic->ipv4_address))),
             ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-    draw_info_text(p, arena_alloc_str(*e->temp_arena,
+    draw_info_text(p, arena_alloc_str(*e->tmp_arena,
                 "subnet mask: %d.%d.%d.%d",
                 nic->subnet_mask[0],
                 nic->subnet_mask[1],
                 nic->subnet_mask[2],
                 nic->subnet_mask[3]),
             ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-    draw_info_text(p, arena_alloc_str(*e->temp_arena,
+    draw_info_text(p, arena_alloc_str(*e->tmp_arena,
                 "mac: %02X:%02X:%02X:%02X:%02X:%02X",
                 nic->mac_address[0],
                 nic->mac_address[1],
@@ -93,16 +93,16 @@ void draw_entity(Entity *e, bool debug) {
             if (GET_FLAG(e->state, ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
-                ASSERT(e->temp_arena, "BRUH");
-                draw_info_text(&p, arena_alloc_str(*e->temp_arena, "%s", switch_model_as_str(e->switchh->model)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                ASSERT(e->tmp_arena, "BRUH");
+                draw_info_text(&p, arena_alloc_str(*e->tmp_arena, "%s", switch_model_as_str(e->switchh->model)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 
                 for (size_t i = 0; i < e->switchh->module_count; ++i) {
                     for (size_t j = 0; j < e->switchh->port_count; ++j) {
-                        Entity *conn = e->switchh->fe[i][j].nic->connected_entity;
+                        Entity *conn = e->switchh->fe[i][j].port->nic->connected_entity;
                         if (!conn) continue;
                         if (conn->kind == EK_PC) {
                             Nic *nic = conn->pc->nic;
-                            draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+                            draw_info_text(&p, arena_alloc_str(*e->tmp_arena,
                                         "eth%zu/%zu: %d.%d.%d.%d | %d.%d.%d.%d", i, j,
                                         nic->ipv4_address[0],
                                         nic->ipv4_address[1],
@@ -115,7 +115,7 @@ void draw_entity(Entity *e, bool debug) {
                                     ENTITY_DEFAULT_RADIUS*0.5, WHITE);
                         } else if (conn->kind == EK_ACCESS_POINT) {
                             Access_point *ap = conn->ap;
-                            draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+                            draw_info_text(&p, arena_alloc_str(*e->tmp_arena,
                                         "eth%zu/%zu: "IPV4_FMT" | "SUBNET_MASK_FMT, i, j,
                                         IPV4_ARG(ap->mgmt_ipv4),
                                         SUBNET_MASK_ARG(ap->mgmt_subnet_mask)),
@@ -129,11 +129,11 @@ void draw_entity(Entity *e, bool debug) {
 	    if (GET_FLAG(e->state, ESTATE_SELECTED)) {
 		    Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
 		    DrawLineV(e->pos, p, WHITE);
-		    draw_info_text(&p, arena_alloc_str(*e->temp_arena, "mac address:"MAC_FMT, MAC_ARG(e->ap->mac_address)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-		    draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+		    draw_info_text(&p, arena_alloc_str(*e->tmp_arena, "mac address:"MAC_FMT, MAC_ARG(e->ap->mac_address)), ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+		    draw_info_text(&p, arena_alloc_str(*e->tmp_arena,
 				"mgmt ipv4: "IPV4_FMT" "SUBNET_MASK_FMT, IPV4_ARG(e->ap->mgmt_ipv4), SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask)),
 			    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
-		    draw_info_text(&p, arena_alloc_str(*e->temp_arena,
+		    draw_info_text(&p, arena_alloc_str(*e->tmp_arena,
 				"Power: %s", e->ap->on ? "On" : "Off"),
 			    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
 	    }
@@ -154,8 +154,8 @@ void draw_entity(Entity *e, bool debug) {
             if (GET_FLAG(e->state, ESTATE_SELECTED)) {
                 Vector2 p = v2(e->pos.x + e->radius*1.5, e->pos.y + e->radius*1.5);
                 DrawLineV(e->pos, p, WHITE);
-                ASSERT(e->temp_arena, "BRUH");
-                draw_info_text(&p, arena_alloc_str(*e->temp_arena, "HOSTNAME: %s", e->pc->hostname), ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+                ASSERT(e->tmp_arena, "BRUH");
+                draw_info_text(&p, arena_alloc_str(*e->tmp_arena, "HOSTNAME: %s", e->pc->hostname), ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
 
                 draw_nic_info_text(&p, e, e->pc->nic);
             }
@@ -244,11 +244,11 @@ static bool copy_ipv4(Entity *e) {
             return false;
         } break;
         case EK_ACCESS_POINT: {
-            ipv4_str = arena_alloc_str(*e->temp_arena, IPV4_FMT, IPV4_ARG(e->ap->mgmt_ipv4));
+            ipv4_str = arena_alloc_str(*e->tmp_arena, IPV4_FMT, IPV4_ARG(e->ap->mgmt_ipv4));
         } break;
         case EK_PC: {
             ASSERT(e && e->pc && e->pc->nic, "These must be allocated");
-            ipv4_str = arena_alloc_str(*e->temp_arena, IPV4_FMT, IPV4_ARG(e->pc->nic->ipv4_address));
+            ipv4_str = arena_alloc_str(*e->tmp_arena, IPV4_FMT, IPV4_ARG(e->pc->nic->ipv4_address));
         } break;
         case EK_PORT:
         case EK_COUNT:
@@ -268,11 +268,11 @@ static bool copy_subnet_mask(Entity *e) {
             return false;
         } break;
         case EK_ACCESS_POINT: {
-            submask_str = arena_alloc_str(*e->temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask));
+            submask_str = arena_alloc_str(*e->tmp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask));
         } break;
         case EK_PC: {
             ASSERT(e && e->pc && e->pc->nic, "These must be allocated");
-            submask_str = arena_alloc_str(*e->temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->pc->nic->subnet_mask));
+            submask_str = arena_alloc_str(*e->tmp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->pc->nic->subnet_mask));
         } break;
         case EK_PORT:
         case EK_COUNT:
@@ -296,7 +296,7 @@ static bool copy_mac_address(Entity *e) {
         } break;
         case EK_PC: {
             ASSERT(e && e->pc && e->pc->nic, "These must be allocated");
-            mac_str = arena_alloc_str(*e->temp_arena, MAC_FMT, MAC_ARG(e->pc->nic->mac_address));
+            mac_str = arena_alloc_str(*e->tmp_arena, MAC_FMT, MAC_ARG(e->pc->nic->mac_address));
         } break;
         case EK_PORT:
         case EK_COUNT:
@@ -354,7 +354,7 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
 
             for (size_t i = 0; i < other->switchh->module_count; ++i) {
                 for (size_t j = 0; j < other->switchh->port_count; ++j) {
-                    Entity *conn = other->switchh->fe[i][j].nic->connected_entity;
+                    Entity *conn = other->switchh->fe[i][j].port->nic->connected_entity;
                     if (conn && conn->ap == ap->ap) {
                         found = true;
                         break;
@@ -416,7 +416,7 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
 
             for (size_t i = 0; i < switchh->switchh->module_count; ++i) {
                 for (size_t j = 0; j < switchh->switchh->port_count; ++j) {
-                    Entity *conn = switchh->switchh->fe[i][j].nic->connected_entity;
+                    Entity *conn = switchh->switchh->fe[i][j].port->nic->connected_entity;
                     if (conn && conn->nic == nic) {
                         found = true;
                         break;
@@ -528,14 +528,13 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b) {
     return true;
 }
 
-static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_arena) {
-    (void)temp_arena;
-    e->parent_sw_id = -1;
+static void init_entity(Entity *e, Arena *arena, Arena *tmp_arena, Arena *str_arena) {
+    (void)tmp_arena;
     switch (e->kind) {
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
             // TODO: Take switch model as input
-            make_switch(e, SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, 1, 4, arena, temp_arena, str_arena);
+            make_switch(e, SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, 1, 4, arena, tmp_arena, str_arena);
             e->tex = load_texture_checked(entity_texture_path_map[EK_SWITCH]);
         } break;
         case EK_ACCESS_POINT: {
@@ -550,7 +549,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_a
             e->tex = load_texture_checked(entity_texture_path_map[EK_PC]);
         } break;
         case EK_PORT: {
-            e->port = (Port *)arena_alloc(arena, sizeo(Port));
+            e->port = (Port *)arena_alloc(arena, sizeof(Port));
             // @WASHERE
         } break;
         case EK_COUNT:
@@ -559,7 +558,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_a
 }
 
 // Makers
-Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena, Arena *str_arena) {
+Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *tmp_arena, Arena *str_arena) {
     Entity e = (Entity) {
         .pos = pos,
         .radius = radius,
@@ -567,12 +566,12 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
         .id = get_unique_id(),
         .state = 0,
         .arena = arena,
-        .temp_arena = temp_arena,
+        .tmp_arena = tmp_arena,
         .str_arena = str_arena,
         .entities = entities,
     };
 
-    init_entity(&e, arena, temp_arena, str_arena);
+    init_entity(&e, arena, tmp_arena, str_arena);
 
     return e;
 }
@@ -620,13 +619,17 @@ void make_switch(Entity *e, Switch_model model, const char *version, Switch *swi
     s.fe = (Entity **)calloc(module_count, sizeof(Entity *));
 
     for (int i = 0; i < s.module_count; ++i) {
-        s.fe[i] = EntityPort *)calloc(port_count, sizeof(Entity));
+        s.fe[i] = (Entity *)calloc(port_count, sizeof(Entity));
     }
 
     // Allocate port nics
     for (int i = 0; i < s.module_count; ++i) {
         for (int j = 0; j < s.port_count; ++j) {
+            s.fe[i][j] = make_entity(e->entities, v2(0,0), ENTITY_DEFAULT_RADIUS, EK_PORT, arena, tmp_arena, str_arena);
             Entity *port_e = &s.fe[i][j];
+
+            init_entity(port_e, arena, tmp_arena, str_arena);
+
             Port *port = port_e->port;
 
             port->port = i;
@@ -636,12 +639,8 @@ void make_switch(Entity *e, Switch_model model, const char *version, Switch *swi
             port->entity->kind = EK_PORT;
             port->entity->entities = e->entities;
 
-            port->entity->module = i;
-            port->entity->port = j;
-
-            init_entity(port->entity, e->arena, e->temp_arena, e->str_arena);
-            port->entity->parent_sw = e;
-            port->entity->parent_sw_id = e->id;
+            init_entity(port->entity, arena, tmp_arena, str_arena);
+            // port->entity->parent_sw_id = e->id;
             port->nic = (Nic *)calloc(1, sizeof(Nic));
             do {
                 get_unique_mac_address(port->nic->mac_address);
@@ -752,7 +751,7 @@ Entity_ptrs get_connected_entities(Entity *e) {
             for (int i = 0; i < e->switchh->module_count; ++i) {
                 for (int j = 0; j < e->switchh->port_count; ++j) {
                     // TODO: We have to check for ge ports on other switch models...
-                    Port *port = &e->switchh->fe[i][j];
+                    Port *port = (e->switchh->fe[i][j].port);
                     if (port->nic && port->nic->connected_entity) {
                         darr_append(res, port->nic->connected_entity);
                     }
@@ -768,11 +767,11 @@ Entity_ptrs get_connected_entities(Entity *e) {
                 darr_append(res, e->pc->nic->connected_entity);
         } break;
         case EK_PORT: {
-            ASSERT(e->parent_sw_id >= 0, "This should be true!");
-            Entity *parent_sw = get_entity_ptr_by_id(e->entities, e->parent_sw_id);
-            Port *p = &(parent_sw->switchh->fe[e->module][e->port]);
-            if (p->nic->connected_entity) {
-                darr_append(res, p->nic->connected_entity);
+            // ASSERT(e->parent_sw_id >= 0, "This should be true!");
+            // Entity *parent_sw = get_entity_ptr_by_id(e->entities, e->parent_sw_id);
+            // Port *p = &(parent_sw->switchh->fe[e->module][e->port]);
+            if (e->port->nic->connected_entity) {
+                darr_append(res, e->port->nic->connected_entity);
             }
         } break;
         case EK_COUNT: 
@@ -799,7 +798,7 @@ static void disconnect_connected_entities(Entity *e) {
             if (connected_entity->kind == EK_SWITCH) {
                 for (size_t i = 0; i < connected_entity->switchh->module_count; ++i) {
                     for (size_t j = 0; j < connected_entity->switchh->port_count; ++j) {
-                        Port *port = &connected_entity->switchh->fe[i][j];
+                        Port *port = connected_entity->switchh->fe[i][j].port;
                         if (match_port_kind(e, port)) {
                             disconnect_port(port);
                             break; // We shouldn't have duplicate entries
@@ -813,7 +812,7 @@ static void disconnect_connected_entities(Entity *e) {
                 ASSERT(connected_entity->ap->connected_entity == e, "This should be true if the connection logic is correct");
                 connected_entity->ap->connected_entity = NULL;
             } else {
-                const char *s = arena_alloc_str(*e->temp_arena, "Case not handled for %s", entity_kind_as_str(connected_entity->kind));
+                const char *s = arena_alloc_str(*e->tmp_arena, "Case not handled for %s", entity_kind_as_str(connected_entity->kind));
                 ASSERT(false, s);
             }
         }
@@ -832,7 +831,7 @@ void disconnect_switch(Entity *e) {
     ASSERT(e->kind == EK_SWITCH, "BRO");
     for (size_t i = 0; i < e->switchh->module_count; ++i) {
         for (size_t j = 0; j < e->switchh->port_count; ++j) {
-            Port *port = &e->switchh->fe[i][j];
+            Port *port = e->switchh->fe[i][j].port;
             disconnect_port(port);
         }
     }
@@ -881,16 +880,27 @@ void free_switch(Entity *e) {
     // Remove any reference to this switch from the connected NICs
     for (size_t i = 0; i < e->switchh->module_count; ++i) {
         for (size_t j = 0; j < e->switchh->port_count; ++j) {
-            Entity *conn = e->switchh->fe[i][j].nic->connected_entity;
-            if (conn && conn->nic && conn->nic->connected_entity == e && conn->nic->connected_entity->kind == EK_SWITCH) {
-                conn->nic->connected_entity = NULL;
+            Entity *conn = e->switchh->fe[i][j].port->nic->connected_entity;
+            if (conn) {
+                Entity_ptrs conn_connected_entities = get_connected_entities(conn);
+                ASSERT(conn_connected_entities.count > 0, "This should be true!");
+                bool found = false;
+                for (int i = 0; i < conn_connected_entities.count; ++i) {
+                    Entity *conn_conn = conn_connected_entities.items[i];
+                    if (conn_conn == e) {
+                        set_connected_entity(conn, NULL);
+                        found = true;
+                    }
+                }
+                ASSERT(found, "This should also be true!");
+                darr_free(conn_connected_entities);
             }
         }
     }
 
     for (int i = 0; i < e->switchh->module_count; ++i) {
         for (int j = 0; j < e->switchh->port_count; ++j) {
-            Port *p = &e->switchh->fe[i][j];
+            Port *p = e->switchh->fe[i][j].port;
             ASSERT(p->nic, "Port NIC should be allocated!");
             free(p->nic);
             free(p->entity);
@@ -902,6 +912,8 @@ void free_switch(Entity *e) {
 
 void free_ap(Entity *e) {
     ASSERT(e->kind == EK_ACCESS_POINT, "Br");
+
+    disconnect_connected_entities(e);
 
     // Add free mac_address so it can be reused
     Mac_address m = {0};
@@ -917,6 +929,8 @@ void free_ap(Entity *e) {
 void free_pc(Entity *e) {
     ASSERT(e->kind == EK_PC, "Br");
 
+    disconnect_connected_entities(e);
+    
     // Add free mac_address so it can be reused
     Mac_address m = {0};
     m.addr[0] = e->pc->nic->mac_address[0];
@@ -945,7 +959,7 @@ uint8 *get_mac_address(Entity *e) {
             return e->pc->nic->mac_address;
         } break;
         case EK_PORT: {
-
+            return e->port->nic->mac_address;
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -956,6 +970,15 @@ uint8 *get_mac_address(Entity *e) {
 
 // Data-transfer
 bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
+    if (dst->kind == EK_SWITCH) {
+        log_error_to_console("You cannot send packets to a switch!");
+        return false;
+    }
+    if (src->kind == EK_SWITCH) {
+        log_error_to_console("You cannot send packets from a switch!");
+        return false;
+    }
+
     Ethernet_frame eframe = {
         .ether_type_or_length = ETHER_TYPE_ARP,
         .payload = (uint8 *)"ARP PING TEST",
@@ -975,7 +998,6 @@ bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
     memcpy(eframe.dst, dst_mac, sizeof(uint8)*6);
     memcpy(eframe.src, src_mac, sizeof(uint8)*6);
 
-    // TODO: Do we allow the src to be a switch or a router? then we have to keep track of the module/port
     return recieve(dst, src, eframe, -1, -1);
 }
 // static bool forward_frame_via_switch(Entity *se, Ethernet_frame frame) {
@@ -1009,7 +1031,7 @@ bool recieve_impl(Entity *dst, Entity *src, Ethernet_frame frame, bool fwd, int 
     switch (src->kind) {
         case EK_SWITCH: {
             ASSERT(src_module >= 0 && src_port >= 0, "This should be correct!");
-            src = src->switchh->fe[src_module][src_port].entity;
+            src = &src->switchh->fe[src_module][src_port];
         } break;
         case EK_ACCESS_POINT: {
         } break;
@@ -1074,7 +1096,7 @@ bool recieve_impl(Entity *dst, Entity *src, Ethernet_frame frame, bool fwd, int 
                     Switch *sw = src_connected_entity->switchh;
                     for (int i = 0; i < sw->module_count; ++i) {
                         for (int j = 0; j < sw->port_count; ++j) {
-                            Port *port = &sw->fe[i][j];
+                            Port *port = sw->fe[i][j].port;
 
                             Entity *conn = port->nic->connected_entity;
 
@@ -1129,17 +1151,17 @@ bool is_entities_saved(Entities *entities) {
     return false;
 }
 
-const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
+const char *entity_kind_save_format(Entity *e, Arena *tmp_arena) {
     switch (e->kind) {
         case EK_SWITCH: {
-            const char *res = (const char *)temp_arena->ptr;
-            arena_alloc_str(*temp_arena, "%zu/%zu ", e->switchh->module_count, e->switchh->port_count);
-            temp_arena->ptr--;
+            const char *res = (const char *)tmp_arena->ptr;
+            arena_alloc_str(*tmp_arena, "%zu/%zu ", e->switchh->module_count, e->switchh->port_count);
+            tmp_arena->ptr--;
             for (size_t i = 0; i < e->switchh->module_count; ++i) {
                 for (size_t j = 0; j < e->switchh->port_count; ++j) {
-                    Port *port = &e->switchh->fe[i][j];
-                    arena_alloc_str(*temp_arena, "%zu/%zu: %d ", i, j, (port->nic && port->nic->connected_entity ? (int)port->nic->connected_entity->id : -1));
-                    temp_arena->ptr--;
+                    Port *port = e->switchh->fe[i][j].port;
+                    arena_alloc_str(*tmp_arena, "%zu/%zu: %d ", i, j, (port->nic && port->nic->connected_entity ? (int)port->nic->connected_entity->id : -1));
+                    tmp_arena->ptr--;
 
                     if (port->nic->connected_entity) {
                         int id = port->nic->connected_entity->id;
@@ -1148,12 +1170,12 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
                     }
                 }
             }
-            arena_alloc_str(*temp_arena, "%s", "|");
+            arena_alloc_str(*tmp_arena, "%s", "|");
             log_debug("SWITCH KIND SAVE FMT: %s", res);
             return res;
         } break;
         case EK_ACCESS_POINT: {
-            return arena_alloc_str(*temp_arena, 
+            return arena_alloc_str(*tmp_arena, 
                     IPV4_FMT" "SUBNET_MASK_FMT" %d.%d.%d.%d.%d.%d %d ",
                     IPV4_ARG(e->ap->mgmt_ipv4), 
                     SUBNET_MASK_ARG(e->ap->mgmt_subnet_mask),
@@ -1161,7 +1183,7 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
                     e->ap->on ? 1 : 0);
         } break;
         case EK_PC: {
-            return arena_alloc_str(*temp_arena, 
+            return arena_alloc_str(*tmp_arena, 
                     "%s "IPV4_FMT" "SUBNET_MASK_FMT" %d.%d.%d.%d.%d.%d %d", 
 
                     e->pc->hostname,
@@ -1182,7 +1204,7 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
     return "NOPE";
 }
 
-const char *save_entity_to_data(Entity *e, Arena *arena, Arena *temp_arena, int version) {
+const char *save_entity_to_data(Entity *e, Arena *arena, Arena *tmp_arena, int version) {
     char *s = "";
     switch (version) {
         case 1: {
@@ -1191,7 +1213,7 @@ const char *save_entity_to_data(Entity *e, Arena *arena, Arena *temp_arena, int 
         // Switch's module and port count added to format in version 3
         case 2:
         case 3: {
-            s = arena_alloc_str(*arena, "v%d %.2f %.2f %d %zu %d %s ", version, e->pos.x, e->pos.y, e->kind, e->id, e->state, entity_kind_save_format(e, temp_arena));
+            s = arena_alloc_str(*arena, "v%d %.2f %.2f %d %zu %d %s ", version, e->pos.x, e->pos.y, e->kind, e->id, e->state, entity_kind_save_format(e, tmp_arena));
         } break;
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -1260,7 +1282,7 @@ static bool load_entity_from_data_v1(Entity *e, String_view *sv) {
     e->id = id;
     e->state = state;
 
-    init_entity(e, e->arena, e->temp_arena, e->str_arena);
+    init_entity(e, e->arena, e->tmp_arena, e->str_arena);
 
     return true;
 }
@@ -1354,7 +1376,7 @@ static bool parse_switch_v2(Entity *e, String_view *sv) {
         if (j < 0 || j > e->switchh->port_count-1) {
             log_error_to_console("Failed to parse switch fmt: j is outofbounds: %d (0 ~ %zu)", j, e->switchh->port_count);
         }
-        e->switchh->fe[i][j].conn_id = port_conn_id;
+        e->switchh->fe[i][j].port->conn_id = port_conn_id;
     }
     return true;
 }
@@ -1498,7 +1520,7 @@ bool load_entity_from_file(Entity *e, const char *filepath) {
     return true;
 }
 
-bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int version) {
+bool save_entity_to_file(Entity *e, Arena *tmp_arena, const char *filepath, int version) {
     FILE *f = fopen(filepath, "w");
 
     if (!f) { 
@@ -1506,7 +1528,7 @@ bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int
     }
 
     Arena a = arena_make(0);
-    const char *s = save_entity_to_data(e, temp_arena, &a, version);
+    const char *s = save_entity_to_data(e, tmp_arena, &a, version);
     size_t s_len = strlen(s);
 
     size_t wrote = fwrite(s, sizeof(char), s_len, f);
@@ -1516,7 +1538,7 @@ bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int
         return false;
     }
 
-    temp_arena->ptr -= s_len; // Dealloc the string;
+    tmp_arena->ptr -= s_len; // Dealloc the string;
 
     fclose(f);
 
@@ -1527,15 +1549,15 @@ bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int
 
 bool save_entities(Entities *entities, const char *filepath, size_t save_version) {
     Arena entities_arena = arena_make(0);
-    Arena temp_arena = arena_make(0);
+    Arena tmp_arena = arena_make(0);
 
     for (size_t i = 0; i < entities->count; ++i) {
         Entity *e = &entities->items[i];
 	if (GET_FLAG(e->state, ESTATE_DEAD)) continue;
 
-        if (!save_entity_to_data(e, &entities_arena, &temp_arena, save_version)) {
+        if (!save_entity_to_data(e, &entities_arena, &tmp_arena, save_version)) {
             arena_free(&entities_arena);
-            arena_free(&temp_arena);
+            arena_free(&tmp_arena);
             return false;
         }
     }
@@ -1554,11 +1576,11 @@ bool save_entities(Entities *entities, const char *filepath, size_t save_version
     fclose(f);
 
     arena_free(&entities_arena);
-    arena_free(&temp_arena);
+    arena_free(&tmp_arena);
     return true;
 }
 
-bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena, Arena *str_arena) {
+bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *tmp_arena, Arena *str_arena) {
     // Reset before loading new entities
     entities_count = 0;
     entities->count = 0;
@@ -1574,13 +1596,13 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
     String_view sv = SV(file);
 
     while (sv.count > 0) {
-        Entity e = make_entity(entities, v2xx(0), ENTITY_DEFAULT_RADIUS, EK_PC, arena, temp_arena, str_arena);
+        Entity e = make_entity(entities, v2xx(0), ENTITY_DEFAULT_RADIUS, EK_PC, arena, tmp_arena, str_arena);
         sv_trim(&sv);
         if (!load_entity_from_data(&e, &sv)) {
             free((void*)file);
             return false;
         }
-        // init_entity(&e, arena, temp_arena);
+        // init_entity(&e, arena, tmp_arena);
         add_entity(e);
     }
 
@@ -1592,7 +1614,7 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
         if (e->kind == EK_SWITCH) {
             for (size_t i = 0; i < e->switchh->module_count; ++i) {
                 for (size_t j = 0; j < e->switchh->port_count; ++j) {
-                    Port *port = &e->switchh->fe[i][j];
+                    Port *port = e->switchh->fe[i][j].port;
                     if (port->conn_id >= 0) {
                         Entity *conn = get_entity_ptr_by_id(entities, port->conn_id);
                         if (conn == NULL) {
@@ -1605,7 +1627,7 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
                         } else if (conn->kind == EK_PC) {
                             conn->pc->nic->connected_entity = e;
                         } else {
-                            const char *s = arena_alloc_str(*e->temp_arena, "Case not handled for %s", entity_kind_as_str(conn->kind));
+                            const char *s = arena_alloc_str(*e->tmp_arena, "Case not handled for %s", entity_kind_as_str(conn->kind));
                             ASSERT(false, s);
                         }
                     }
@@ -1721,7 +1743,7 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
 
     for (size_t i = 0; i < switch_e->switchh->module_count; ++i) {
         for (size_t j = 0; j < switch_e->switchh->port_count; ++j) {
-            Port *port = &switch_e->switchh->fe[i][j];
+            Port *port = switch_e->switchh->fe[i][j].port;
             // NOTE: Honestly this is already checked above, but whatever ig
             if (e->kind == EK_ACCESS_POINT || e->kind == EK_PC) {
                 if (port->nic->connected_entity == NULL) {

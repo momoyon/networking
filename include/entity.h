@@ -74,7 +74,7 @@ struct Entity {
     Texture2D tex;
 
     Arena *arena; // All entity-related allocations
-    Arena *temp_arena;
+    Arena *tmp_arena;
     Arena *str_arena;
 
     // Kind specific
@@ -93,7 +93,7 @@ struct Entity {
     Entities *entities;
 };
 
-Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *temp_arena, Arena *str_arena);
+Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind kind, Arena *arena, Arena *tmp_arena, Arena *str_arena);
 void draw_entity(Entity *e, bool debug);
 Entity_ptrs get_connected_entities(Entity *e);
 void update_entity(Entity *e);
@@ -123,10 +123,10 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b);
 
 // I/O
 bool is_entities_saved(Entities *entities);
-const char *save_entity_to_data(Entity *e, Arena *arena, Arena *temp_arena, int version);
+const char *save_entity_to_data(Entity *e, Arena *arena, Arena *tmp_arena, int version);
 bool load_entity_from_file(Entity *e, const char *filepath);
-bool save_entity_to_file(Entity *e, Arena *temp_arena, const char *filepath, int version);
+bool save_entity_to_file(Entity *e, Arena *tmp_arena, const char *filepath, int version);
 bool save_entities(Entities *entities, const char *filepath, size_t save_version);
-bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *temp_arena, Arena *str_arena);
+bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena *tmp_arena, Arena *str_arena);
 
 #endif // _ENTITY_H_

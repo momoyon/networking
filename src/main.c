@@ -404,6 +404,11 @@ int main(void)
         if (IsKeyPressed(KEY_GRAVE)) {
             debug_draw = !debug_draw;
         }
+        
+        if (IsKeyDown(KEY_F1)) {
+            main_console_activity = 1.f;
+            main_console_alpha = 1.f;
+        }
 
         // Run prerun command
         if (prerun_cmd_file_size > 0 && !prerun_cmd_ran) {
@@ -971,10 +976,18 @@ exec_command:
                     if (IsKeyPressed(KEY_ONE)) {
                         is_changing = true;
                         changing_type = CHANGE_IPV4;
+                        if (hovering_entity->kind == EK_SWITCH) {
+                            log_error_to_console("Cannot change the ipv4 of a switch!");
+                            is_changing = false;
+                        }
                     }
                     if (IsKeyPressed(KEY_TWO)) {
                         is_changing = true;
                         changing_type = CHANGE_SUBNET_MASK;
+                        if (hovering_entity->kind == EK_SWITCH) {
+                            log_error_to_console("Cannot change the subnet mask of a switch!");
+                            is_changing = false;
+                        }
                     }
                 }
 
@@ -1280,7 +1293,7 @@ exec_command:
                     DEBUG_TEXT(GRAY, f, font_size, 8, "Switch port_count: %zu", hovering_entity->switchh->port_count);
                     for (int i = 0; i < hovering_entity->switchh->module_count; ++i) {
                         for (int j = 0; j < hovering_entity->switchh->port_count; ++j) {
-                            Port* port = &hovering_entity->switchh->fe[i][j];
+                            Port* port = hovering_entity->switchh->fe[i][j].port;
 
                             DEBUG_TEXT(GRAY, f, font_size, 16, "fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT, 
                                     i, j, MAC_ARG(port->nic->mac_address), IPV4_ARG(port->nic->ipv4_address), SUBNET_MASK_ARG(port->nic->subnet_mask));
@@ -1322,7 +1335,7 @@ exec_command:
         switch (current_mode) {
         case MODE_NORMAL: {
             if (is_changing_entity_kind) {
-                const int count = EK_COUNT;
+                const int count = EK_COUNT-1; // -1 Because we don't want EK_COUNT spawning
 
                 float t_scale_reset = 2;
                 float radius = height*0.3;
@@ -1341,6 +1354,7 @@ exec_command:
                 mid_vs_m_world_diff = v2_sub(_, mid);
 
                 for (int i = 0; i < count; ++i) {
+                    if (i == EK_PORT) continue;
                     Texture t = {0};
                     ASSERT(load_texture(&tex_man, entity_texture_path_map[i], &t), "THIS SHOULDNT FAIL!");
 
@@ -1515,11 +1529,22 @@ exec_command:
         } break;
         case MODE_COMMUNICATE: {
             BeginMode2D(cam);
+            Font f = GetFontDefault();
             if (comm_src) {
                 DrawCircleV(comm_src->pos, comm_src->radius+4, ColorAlpha(RED, 0.25f));
+                Vector2 end = v2(comm_src->pos.x + ENTITY_DEFAULT_RADIUS*2, comm_src->pos.y - ENTITY_DEFAULT_RADIUS*2);
+                DrawLineV(comm_src->pos, end, WHITE);
+                draw_text_aligned(f, "Source", end, ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_BOTTOM, TEXT_ALIGN_H_LEFT, WHITE);
             }
             if (comm_dst) {
                 DrawCircleV(comm_dst->pos, comm_dst->radius+4, ColorAlpha(GREEN, 0.25f));
+                Vector2 end = v2(comm_dst->pos.x + ENTITY_DEFAULT_RADIUS*2, comm_dst->pos.y - ENTITY_DEFAULT_RADIUS*2);
+                DrawLineV(comm_dst->pos, end, WHITE);
+                draw_text_aligned(f, "Destination", end, ENTITY_DEFAULT_RADIUS*0.5, TEXT_ALIGN_V_BOTTOM, TEXT_ALIGN_H_LEFT, WHITE);
+            }
+
+            if (comm_src && comm_dst) {
+                // DrawLineV(
             }
 
             EndMode2D();
