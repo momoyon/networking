@@ -1256,18 +1256,23 @@ exec_command:
                 DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering ID: %zu", hovering_entity->id);
                 DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering pos: %.2f, %.2f", hovering_entity->pos.x, hovering_entity->pos.y);
 
-                Entity *hovering_entity_connected_entity = get_connected_entity(hovering_entity);
-                const char *connected_to_entity_str = arena_alloc_str(temp_arena, "%s", "Connected to: Nothing");
+                Entity_ptrs hovering_entity_connected_entities = get_connected_entities(hovering_entity);
+                for (int i = 0; i < hovering_entity_connected_entities.count; ++i) {
+                    Entity *hovering_entity_connected_entity = hovering_entity_connected_entities.items[i];
+                    const char *connected_to_entity_str = arena_alloc_str(temp_arena, "%s", "Connected to: Nothing");
 
-                if (hovering_entity_connected_entity) {
-                    connected_to_entity_str = arena_alloc_str(temp_arena, "Connected to: %p (%s [%zu])", 
-                            hovering_entity_connected_entity,
-                            entity_kind_as_str(hovering_entity_connected_entity->kind),
-                            hovering_entity_connected_entity->id);
+                    if (hovering_entity_connected_entity) {
+                        connected_to_entity_str = arena_alloc_str(temp_arena, "Connected to: %p (%s [%zu])", 
+                                hovering_entity_connected_entity,
+                                entity_kind_as_str(hovering_entity_connected_entity->kind),
+                                hovering_entity_connected_entity->id);
+                    }
+                    draw_text(GetFontDefault(), connected_to_entity_str, v2(2, y),
+                        ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
+                    y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
                 }
-                draw_text(GetFontDefault(), connected_to_entity_str, v2(2, y),
-                    ENTITY_DEFAULT_RADIUS * 0.5, WHITE);
-                y += ENTITY_DEFAULT_RADIUS * 0.5 + 2;
+                darr_free(hovering_entity_connected_entities);
+
 
                 if (hovering_entity->kind == EK_SWITCH) {
                     DEBUG_TEXT(GRAY, f, font_size, 8, "Switch module_count: %zu", hovering_entity->switchh->module_count);

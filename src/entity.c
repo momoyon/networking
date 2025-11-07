@@ -699,15 +699,34 @@ void set_connected_entity(Entity *e, Entity *to) {
     }
 }
 
-Entity *get_connected_entity(Entity *e) {
+// IMPORTANT: Caller must free the res!
+Entity_ptrs get_connected_entities(Entity *e) {
+    Entity_ptrs res = {0};
     switch (e->kind) {
-        case EK_SWITCH: return NULL;
-        case EK_ACCESS_POINT: return e->ap->connected_entity;
-        case EK_PC: return e->pc->nic->connected_entity;
+        case EK_SWITCH: {
+            for (int i = 0; i < e->switchh->module_count; ++i) {
+                for (int j = 0; j < e->switchh->port_count; ++j) {
+                    // TODO: We have to check for ge ports on other switch models...
+                    Port *port = &e->switchh->fe[i][j];
+                    if (port->conn) {
+                        darr_append(res, port->conn);
+                    }
+                }
+            }
+        } break;
+        case EK_ACCESS_POINT: {
+            if (e->ap->connected_entity)
+                darr_append(res, e->ap->connected_entity);
+        } break;
+        case EK_PC: {
+            if (e->pc->nic->connected_entity)
+                darr_append(res, e->pc->nic->connected_entity);
+        } break;
         case EK_COUNT: 
         default: ASSERT(false, "UNREACHABLE!");
     }
-    return NULL;
+
+    return res;
 }
 
 void disconnect_port(Port *port) {
@@ -717,29 +736,33 @@ void disconnect_port(Port *port) {
     }
 }
 
-static void disconnect_connected_entity(Entity *e) {
-    Entity *connected_entity = get_connected_entity(e);
+static void disconnect_connected_entities(Entity *e) {
+    Entity_ptrs connected_entities = get_connected_entities(e);
 
-    if (connected_entity) {
-        if (connected_entity->kind == EK_SWITCH) {
-            for (size_t i = 0; i < connected_entity->switchh->module_count; ++i) {
-                for (size_t j = 0; j < connected_entity->switchh->port_count; ++j) {
-                    Port *port = &connected_entity->switchh->fe[i][j];
-                    if (match_port_kind(e, port)) {
-                        disconnect_port(port);
-                        break; // We shouldn't have duplicate entries
+    if (connected_entities.count > 0) {
+        for (int i = 0; i < connected_entities.count; ++i) {
+            Entity *connected_entity = connected_entities.items[i];
+
+            if (connected_entity->kind == EK_SWITCH) {
+                for (size_t i = 0; i < connected_entity->switchh->module_count; ++i) {
+                    for (size_t j = 0; j < connected_entity->switchh->port_count; ++j) {
+                        Port *port = &connected_entity->switchh->fe[i][j];
+                        if (match_port_kind(e, port)) {
+                            disconnect_port(port);
+                            break; // We shouldn't have duplicate entries
+                        }
                     }
                 }
+            } else if (connected_entity->kind == EK_PC) {
+                ASSERT(connected_entity->pc->nic->connected_entity == e, "This should be true if the connection logic is correct");
+                connected_entity->pc->nic->connected_entity = NULL;
+            } else if (connected_entity->kind == EK_ACCESS_POINT) {
+                ASSERT(connected_entity->ap->connected_entity == e, "This should be true if the connection logic is correct");
+                connected_entity->ap->connected_entity = NULL;
+            } else {
+                const char *s = arena_alloc_str(*e->temp_arena, "Case not handled for %s", entity_kind_as_str(connected_entity->kind));
+                ASSERT(false, s);
             }
-        } else if (connected_entity->kind == EK_PC) {
-            ASSERT(connected_entity->pc->nic->connected_entity == e, "This should be true if the connection logic is correct");
-            connected_entity->pc->nic->connected_entity = NULL;
-        } else if (connected_entity->kind == EK_ACCESS_POINT) {
-            ASSERT(connected_entity->ap->connected_entity == e, "This should be true if the connection logic is correct");
-            connected_entity->ap->connected_entity = NULL;
-        } else {
-            const char *s = arena_alloc_str(*e->temp_arena, "Case not handled for %s", entity_kind_as_str(connected_entity->kind));
-            ASSERT(false, s);
         }
     }
 
@@ -748,7 +771,7 @@ static void disconnect_connected_entity(Entity *e) {
 
 void disconnect_pc(Entity *e) {
     ASSERT(e->kind == EK_PC, "BRO");
-    disconnect_connected_entity(e);
+    disconnect_connected_entities(e);
     log_debug("Disconnected PC with ID: %zu", e->id);
 }
 
@@ -765,7 +788,7 @@ void disconnect_switch(Entity *e) {
 
 void disconnect_ap(Entity *e) {
     ASSERT(e->kind == EK_ACCESS_POINT, "BRO");
-    disconnect_connected_entity(e);
+    disconnect_connected_entities(e);
     log_debug("Disconnected ap with ID: %zu", e->id);
 }
 
@@ -1024,7 +1047,7 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
                     e->pc->nic->mac_address[3],
                     e->pc->nic->mac_address[4],
                     e->pc->nic->mac_address[5],
-                    e->pc->nic && e->pc->nic->connected_entity ? (int)(get_connected_entity(e)->id) : -1);
+                    e->pc->nic && e->pc->nic->connected_entity ? (int)(e->pc->nic->connected_entity->id) : -1);
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
