@@ -1277,6 +1277,14 @@ exec_command:
                 if (hovering_entity->kind == EK_SWITCH) {
                     DEBUG_TEXT(GRAY, f, font_size, 8, "Switch module_count: %zu", hovering_entity->switchh->module_count);
                     DEBUG_TEXT(GRAY, f, font_size, 8, "Switch port_count: %zu", hovering_entity->switchh->port_count);
+                    for (int i = 0; i < hovering_entity->switchh->module_count; ++i) {
+                        for (int j = 0; j < hovering_entity->switchh->port_count; ++j) {
+                            Port* port = &hovering_entity->switchh->fe[i][j];
+
+                            DEBUG_TEXT(GRAY, f, font_size, 16, "fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT, 
+                                    i, j, MAC_ARG(port->nic->mac_address), IPV4_ARG(port->nic->ipv4_address), SUBNET_MASK_ARG(port->nic->subnet_mask));
+                        }
+                    }
                 }
             }
             DEBUG_TEXT(WHITE, f, font_size, 2, "From: %p", connecting_from);

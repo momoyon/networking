@@ -101,7 +101,7 @@ typedef struct Entity Entity;
 
 typedef struct {
 	int vlan;
-    Entity *conn;
+    Nic *nic;
 	int conn_id; // NOTE: Only used when loading switches.
 } Port;
 
@@ -156,7 +156,7 @@ struct Switch {
     Arena *str_arena;
 };
 
-void make_switch(Switch_model model, const char *version, Switch *switch_out, size_t module_count, size_t port_count, Arena *arena, Arena *tmp_arena, Arena *str_arena);
+void make_switch(Entity *e, Switch_model model, const char *version, Switch *switch_out, size_t module_count, size_t port_count, Arena *arena, Arena *tmp_arena, Arena *str_arena);
 void make_switch_console(Console *console_out, Arena *arena);
 void boot_switch(Switch *switchh, float dt);
 bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args);

@@ -96,7 +96,7 @@ void draw_entity(Entity *e, bool debug) {
 
                 for (size_t i = 0; i < e->switchh->module_count; ++i) {
                     for (size_t j = 0; j < e->switchh->port_count; ++j) {
-                        Entity *conn = e->switchh->fe[i][j].conn;
+                        Entity *conn = e->switchh->fe[i][j].nic->connected_entity;
                         if (!conn) continue;
                         if (conn->kind == EK_PC) {
                             Nic *nic = conn->pc->nic;
@@ -347,7 +347,7 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
 
             for (size_t i = 0; i < other->switchh->module_count; ++i) {
                 for (size_t j = 0; j < other->switchh->port_count; ++j) {
-                    Entity *conn = other->switchh->fe[i][j].conn;
+                    Entity *conn = other->switchh->fe[i][j].nic->connected_entity;
                     if (conn && conn->ap == ap->ap) {
                         found = true;
                         break;
@@ -408,7 +408,7 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
 
             for (size_t i = 0; i < switchh->switchh->module_count; ++i) {
                 for (size_t j = 0; j < switchh->switchh->port_count; ++j) {
-                    Entity *conn = switchh->switchh->fe[i][j].conn;
+                    Entity *conn = switchh->switchh->fe[i][j].nic->connected_entity;
                     if (conn && conn->nic == nic) {
                         found = true;
                         break;
@@ -462,8 +462,8 @@ static bool connect_pc_to(Entity *pc, Entity *other) {
             return false;
         } break;
         case EK_PC: {
-            Nic *a = pc->nic;
-            Nic *b = other->nic;
+            Nic *a = pc->pc->nic;
+            Nic *b = other->pc->nic;
 
             if (b->connected_entity != NULL && b->connected_entity != pc) {
                 log_error_to_console("The other PC is already connected to something!");
@@ -523,7 +523,7 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_a
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
             // TODO: Take switch model as input
-            make_switch(SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, 1, 4, arena, temp_arena, str_arena);
+            make_switch(e, SW_MODEL_MOMO_SW_2025_A, "1.0.0", e->switchh, 1, 4, arena, temp_arena, str_arena);
             e->tex = load_texture_checked(entity_texture_path_map[EK_SWITCH]);
         } break;
         case EK_ACCESS_POINT: {
@@ -597,7 +597,7 @@ void make_nic(Entity *e, Nic *nic, Arena *arena) {
     } while (is_mac_address_assigned(e->entities, nic->mac_address));
 }
 
-void make_switch(Switch_model model, const char *version, Switch *switch_out, size_t module_count, size_t port_count, Arena *arena, Arena *tmp_arena, Arena *str_arena) {
+void make_switch(Entity *e, Switch_model model, const char *version, Switch *switch_out, size_t module_count, size_t port_count, Arena *arena, Arena *tmp_arena, Arena *str_arena) {
     Switch s = {.model = model};
     s.module_count = module_count;
     s.port_count = port_count;
@@ -605,6 +605,19 @@ void make_switch(Switch_model model, const char *version, Switch *switch_out, si
 
     for (int i = 0; i < s.module_count; ++i) {
         s.fe[i] = (Port *)calloc(port_count, sizeof(Port));
+    }
+
+    // Allocate port nics
+    for (int i = 0; i < s.module_count; ++i) {
+        for (int j = 0; j < s.port_count; ++j) {
+            Port *port = &s.fe[i][j];
+
+            port->nic = (Nic *)calloc(1, sizeof(Nic));
+            do {
+                get_unique_mac_address(port->nic->mac_address);
+            } while (is_mac_address_assigned(e->entities, port->nic->mac_address));
+
+        }
     }
 
     s.tmp_arena = tmp_arena;
@@ -671,11 +684,11 @@ void disconnect_entity(Entity *e) {
 }
 
 bool match_port_kind(Entity *e, Port *port) {
-    if (!port || !port->conn) return false;
+    if (!port || !(port->nic && port->nic->connected_entity)) return false;
     if (e->kind == EK_PC) {
-        return port->conn->pc == e->pc;
+        return port->nic->connected_entity->pc == e->pc;
     } else if (e->kind == EK_ACCESS_POINT) {
-        return port->conn->ap == e->ap;
+        return port->nic->connected_entity->ap == e->ap;
     } else {
         log_error("Unhandled case for %s in %s", entity_kind_as_str(e->kind), __func__);
     }
@@ -708,8 +721,8 @@ Entity_ptrs get_connected_entities(Entity *e) {
                 for (int j = 0; j < e->switchh->port_count; ++j) {
                     // TODO: We have to check for ge ports on other switch models...
                     Port *port = &e->switchh->fe[i][j];
-                    if (port->conn) {
-                        darr_append(res, port->conn);
+                    if (port->nic && port->nic->connected_entity) {
+                        darr_append(res, port->nic->connected_entity);
                     }
                 }
             }
@@ -730,9 +743,9 @@ Entity_ptrs get_connected_entities(Entity *e) {
 }
 
 void disconnect_port(Port *port) {
-    if (port && port->conn) {
-        set_connected_entity(port->conn, NULL);
-        port->conn = NULL;
+    if (port && port->nic && port->nic->connected_entity) {
+        set_connected_entity(port->nic->connected_entity, NULL);
+        port->nic->connected_entity = NULL;
     }
 }
 
@@ -835,6 +848,11 @@ void free_switch(Entity *e) {
     }
 
     for (int i = 0; i < e->switchh->module_count; ++i) {
+        for (int j = 0; j < e->switchh->port_count; ++j) {
+            Port *p = &e->switchh->fe[i][j];
+            ASSERT(p->nic, "Port NIC should be allocated!");
+            free(p->nic);
+        }
         free(e->switchh->fe[i]);
     }
     free(e->switchh->fe);
@@ -1012,13 +1030,13 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
             for (size_t i = 0; i < e->switchh->module_count; ++i) {
                 for (size_t j = 0; j < e->switchh->port_count; ++j) {
                     Port *port = &e->switchh->fe[i][j];
-                    arena_alloc_str(*temp_arena, "%zu/%zu: %d ", i, j, (port->conn ? (int)port->conn->id : -1));
+                    arena_alloc_str(*temp_arena, "%zu/%zu: %d ", i, j, (port->nic && port->nic->connected_entity ? (int)port->nic->connected_entity->id : -1));
                     temp_arena->ptr--;
 
-                    if (port->conn) {
-                        int id = port->conn->id;
+                    if (port->nic->connected_entity) {
+                        int id = port->nic->connected_entity->id;
                         ASSERT(id >= 0, "Ig the port isn't connected to anything? in that case it should be NULL tho?");
-                        log_debug("Port %zu/%zu %s entity: (%d)", i, j, entity_kind_as_str(port->conn->kind), id);
+                        log_debug("Port %zu/%zu %s entity: (%d)", i, j, entity_kind_as_str(port->nic->connected_entity->kind), id);
                     }
                 }
             }
@@ -1470,7 +1488,7 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
                             log_error_to_console("Cannot find CONN with id %d", port->conn_id);
                             return false;
                         }
-                        port->conn = conn;
+                        port->nic->connected_entity = conn;
                         if (conn->kind == EK_ACCESS_POINT) {
                             conn->ap->connected_entity = e;
                         } else if (conn->kind == EK_PC) {
@@ -1593,9 +1611,9 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
             Port *port = &switch_e->switchh->fe[i][j];
             // NOTE: Honestly this is already checked above, but whatever ig
             if (e->kind == EK_ACCESS_POINT || e->kind == EK_PC) {
-                if (port->conn == NULL) {
-                    port->conn = (Entity *)arena_alloc(e->arena, sizeof(Entity));
-                    memcpy(port->conn, e, sizeof(Entity));
+                if (port->nic->connected_entity == NULL) {
+                    port->nic->connected_entity = (Entity *)arena_alloc(e->arena, sizeof(Entity));
+                    memcpy(port->nic->connected_entity, e, sizeof(Entity));
                     return true;
                 }
             }
