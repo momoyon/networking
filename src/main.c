@@ -1096,6 +1096,7 @@ exec_command:
                         case EK_PC: {
 
                         } break;
+                        case EK_PORT:
                         case EK_COUNT:
                         default: ASSERT(false, "UNREACHABLE!");
                     }
@@ -1501,6 +1502,7 @@ exec_command:
                     case EK_PC: {
                         
                     } break;
+                    case EK_PORT:
                     case EK_COUNT:
                     default: ASSERT(false, "UNREACHABLE!");
                 }

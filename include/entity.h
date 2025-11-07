@@ -14,6 +14,7 @@ typedef enum {
     EK_SWITCH,
     EK_ACCESS_POINT,
     EK_PC,
+    EK_PORT,
     EK_COUNT,
 } Entity_kind;
 
@@ -81,6 +82,13 @@ struct Entity {
     Switch *switchh; // switch is a keyword in C
     Access_point *ap;
     Pc *pc;
+    Port *port;
+
+    // // Specific for EK_PORT
+    // Entity *parent_sw;
+    // int parent_sw_id;
+    // int port;
+    // int module;
 
     Entities *entities;
 };
@@ -104,7 +112,9 @@ void free_pc(Entity *e);
 
 // Data-transfer
 bool send_arp_ethernet_frame(Entity *dst, Entity *src);
-bool recieve(Entity *dst, Entity *src, Ethernet_frame frame);
+bool recieve_impl(Entity *dst, Entity *src, Ethernet_frame frame, bool forwarded, int src_sw_module, int src_sw_port);
+bool recieve(Entity *dst, Entity *src, Ethernet_frame frame, int src_sw_module, int src_sw_port);
+bool recieve_fwd(Entity *dst, Entity *src, Ethernet_frame frame, int src_sw_module, int src_sw_port);
 
 Entity *get_entity_ptr_by_id(Entities *entities, int id);
 

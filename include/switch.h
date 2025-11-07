@@ -101,8 +101,10 @@ typedef struct Entity Entity;
 
 typedef struct {
 	int vlan;
+    Entity *entity;
     Nic *nic;
 	int conn_id; // NOTE: Only used when loading switches.
+    int module, port;
 } Port;
 
 typedef enum Switch_model Switch_model;
@@ -136,7 +138,7 @@ const char *switch_console_config_mode_as_str(const Switch_console_config_mode m
 typedef struct Switch Switch;
 struct Switch {
 	Console console;
-	Port **fe; // FastEthernet
+	Entity **fe; // FastEthernet
     size_t module_count;
     size_t port_count;
     Switch_model model;

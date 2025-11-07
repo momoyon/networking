@@ -20,6 +20,7 @@ char *entity_texture_path_map[EK_COUNT] = {
     [EK_SWITCH] = "resources/gfx/switch.png",
     [EK_ACCESS_POINT] = "resources/gfx/ap.png",
     [EK_PC] = "resources/gfx/pc.png",
+    [EK_PORT] = "",
 };
 
 static size_t get_unique_id(void) {
@@ -38,6 +39,7 @@ const char *entity_kind_as_str(const Entity_kind k) {
         case EK_SWITCH: return "Switch";
         case EK_ACCESS_POINT: return "Access Point";
         case EK_PC: return "PC";
+        case EK_PORT: return "Port";
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -158,6 +160,7 @@ void draw_entity(Entity *e, bool debug) {
                 draw_nic_info_text(&p, e, e->pc->nic);
             }
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -212,6 +215,7 @@ void update_entity(Entity *e) {
         case EK_PC: {
             // update_ap(e);
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -246,6 +250,7 @@ static bool copy_ipv4(Entity *e) {
             ASSERT(e && e->pc && e->pc->nic, "These must be allocated");
             ipv4_str = arena_alloc_str(*e->temp_arena, IPV4_FMT, IPV4_ARG(e->pc->nic->ipv4_address));
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -269,6 +274,7 @@ static bool copy_subnet_mask(Entity *e) {
             ASSERT(e && e->pc && e->pc->nic, "These must be allocated");
             submask_str = arena_alloc_str(*e->temp_arena, SUBNET_MASK_FMT, SUBNET_MASK_ARG(e->pc->nic->subnet_mask));
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -292,6 +298,7 @@ static bool copy_mac_address(Entity *e) {
             ASSERT(e && e->pc && e->pc->nic, "These must be allocated");
             mac_str = arena_alloc_str(*e->temp_arena, MAC_FMT, MAC_ARG(e->pc->nic->mac_address));
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -374,6 +381,7 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
             return connect_pc_to(other, ap);
         } break;
         case EK_COUNT:
+        case EK_PORT:
         default: ASSERT(false, "UNREACHABLE!");
     }
     return false;
@@ -428,6 +436,7 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
             return true;
         } break;
         case EK_COUNT:
+        case EK_PORT:
         default: ASSERT(false, "UNREACHABLE!");
     }
     return false;
@@ -475,6 +484,7 @@ static bool connect_pc_to(Entity *pc, Entity *other) {
             a->drawing_connection = true;
             return true;
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -502,6 +512,7 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b) {
             connected = connect_pc_to(a, b);
             return false;
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -519,6 +530,7 @@ bool connect_entity(Entities *entities, Entity *a, Entity *b) {
 
 static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_arena) {
     (void)temp_arena;
+    e->parent_sw_id = -1;
     switch (e->kind) {
         case EK_SWITCH: {
             e->switchh = (Switch *)arena_alloc(arena, sizeof(Switch));
@@ -536,6 +548,10 @@ static void init_entity(Entity *e, Arena *arena, Arena *temp_arena, Arena *str_a
             // TODO: Dynamically generate pc name (incrementing id)
             make_pc(e, e->pc, "PC", arena);
             e->tex = load_texture_checked(entity_texture_path_map[EK_PC]);
+        } break;
+        case EK_PORT: {
+            e->port = (Port *)arena_alloc(arena, sizeo(Port));
+            // @WASHERE
         } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -601,17 +617,31 @@ void make_switch(Entity *e, Switch_model model, const char *version, Switch *swi
     Switch s = {.model = model};
     s.module_count = module_count;
     s.port_count = port_count;
-    s.fe = (Port **)calloc(module_count, sizeof(Port *));
+    s.fe = (Entity **)calloc(module_count, sizeof(Entity *));
 
     for (int i = 0; i < s.module_count; ++i) {
-        s.fe[i] = (Port *)calloc(port_count, sizeof(Port));
+        s.fe[i] = EntityPort *)calloc(port_count, sizeof(Entity));
     }
 
     // Allocate port nics
     for (int i = 0; i < s.module_count; ++i) {
         for (int j = 0; j < s.port_count; ++j) {
-            Port *port = &s.fe[i][j];
+            Entity *port_e = &s.fe[i][j];
+            Port *port = port_e->port;
 
+            port->port = i;
+            port->module = j;
+
+            port->entity = (Entity *)calloc(1, sizeof(Entity));
+            port->entity->kind = EK_PORT;
+            port->entity->entities = e->entities;
+
+            port->entity->module = i;
+            port->entity->port = j;
+
+            init_entity(port->entity, e->arena, e->temp_arena, e->str_arena);
+            port->entity->parent_sw = e;
+            port->entity->parent_sw_id = e->id;
             port->nic = (Nic *)calloc(1, sizeof(Nic));
             do {
                 get_unique_mac_address(port->nic->mac_address);
@@ -678,6 +708,7 @@ void disconnect_entity(Entity *e) {
         case EK_PC: {
             disconnect_pc(e);
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -707,6 +738,7 @@ void set_connected_entity(Entity *e, Entity *to) {
         case EK_PC: {
             e->pc->nic->connected_entity = to;
         } break;
+        case EK_PORT: 
         case EK_COUNT: 
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -734,6 +766,14 @@ Entity_ptrs get_connected_entities(Entity *e) {
         case EK_PC: {
             if (e->pc->nic->connected_entity)
                 darr_append(res, e->pc->nic->connected_entity);
+        } break;
+        case EK_PORT: {
+            ASSERT(e->parent_sw_id >= 0, "This should be true!");
+            Entity *parent_sw = get_entity_ptr_by_id(e->entities, e->parent_sw_id);
+            Port *p = &(parent_sw->switchh->fe[e->module][e->port]);
+            if (p->nic->connected_entity) {
+                darr_append(res, p->nic->connected_entity);
+            }
         } break;
         case EK_COUNT: 
         default: ASSERT(false, "UNREACHABLE!");
@@ -819,6 +859,7 @@ void free_entity(Entity *e) {
         case EK_PC: {
             free_pc(e);
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -840,7 +881,7 @@ void free_switch(Entity *e) {
     // Remove any reference to this switch from the connected NICs
     for (size_t i = 0; i < e->switchh->module_count; ++i) {
         for (size_t j = 0; j < e->switchh->port_count; ++j) {
-            Entity *conn = e->switchh->fe[i][j].conn;
+            Entity *conn = e->switchh->fe[i][j].nic->connected_entity;
             if (conn && conn->nic && conn->nic->connected_entity == e && conn->nic->connected_entity->kind == EK_SWITCH) {
                 conn->nic->connected_entity = NULL;
             }
@@ -852,6 +893,7 @@ void free_switch(Entity *e) {
             Port *p = &e->switchh->fe[i][j];
             ASSERT(p->nic, "Port NIC should be allocated!");
             free(p->nic);
+            free(p->entity);
         }
         free(e->switchh->fe[i]);
     }
@@ -902,6 +944,9 @@ uint8 *get_mac_address(Entity *e) {
         case EK_PC: {
             return e->pc->nic->mac_address;
         } break;
+        case EK_PORT: {
+
+        } break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -930,26 +975,9 @@ bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
     memcpy(eframe.dst, dst_mac, sizeof(uint8)*6);
     memcpy(eframe.src, src_mac, sizeof(uint8)*6);
 
-    return recieve(dst, src, eframe);
+    // TODO: Do we allow the src to be a switch or a router? then we have to keep track of the module/port
+    return recieve(dst, src, eframe, -1, -1);
 }
-//
-// static bool is_frame_for_conn(Entity *conn, Ethernet_frame frame) {
-//     if (!conn) {
-//         log_error_to_console("%s: Please pass a non-NULL conn!", __func__);
-//         return false;
-//     }
-//
-//     Mac_address conn_mac_addr = {0};
-//     if (conn->kind == EK_NIC) {
-//         memcpy(conn_mac_addr.addr, conn->nic->mac_address, sizeof(uint8) * 6);
-//     } else if (conn->kind == EK_ACCESS_POINT) {
-//         memcpy(conn_mac_addr.addr, conn->ap->, sizeof(uint8) * 6);
-//     } else {
-//         log_error_to_console("%s: Invalid conn kind!", __func__);
-//     }
-//     return false;
-// }
-//
 // static bool forward_frame_via_switch(Entity *se, Ethernet_frame frame) {
 //     ASSERT(se->kind == EK_SWITCH, "brother");
 //
@@ -966,39 +994,119 @@ bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
 //     return false;
 // }
 
-bool recieve(Entity *dst, Entity *src, Ethernet_frame frame) {
-    Entity *src_connected_entity = get_connected_entity(src);
-    switch (src_connected_entity->kind) {
-        case EK_SWITCH: {
-            bool reached = false;
-            for (int i = 0; i < src_connected_entity->switchh->module_count; ++i) {
-                for (int j = 0; j < src_connected_entity->switchh->port_count; ++j) {
-                    Port *port = &src_connected_entity->switchh->fe[i][j];
-                    if (port->conn && port->conn != src) {
-                        reached = recieve(dst, port->conn, frame);
-                        // TODO: Here we probably want to calculate and store the shortest path
-                        if (reached) {
-                            break;
-                        }
-                    }
-                }
-            }
-            if (!reached) {
-                log_error_to_console("The dst is not reachable via src!");
-                return false;
-            }
-            return true;
 
+bool recieve(Entity *dst, Entity *src, Ethernet_frame frame, int src_sw_module, int src_sw_port) {
+    return recieve_impl(dst, src, frame, false, src_sw_module, src_sw_port);
+}
+bool recieve_fwd(Entity *dst, Entity *src, Ethernet_frame frame, int src_sw_module, int src_sw_port) {
+    return recieve_impl(dst, src, frame, true, src_sw_module, src_sw_port);
+}
+
+bool recieve_impl(Entity *dst, Entity *src, Ethernet_frame frame, bool fwd, int src_module, int src_port) {
+    Entity *og_src = src;
+
+    // 0. Do some check?
+    switch (src->kind) {
+        case EK_SWITCH: {
+            ASSERT(src_module >= 0 && src_port >= 0, "This should be correct!");
+            src = src->switchh->fe[src_module][src_port].entity;
         } break;
         case EK_ACCESS_POINT: {
         } break;
         case EK_PC: {
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
 
-    log_error_to_console("Received Ethernet Frame from "MAC_FMT" to "MAC_FMT, MAC_ARG(frame.src), MAC_ARG(frame.dst));
+    // 0.5. Check if src is connected to anything
+    Entity_ptrs src_connected_entities = get_connected_entities(src);
+
+    Entity *src_connected_entity = NULL;
+
+    bool reached = false;
+    if (src_connected_entities.count <= 0) {
+        if (!fwd)
+            log_error_to_console("src is not connected to anything!");
+        reached = false;
+        darr_free(src_connected_entities);
+        return false;
+    }
+
+    // 1. Check if the dst is directly connected to the src
+    for (int i = 0; i < src_connected_entities.count; ++i) {
+        Entity *ce = src_connected_entities.items[i];
+        src_connected_entity = ce;
+
+        switch (ce->kind) {
+            case EK_SWITCH: {
+            } break;
+            case EK_ACCESS_POINT:
+            case EK_PC: {
+                uint8 *mac = get_mac_address(ce);
+                if (mac) {
+                    if (memcmp(mac, frame.dst, 6) == 0) {
+                        reached = true;
+                        break;
+                    }
+                }
+            } break;
+            case EK_PORT:
+            case EK_COUNT:
+            default: ASSERT(false, "UNREACHABLE!");
+        }
+
+    }
+
+    // 2. Forward and check from the connected entities
+    if (!reached) {
+        if (src_module >= 0 && src_port >= 0) {
+            log_info_to_console("Forwarded frame from %s[%zu] interface %d/%d to %s[%zu]", entity_kind_as_str(src->kind), src->id, src_module, src_port, entity_kind_as_str(src_connected_entity->kind), src_connected_entity->id);
+        } else {
+            log_info_to_console("Forwarded frame from %s[%zu] to %s[%zu]", entity_kind_as_str(src->kind), src->id, entity_kind_as_str(src_connected_entity->kind), src_connected_entity->id);
+        }
+
+        for (int i = 0; i < src_connected_entities.count; ++i) {
+            Entity *src_connected_entity = src_connected_entities.items[i];
+            switch (src_connected_entity->kind) {
+                case EK_SWITCH: {
+                    Switch *sw = src_connected_entity->switchh;
+                    for (int i = 0; i < sw->module_count; ++i) {
+                        for (int j = 0; j < sw->port_count; ++j) {
+                            Port *port = &sw->fe[i][j];
+
+                            Entity *conn = port->nic->connected_entity;
+
+                            if (conn && conn != src) {
+                                if (recieve_fwd(dst, src_connected_entity, frame, i, j)) {
+                                    reached = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } break;
+                case EK_ACCESS_POINT:
+                case EK_PC: {
+                    // NOTE: AP and PC cannot forward as it can only be connected to one entity
+                } break;
+                case EK_PORT:
+                case EK_COUNT:
+                default: ASSERT(false, "UNREACHABLE!");
+            }
+        }
+    }
+
+    if (reached) {
+        uint8 *src_mac = get_mac_address(src);
+        uint8 *dst_mac = get_mac_address(dst);
+
+        ASSERT(src_mac && dst_mac, "This should be true!");
+        log_info_to_console("%s Ethernet Frame from "MAC_FMT" to "MAC_FMT, fwd ? "Forwarded" : "Recieved", MAC_ARG(src_mac), MAC_ARG(dst_mac));
+    }
+
+    darr_free(src_connected_entities);
     return true;
 }
 
@@ -1067,6 +1175,7 @@ const char *entity_kind_save_format(Entity *e, Arena *temp_arena) {
                     e->pc->nic->mac_address[5],
                     e->pc->nic && e->pc->nic->connected_entity ? (int)(e->pc->nic->connected_entity->id) : -1);
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -1308,6 +1417,7 @@ static bool load_entity_from_data_v2(Entity *e, String_view *sv) {
         case EK_PC: {
             return parse_pc_v2(e, sv);
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -1341,6 +1451,7 @@ static bool load_entity_from_data_v3(Entity *e, String_view *sv) {
         case EK_PC: {
             return parse_pc_v2(e, sv);
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -1572,6 +1683,7 @@ bool ipv4_from_input(Entity *e, char *chars_buff, size_t *chars_buff_count, size
             ASSERT(e->pc && e->pc->nic, "These must be allocated!");
             return four_octet_from_input(e->pc->nic->ipv4_address, chars_buff, chars_buff_count, chars_buff_cap);
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -1590,6 +1702,7 @@ bool subnet_mask_from_input(Entity *e, char *chars_buff, size_t *chars_buff_coun
             ASSERT(e->pc && e->pc->nic, "These must be allocated!");
             return four_octet_from_input(e->pc->nic->subnet_mask, chars_buff, chars_buff_count, chars_buff_cap);
         } break;
+        case EK_PORT:
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
