@@ -16,7 +16,7 @@
 
 #include "icon.c"
 
-#define VERSION "v0.1.12a"
+#define VERSION "v0.1.13a"
 
 #define FACTOR 105
 #define SCREEN_WIDTH (16 * FACTOR)
