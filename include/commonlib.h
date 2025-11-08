@@ -113,6 +113,7 @@
 #define SET_FLAG C_SET_FLAG
 #define UNSET_FLAG C_UNSET_FLAG
 #define GET_FLAG C_GET_FLAG
+#define DEBUG_BREAK C_DEBUG_BREAK
 
 #endif // COMMONLIB_REMOVE_PREFIX
 
@@ -160,7 +161,6 @@ typedef wchar_t wchar;
 typedef const char*  cstr;
 typedef const wchar* wstr;
 
-
 // Static variables
 #define C_ERROR_BUFF_CAP (1024)
 extern char __error_buff__[C_ERROR_BUFF_CAP];
@@ -186,6 +186,35 @@ extern char __error_buff__[C_ERROR_BUFF_CAP];
 
 #define c_shift(xs, xsz) (assert(xsz > 0 && "Array is empty"), xsz--, *xs++)
 #define c_shift_args c_shift
+
+#if defined(_WIN32) || defined(_WIN64)
+ /* MSVC: use intrinsic */
+  #if defined(_MSC_VER)
+    #include <intrin.h>
+    #pragma intrinsic(DebugBreak)
+    #define DEBUG_BREAK() DebugBreak()
+  #else
+    /* MinGW / other compilers: declare function manually to avoid windows.h */
+    #ifdef __cplusplus
+    extern "C" __declspec(dllimport) void __stdcall DebugBreak(void);
+    #else
+    __declspec(dllimport) void __stdcall DebugBreak(void);
+    #endif
+    #define DEBUG_BREAK() DebugBreak()
+  #endif
+#elif defined(__unix__) || defined(__APPLE__) || defined(__linux__) || defined(__ANDROID__) || defined(__MACH__)
+  #include <signal.h>
+  #if defined(__x86_64__) || defined(__i386__)
+    #define DEBUG_BREAK() __asm__ volatile("int3")
+  #elif defined(__aarch64__)
+    #define DEBUG_BREAK() __asm__ volatile("brk #0")
+  #else
+    #define DEBUG_BREAK() raise(SIGTRAP)
+  #endif
+#else
+  #include <signal.h>
+  #define DEBUG_BREAK() raise(SIGTRAP)
+#endif
 
 //
 // Math

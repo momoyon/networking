@@ -111,6 +111,9 @@ void draw_entity(Entity *e, bool debug) {
                 for (size_t i = 0; i < e->switchh->module_count; ++i) {
                     for (size_t j = 0; j < e->switchh->port_count; ++j) {
                         Entity *conn = e->switchh->fe[i][j].port->nic->connected_entity;
+                        if (DO_DEBUG_BREAK) {
+                            DEBUG_BREAK();
+                        }
                         if (!conn) continue;
                         if (conn->kind == EK_PC) {
                             Nic *nic = conn->pc->nic;
@@ -216,10 +219,52 @@ void draw_entity(Entity *e, bool debug) {
     }
 }
 
+void update_entity_pos(Entity *e, Vector2 pos) {
+    ASSERT(e, "Must not be a null ptr");
+    e->pos = pos;
+    switch (e->kind) {
+        case EK_SWITCH: {
+            for (int i = 0; i < e->switchh->module_count; ++i) {
+                for (int j = 0; j < e->switchh->port_count; ++j) {
+                    Entity *port_e = &e->switchh->fe[i][j];
+
+                    port_e->pos = pos;
+                    e->switchh->fe[i][j].pos = pos;
+                }
+            }
+        } break;
+        case EK_ACCESS_POINT: {
+
+        } break;
+        case EK_PC: {
+
+        } break;
+        case EK_PORT: {
+            
+        } break;
+        case EK_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+}
+
+
+void update_switch(Entity *e) {
+    ASSERT(e->kind == EK_SWITCH, "BRO");
+
+    for (int i = 0; i < e->switchh->module_count; ++i) {
+        for (int j = 0; j < e->switchh->port_count; ++j) {
+
+            Entity *port_e = &e->switchh->fe[i][j];
+
+            port_e->pos = e->pos;
+        }
+    }
+}
+
 void update_entity(Entity *e) {
     switch (e->kind) {
         case EK_SWITCH: {
-            // update_switch(e);
+            update_switch(e);
         } break;
         case EK_ACCESS_POINT: {
             update_ap(e);
@@ -590,6 +635,8 @@ Entity make_entity(Entities *entities, Vector2 pos, float radius, Entity_kind ki
 
     init_entity(&e, arena, tmp_arena, str_arena);
 
+    update_entity_pos(&e, pos);
+
     return e;
 }
 
@@ -644,6 +691,7 @@ void make_switch(Entity *e, Switch_model model, const char *version, Switch *swi
         for (int j = 0; j < s.port_count; ++j) {
             s.fe[i][j] = make_entity(e->entities, v2(0,0), ENTITY_DEFAULT_RADIUS, EK_PORT, arena, tmp_arena, str_arena);
             Entity *port_e = &s.fe[i][j];
+            port_e->port->switch_entity = e;
 
             init_entity(port_e, arena, tmp_arena, str_arena);
 
@@ -1776,8 +1824,7 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
             Port *port = switch_e->switchh->fe[i][j].port;
 
             if (port->nic->connected_entity == NULL) {
-                port->nic->connected_entity = (Entity *)arena_alloc(e->arena, sizeof(Entity));
-                memcpy(port->nic->connected_entity, e, sizeof(Entity));
+                port->nic->connected_entity = e;
                 return true;
             }
 

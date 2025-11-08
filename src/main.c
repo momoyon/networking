@@ -180,6 +180,8 @@ Console main_console = {
 };
 float main_console_activity = 0.f;
 float main_console_alpha = 0;
+int verbosity_level = 0;
+bool DO_DEBUG_BREAK = false;
 
 typedef enum {
     CHANGE_IPV4,
@@ -288,6 +290,7 @@ int main(void)
 {
     int width = 0;
     int height = 0;
+
 
 #if defined(DEBUG)
     bool debug_draw = true;
@@ -401,10 +404,24 @@ int main(void)
         Vector2 m_world = GetScreenToWorld2D(m, cam);
 
         // Input
+        DO_DEBUG_BREAK = false;
+        if (IsKeyPressed(KEY_F5)) {
+            DO_DEBUG_BREAK = true;
+        }
+
         if (IsKeyPressed(KEY_GRAVE)) {
             debug_draw = !debug_draw;
         }
+
+        if (IsKeyPressed(KEY_F7)) {
+            if (verbosity_level > 0)
+                verbosity_level--;
+        }
         
+        if (IsKeyPressed(KEY_F8)) {
+            verbosity_level++;
+        }
+
         if (IsKeyDown(KEY_F1)) {
             main_console_activity = 1.f;
             main_console_alpha = 1.f;
@@ -893,12 +910,11 @@ exec_command:
 
                 if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsKeyDown(KEY_Z)) {
                     if (hovering_entity) {
-                        hovering_entity->pos = Vector2Add(m_world, hovering_entity->offset);
+                        update_entity_pos(hovering_entity, Vector2Add(m_world, hovering_entity->offset));
                     } else {
                         for (int i = 0; i < moving_entities.count; ++i) {
                             Entity* e = moving_entities.items[i];
 
-                            // TODO: Implement update_entity_pos()
                             update_entity_pos(e, Vector2Add(m_world, e->offset));
                         }
                     }
@@ -1259,11 +1275,7 @@ exec_command:
             TEXT_ALIGN_H_LEFT, GOLD);
         if (debug_draw) {
             Font f = GetFontDefault();
-
-            /// @DEBUG
-            DEBUG_TEXT(ORANGE, f, font_size, 2, "m_angle: %f", m_angle);
-            DEBUG_TEXT(ORANGE, f, font_size, 2, "mid_vs_m_world_diff: %f, %f", mid_vs_m_world_diff.x, mid_vs_m_world_diff.y);
-            ///
+            DEBUG_TEXT(GOLD, f, font_size, 2, "%d", verbosity_level);
 
             DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering: %p", hovering_entity);
 
@@ -1289,16 +1301,26 @@ exec_command:
                 }
                 darr_free(hovering_entity_connected_entities);
 
-
                 if (hovering_entity->kind == EK_SWITCH) {
                     DEBUG_TEXT(GRAY, f, font_size, 8, "Switch module_count: %zu", hovering_entity->switchh->module_count);
                     DEBUG_TEXT(GRAY, f, font_size, 8, "Switch port_count: %zu", hovering_entity->switchh->port_count);
                     for (int i = 0; i < hovering_entity->switchh->module_count; ++i) {
                         for (int j = 0; j < hovering_entity->switchh->port_count; ++j) {
-                            Port* port = hovering_entity->switchh->fe[i][j].port;
+                            Entity *port_e = &hovering_entity->switchh->fe[i][j];
+                            Port* port = port_e->port;
 
-                            DEBUG_TEXT(GRAY, f, font_size, 16, "fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT, 
+                            if (verbosity_level >= 2) {
+                            DEBUG_TEXT(GRAY, f, font_size, 16, "[%zu] (%p) fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT" | %f, %f", 
+                                    port_e->id, port_e, i, j, MAC_ARG(port->nic->mac_address), IPV4_ARG(port->nic->ipv4_address), SUBNET_MASK_ARG(port->nic->subnet_mask),
+                                    port_e->pos.x, port_e->pos.y);
+                            } else if (verbosity_level >= 1) {
+                                DEBUG_TEXT(GRAY, f, font_size, 16, "fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT" | %f, %f", 
+                                    i, j, MAC_ARG(port->nic->mac_address), IPV4_ARG(port->nic->ipv4_address), SUBNET_MASK_ARG(port->nic->subnet_mask),
+                                    port_e->pos.x, port_e->pos.y);
+                            } else {
+                                DEBUG_TEXT(GRAY, f, font_size, 16, "fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT, 
                                     i, j, MAC_ARG(port->nic->mac_address), IPV4_ARG(port->nic->ipv4_address), SUBNET_MASK_ARG(port->nic->subnet_mask));
+                            }
                         }
                     }
                 }

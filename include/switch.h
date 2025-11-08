@@ -105,6 +105,7 @@ typedef struct {
     Nic *nic;
 	int conn_id; // NOTE: Only used when loading switches.
     int module, port;
+    Entity *switch_entity; // NOTE: Parent switch entity ptr
 } Port;
 
 typedef enum Switch_model Switch_model;

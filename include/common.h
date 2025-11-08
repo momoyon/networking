@@ -39,6 +39,8 @@ extern Wifi_waves wifi_waves;
 extern Console main_console;
 extern float main_console_activity;
 extern float main_console_alpha;
+extern int verbosity_level;
+extern bool DO_DEBUG_BREAK;
 
 void cleanup(void);
 void crash(void);
