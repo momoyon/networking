@@ -101,11 +101,10 @@ typedef struct Entity Entity;
 
 typedef struct {
 	int vlan;
-    Entity *entity;
     Nic *nic;
 	int conn_id; // NOTE: Only used when loading switches.
     int module, port;
-    Entity *switch_entity; // NOTE: Parent switch entity ptr
+    int switch_entity_id; // NOTE: Parent switch entity id
 } Port;
 
 typedef enum Switch_model Switch_model;

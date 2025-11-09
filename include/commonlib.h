@@ -188,11 +188,11 @@ extern char __error_buff__[C_ERROR_BUFF_CAP];
 #define c_shift_args c_shift
 
 #if defined(_WIN32) || defined(_WIN64)
- /* MSVC: use intrinsic */
+  /* MSVC: use intrinsic */
   #if defined(_MSC_VER)
     #include <intrin.h>
     #pragma intrinsic(DebugBreak)
-    #define DEBUG_BREAK() DebugBreak()
+    #define C_DEBUG_BREAK() DebugBreak()
   #else
     /* MinGW / other compilers: declare function manually to avoid windows.h */
     #ifdef __cplusplus
@@ -200,20 +200,20 @@ extern char __error_buff__[C_ERROR_BUFF_CAP];
     #else
     __declspec(dllimport) void __stdcall DebugBreak(void);
     #endif
-    #define DEBUG_BREAK() DebugBreak()
+    #define C_DEBUG_BREAK() DebugBreak()
   #endif
 #elif defined(__unix__) || defined(__APPLE__) || defined(__linux__) || defined(__ANDROID__) || defined(__MACH__)
   #include <signal.h>
   #if defined(__x86_64__) || defined(__i386__)
-    #define DEBUG_BREAK() __asm__ volatile("int3")
+    #define C_DEBUG_BREAK() __asm__ volatile("int3")
   #elif defined(__aarch64__)
-    #define DEBUG_BREAK() __asm__ volatile("brk #0")
+    #define C_DEBUG_BREAK() __asm__ volatile("brk #0")
   #else
-    #define DEBUG_BREAK() raise(SIGTRAP)
+    #define C_DEBUG_BREAK() raise(SIGTRAP)
   #endif
 #else
   #include <signal.h>
-  #define DEBUG_BREAK() raise(SIGTRAP)
+  #define C_DEBUG_BREAK() raise(SIGTRAP)
 #endif
 
 //

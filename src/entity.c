@@ -111,9 +111,7 @@ void draw_entity(Entity *e, bool debug) {
                 for (size_t i = 0; i < e->switchh->module_count; ++i) {
                     for (size_t j = 0; j < e->switchh->port_count; ++j) {
                         Entity *conn = e->switchh->fe[i][j].port->nic->connected_entity;
-                        if (DO_DEBUG_BREAK) {
-                            DEBUG_BREAK();
-                        }
+                     
                         if (!conn) continue;
                         if (conn->kind == EK_PC) {
                             Nic *nic = conn->pc->nic;
@@ -135,6 +133,20 @@ void draw_entity(Entity *e, bool debug) {
                                         IPV4_ARG(ap->mgmt_ipv4),
                                         SUBNET_MASK_ARG(ap->mgmt_subnet_mask)),
                                     ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+                        } else if (conn->kind == EK_PORT) {
+                            Port *port = conn->port;
+                            Entity *sw_e = get_entity_ptr_by_id(e->entities, port->switch_entity_id);
+                            draw_info_text(&p, arena_alloc_str(*e->tmp_arena,
+                                        "eth%zu/%zu: port %zu/%zu on Switch [%zu]",
+                                        i, j,
+                                        port->module,
+                                        port->port,
+                                        sw_e->id),
+                                    ENTITY_DEFAULT_RADIUS*0.5, WHITE);
+
+                        } else {
+                            const char *s = arena_alloc_str(*e->tmp_arena, "%s is not handled!", entity_kind_as_str(conn->kind));
+                            ASSERT(false, s);
                         }
                     }
                 }
@@ -402,8 +414,8 @@ static bool connect_ap_to(Entity *ap, Entity *other) {
         case EK_SWITCH: {
             ASSERT(other->switchh, "bo");
 
-            if (ap->ap->connected_entity != NULL && ap->ap->connected_entity->kind == EK_SWITCH && ap->ap->connected_entity != other) {
-                log_error_to_console("Please disconnect the AP from any other switch!");
+            if (ap->ap->connected_entity != NULL && ap->ap->connected_entity != other) {
+                log_error_to_console("Please disconnect the AP from any other device!");
                 return false;
             }
 
@@ -469,8 +481,8 @@ static bool connect_switch_to(Entity *switchh, Entity *other) {
 
             Nic *nic = other->pc->nic;
 
-            if (nic->connected_entity != NULL && nic->connected_entity->kind == EK_SWITCH && nic->connected_entity != other) {
-                log_error_to_console("Please disconnect the PC from any other switch!");
+            if (nic->connected_entity != NULL && nic->connected_entity != other) {
+                log_error_to_console("Please disconnect the PC from any other device!");
                 return false;
             }
 
@@ -691,7 +703,7 @@ void make_switch(Entity *e, Switch_model model, const char *version, Switch *swi
         for (int j = 0; j < s.port_count; ++j) {
             s.fe[i][j] = make_entity(e->entities, v2(0,0), ENTITY_DEFAULT_RADIUS, EK_PORT, arena, tmp_arena, str_arena);
             Entity *port_e = &s.fe[i][j];
-            port_e->port->switch_entity = e;
+            port_e->port->switch_entity_id = e->id;
 
             init_entity(port_e, arena, tmp_arena, str_arena);
 
@@ -700,12 +712,6 @@ void make_switch(Entity *e, Switch_model model, const char *version, Switch *swi
             port->port = i;
             port->module = j;
 
-            port->entity = (Entity *)calloc(1, sizeof(Entity));
-            port->entity->kind = EK_PORT;
-            port->entity->entities = e->entities;
-
-            init_entity(port->entity, arena, tmp_arena, str_arena);
-            // port->entity->parent_sw_id = e->id;
             port->nic = (Nic *)calloc(1, sizeof(Nic));
             do {
                 get_unique_mac_address(port->nic->mac_address);
@@ -802,7 +808,9 @@ void set_connected_entity(Entity *e, Entity *to) {
         case EK_PC: {
             e->pc->nic->connected_entity = to;
         } break;
-        case EK_PORT: 
+        case EK_PORT: {
+            e->port->nic->connected_entity = to;
+        } break;
         case EK_COUNT: 
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -968,7 +976,6 @@ void free_switch(Entity *e) {
             Port *p = e->switchh->fe[i][j].port;
             ASSERT(p->nic, "Port NIC should be allocated!");
             free(p->nic);
-            free(p->entity);
         }
         free(e->switchh->fe[i]);
     }
@@ -1821,10 +1828,12 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
 
     for (size_t i = 0; i < switch_e->switchh->module_count; ++i) {
         for (size_t j = 0; j < switch_e->switchh->port_count; ++j) {
-            Port *port = switch_e->switchh->fe[i][j].port;
+            Entity *port_e = &switch_e->switchh->fe[i][j];
+            Port *port = port_e->port;
 
             if (port->nic->connected_entity == NULL) {
                 port->nic->connected_entity = e;
+                set_connected_entity(e, port_e);
                 return true;
             }
 
