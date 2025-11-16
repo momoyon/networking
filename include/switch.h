@@ -99,13 +99,6 @@ typedef enum {
 
 typedef struct Entity Entity;
 
-typedef struct {
-	int vlan;
-    Nic *nic;
-	int conn_id; // NOTE: Only used when loading switches.
-    int module, port;
-    int switch_entity_id; // NOTE: Parent switch entity id
-} Port;
 
 typedef enum Switch_model Switch_model;
 

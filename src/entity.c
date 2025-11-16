@@ -21,6 +21,7 @@ char *entity_texture_path_map[EK_COUNT] = {
     [EK_ACCESS_POINT] = "resources/gfx/ap.png",
     [EK_PC] = "resources/gfx/pc.png",
     [EK_PORT] = "",
+    [EK_ROUTER] = "resources/gfx/router.png",
 };
 
 static size_t get_unique_id(void) {
@@ -137,7 +138,7 @@ void draw_entity(Entity *e, bool debug) {
                             Port *port = conn->port;
                             Entity *sw_e = get_entity_ptr_by_id(e->entities, port->switch_entity_id);
                             draw_info_text(&p, arena_alloc_str(*e->tmp_arena,
-                                        "eth%zu/%zu: port %zu/%zu on Switch [%zu]",
+                                        "eth%zu/%zu: port %d/%d on Switch [%zu]",
                                         i, j,
                                         port->module,
                                         port->port,

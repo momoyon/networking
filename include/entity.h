@@ -4,7 +4,9 @@
 #include <switch.h>
 #include <engine.h>
 #include <nic.h>
+#include <port.h>
 #include <pc.h>
+#include <router.h>
 #include <ethernet_frame.h>
 
 typedef struct Access_point Access_point;
@@ -15,6 +17,7 @@ typedef enum {
     EK_ACCESS_POINT,
     EK_PC,
     EK_PORT,
+    EK_ROUTER,
     EK_COUNT,
 } Entity_kind;
 
@@ -83,6 +86,7 @@ struct Entity {
     Access_point *ap;
     Pc *pc;
     Port *port;
+    Router *router;
 
     // // Specific for EK_PORT
     // Entity *parent_sw;

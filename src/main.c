@@ -1541,6 +1541,7 @@ exec_command:
                         
                     } break;
                     case EK_PORT:
+                    case EK_ROUTER:
                     case EK_COUNT:
                     default: ASSERT(false, "UNREACHABLE!");
                 }
