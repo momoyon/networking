@@ -1032,7 +1032,10 @@ exec_command:
 
                             if (matched_command_ids.count == 1) {
                                 Switch_console_cmd cmd = switch_commands[matched_command_ids.items[0]];
-                                if (strcmp(buff, cmd.name) == 0) {
+								char cmd_with_space[1024] = {0};
+								snprintf(cmd_with_space, 1024, "%s ", cmd.name);
+                                if (strcmp(buff, cmd.name) == 0 ||
+									strcmp(buff, cmd_with_space) == 0) {
                                     // TODO: Get next argument for cmd if exists
                                     String_array current_args = get_current_console_args(active_switch_console);
 

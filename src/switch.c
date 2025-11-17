@@ -196,7 +196,6 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
 
     get_switch_console_commands(switchh, &switch_commands, &switch_commands_count);
 
-
     Ids matched_command_ids = match_switch_console_command(cmd, switch_commands, switch_commands_count);
 
     if (matched_command_ids.count == 0) {
@@ -239,7 +238,18 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
                 log_error_a(*console, "%s", "`resume` is UNIMPLEMENTED!");
             } break;
             case SW_CMD_ID_SHOW: {
-                log_error_a(*console, "%s", "`show` is UNIMPLEMENTED!");
+				if (cmd_args.count == 1) {
+					log_error_a(switchh->console, "%s", "Incomplete command!");
+					break;
+				}
+				const char *arg1 = cmd_args.items[1];
+
+				if (strcmp(arg1, "mac_table") == 0) {
+					log_info_a(switchh->console, "%s", "RAH!");
+				} else {
+					log_error_a(switchh->console, "%s", "Only `mac_table` is implemented yet!");
+				}
+
             } break;
             case SW_CMD_ID_SSH: {
                 log_error_a(*console, "%s", "`ssh` is UNIMPLEMENTED!");
@@ -318,7 +328,6 @@ bool get_next_switch_console_command_arg(String_array current_args, Switch_conso
 
     Switch_console_args cmd_args = get_args_for_switch_cmd(cmd);
 
-
     int next_arg_idx = current_args.count-1; // -1 because the cmd itself is part of the args
 
     if (next_arg_idx < cmd_args.count) {
@@ -335,11 +344,7 @@ bool get_next_switch_console_command_arg(String_array current_args, Switch_conso
 
 Switch_console_args get_args_for_switch_cmd(const char *cmd) {
     Switch_console_args res = {0};
-    // NOTE: redundant ifs just to list out every command
-    if MATCH_CMD("exit") {
-    } else if MATCH_CMD("logout") {
-    } else if MATCH_CMD("enable") {
-    } else if MATCH_CMD("ping") {
+    if (MATCH_CMD("ping")) {
         Switch_console_arg arg = {
             .name = "WORD",
             .desc = "Ping destination address or hostname",
@@ -349,18 +354,21 @@ Switch_console_args get_args_for_switch_cmd(const char *cmd) {
         darr_append(arg.types, SW_CNSL_ARG_TYPE_ABCD);
 
         darr_append(res, arg);
-    } else if MATCH_CMD("ping") {
-        Switch_console_arg arg = {
-            .name = "WORD",
-            .desc = "IP address or hostname of a remote system",
-        };
+    } else if (MATCH_CMD("show")) {
+		Switch_console_arg arg = {
+			.name = "mac_table",
+			.desc = "MAC address table which maps port -> MAC",
+		};
 
-        darr_append(arg.types, SW_CNSL_ARG_TYPE_WORD);
-        darr_append(arg.types, SW_CNSL_ARG_TYPE_ABCD);
+		darr_append(arg.types, SW_CNSL_ARG_TYPE_WORD);
 
-        darr_append(res, arg);
-    }
+		darr_append(res, arg);
+	} else {
+		char s[1024] = {0};
+		snprintf(s, 1024, "%s is unhandled in %s", cmd, __func__);
 
+		ASSERT(false, s);
+	}
 
     return res;
 }

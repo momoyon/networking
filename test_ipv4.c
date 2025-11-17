@@ -126,6 +126,11 @@ int main(int argc, char **argv) {
     uint min = 0;
     uint max = UINT_MAX;
 
+    Ipv4_class last_class = -1;
+    Ipv4_type last_type = -1;
+    uint same_min = 0;
+    uint same_max = 0;
+
     bool log = true;
 
     while (argc > 0) {
@@ -229,8 +234,26 @@ int main(int argc, char **argv) {
             exit(1);
         }
 
-        if (log)
-            log_debug(IPV4_FMT" -> %s %s", IPV4_ARG(ipv4_), ipv4_class_as_str(class), ipv4_type_as_str(type));
+        bool same = false;
+
+        if (last_class >= 0 && last_class == class &&
+            last_type >= 0 && last_type == type) {
+            same_max = ipv4;
+            same = true;
+        } else {
+            uint8 *same_min__ = (uint8 *)&same_min;
+            uint8 *same_max__ = (uint8 *)&same_max;
+            log_debug(IPV4_FMT" ~ "IPV4_FMT"-> %s %s", IPV4_ARG(same_min__), IPV4_ARG(same_max__), ipv4_class_as_str(class), ipv4_type_as_str(type));
+            same_min = same_max;
+        }
+
+        last_class = class;
+        last_type = type;
+
+        if (log) {
+            // if (!same)
+                // log_debug(IPV4_FMT" -> %s %s", IPV4_ARG(ipv4_), ipv4_class_as_str(class), ipv4_type_as_str(type));
+        }
 
         if (ipv4 == UINT_MAX) {
             break;

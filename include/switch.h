@@ -4,6 +4,7 @@
 #include <predecls.h>
 #include <config.h>
 #include <engine.h>
+#include <tables.h>
 
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
@@ -143,6 +144,9 @@ struct Switch {
     size_t port_count;
     Switch_model model;
     const char *version;
+
+	ARP_Table arp_table;
+	MAC_Table mac_table;
 
     bool booted;
     int boot_perc;

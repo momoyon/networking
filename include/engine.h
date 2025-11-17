@@ -94,8 +94,6 @@ struct Console_line {
 	char buff[CONSOLE_LINE_BUFF_CAP];
     size_t count;
     Color color;
-
-    bool readline_hist;
 };
 
 struct Console_lines {
@@ -122,6 +120,7 @@ struct String_array {
 };
 
 struct Console {
+	Console_lines history;
 	Console_lines lines;
     Console_lines unprefixed_lines;
 	int cursor; // offset in the line
@@ -142,9 +141,9 @@ struct Console {
 };
 
 Console make_console(int flags, Font font);
-void add_line_to_console_simple(Console *console, char *line, Color color, bool readline_hist);
-void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color, bool readline_hist);
-void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color, bool readline_hist);
+void add_line_to_console_simple(Console *console, char *line, Color color, bool hist);
+void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color, bool histt);
+void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color, bool histt);
 void add_character_to_console_line(Console *console, char ch, size_t line);
 Console_line *get_console_line(Console *console, size_t line);
 Console_line *get_or_create_console_line(Console *console, size_t line);
@@ -503,44 +502,51 @@ Console make_console(int flags, Font font) {
     return c;
 }
 
-void add_line_to_console_simple(Console *console, char *line, Color color, bool readline_hist) {
+void add_line_to_console_simple(Console *console, char *line, Color color, bool hist) {
     Console_line cl = {
         .count = strlen(line),
         .color = color,
-        .readline_hist = readline_hist,
     };
     memcpy(cl.buff, line, cl.count);
     darr_append(console->lines, cl);
     darr_append(console->unprefixed_lines, cl);
-    console->hist_lookup_idx = console->lines.count;
+
+	if (hist) {
+		darr_append(console->history, cl);
+	}
+    console->hist_lookup_idx = console->history.count;
 }
 
-void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color, bool readline_hist) {
+void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color, bool hist) {
     Console_line cl = { .count = buff_size, };
     memcpy(cl.buff, buff, buff_size);
     cl.color = color;
-    cl.readline_hist = readline_hist;
     darr_append(console->lines, cl);
     darr_append(console->unprefixed_lines, cl);
-    console->hist_lookup_idx = console->lines.count;
+
+	if (hist) {
+		darr_append(console->history, cl);
+	}
+    console->hist_lookup_idx = console->history.count;
 }
 
-void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color, bool readline_hist) {
+void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color, bool hist) {
     const char *prefixed = arena_alloc_str(*tmp_arena, "%s%s%c%s", console->prefix, console->prefix2, console->prefix_symbol, buff);
     size_t prefixed_len = strlen(prefixed);
 
     Console_line ucl = { .count = strlen(buff) };
-    ucl.readline_hist = readline_hist;
     memcpy(ucl.buff, buff, ucl.count);
     darr_append(console->unprefixed_lines, ucl);
 
     Console_line cl = { .count = prefixed_len, };
-    cl.readline_hist = readline_hist;
     memcpy(cl.buff, prefixed, prefixed_len);
     cl.color = color;
     darr_append(console->lines, cl);
 
-    console->hist_lookup_idx = console->lines.count;
+	if (hist) {
+		darr_append(console->history, cl);
+	}
+    console->hist_lookup_idx = console->history.count;
 }
 
 void add_character_to_console_line(Console *console, char ch, size_t line) {
@@ -624,8 +630,12 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
     if (console->cursor < 0) console->cursor = 0;
     if (console->cursor > CONSOLE_LINE_BUFF_CAP-1) console->cursor = CONSOLE_LINE_BUFF_CAP-1;
 
+	int chars_inputted = 0;
+
 	do {
 		ch = GetCharPressed();
+
+		if (ch > 0) chars_inputted++;
 
         bool ignore = false;
 
@@ -669,6 +679,10 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
                 return false;
             }
 
+			if (chars_inputted <= 0) {
+				darr_delete(console->lines, Console_line, console->line);
+			}
+
             return true;
         }
 
@@ -679,24 +693,24 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
                 if (console->lines.count > 0) {
                     if (console->hist_lookup_idx > 1) console->hist_lookup_idx--;
 
+					log_info("%d", console->hist_lookup_idx);
+
                     bool found = true;
                     Console_line *last_line = get_console_line(console, console->hist_lookup_idx);
-                    while (!last_line->readline_hist) {
-                        if (console->hist_lookup_idx <= 1) {
-                            found = false;
-                            break;
-                        }
-                        console->hist_lookup_idx--;
-                        last_line = get_console_line(console, console->hist_lookup_idx);
-                        bool should_get_unprefixed_lines = GET_FLAG(console->flags, CONSOLE_FLAG_READLINE_USES_UNPREFIXED_LINES);
-                        if (should_get_unprefixed_lines) {
-                            if (console->hist_lookup_idx >= console->unprefixed_lines.count) {
-                                log_error("Outofbounds: %d is out of bounds of unprefixed_lines.count (%zu)", console->hist_lookup_idx, console->unprefixed_lines.count);
-                                return NULL;
-                            }
-                            last_line = &console->unprefixed_lines.items[console->hist_lookup_idx];
-                        }
-                    }
+					if (console->hist_lookup_idx <= 1) {
+						found = false;
+						break;
+					}
+					console->hist_lookup_idx--;
+					last_line = get_console_line(console, console->hist_lookup_idx);
+					bool should_get_unprefixed_lines = GET_FLAG(console->flags, CONSOLE_FLAG_READLINE_USES_UNPREFIXED_LINES);
+					if (should_get_unprefixed_lines) {
+						if (console->hist_lookup_idx >= console->unprefixed_lines.count) {
+							log_error("Outofbounds: %d is out of bounds of unprefixed_lines.count (%zu)", console->hist_lookup_idx, console->unprefixed_lines.count);
+							return NULL;
+						}
+						last_line = &console->unprefixed_lines.items[console->hist_lookup_idx];
+					}
 
                     if (found && last_line != NULL)  {
                         memcpy(line->buff, last_line->buff, last_line->count);
@@ -710,27 +724,27 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
 
             if (IsKeyPressed(KEY_N)) {
                 if (console->lines.count > 0) {
-                    if (console->hist_lookup_idx < console->lines.count-1) console->hist_lookup_idx++;
+                    if (console->hist_lookup_idx+1 < console->lines.count-1) console->hist_lookup_idx++;
+
+					log_info("%d", console->hist_lookup_idx);
 
                     // TODO: factor to func
                     bool found = true;
                     Console_line *last_line = get_console_line(console, console->hist_lookup_idx);
-                    while (!last_line->readline_hist) {
-                        if (console->hist_lookup_idx > console->lines.count-1) {
-                            found = false;
-                            break;
-                        }
-                        console->hist_lookup_idx--;
-                        last_line = get_console_line(console, console->hist_lookup_idx);
-                        bool should_get_unprefixed_lines = GET_FLAG(console->flags, CONSOLE_FLAG_READLINE_USES_UNPREFIXED_LINES);
-                        if (should_get_unprefixed_lines) {
-                            if (console->hist_lookup_idx >= console->unprefixed_lines.count) {
-                                log_error("Outofbounds: %d is out of bounds of unprefixed_lines.count (%zu)", console->hist_lookup_idx, console->unprefixed_lines.count);
-                                return NULL;
-                            }
-                            last_line = &console->unprefixed_lines.items[console->hist_lookup_idx];
-                        }
-                    }
+					if (console->hist_lookup_idx > console->lines.count-1) {
+						found = false;
+						break;
+					}
+					console->hist_lookup_idx--;
+					last_line = get_console_line(console, console->hist_lookup_idx);
+					bool should_get_unprefixed_lines = GET_FLAG(console->flags, CONSOLE_FLAG_READLINE_USES_UNPREFIXED_LINES);
+					if (should_get_unprefixed_lines) {
+						if (console->hist_lookup_idx >= console->unprefixed_lines.count) {
+							log_error("Outofbounds: %d is out of bounds of unprefixed_lines.count (%zu)", console->hist_lookup_idx, console->unprefixed_lines.count);
+							return NULL;
+						}
+						last_line = &console->unprefixed_lines.items[console->hist_lookup_idx];
+					}
 
                     if (found && last_line != NULL ) {
                         memcpy(line->buff, last_line->buff, last_line->count);
@@ -762,6 +776,10 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
 
         
 	} while (ch > 0);
+
+	if (chars_inputted <= 0) {
+		darr_delete(console->lines, Console_line, console->line);
+	}
 
     return false;
 }
