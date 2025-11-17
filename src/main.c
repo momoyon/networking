@@ -460,15 +460,14 @@ exec_command:
                 if (args.count > 0) {
                     command = args.items[0];
                 }
+				add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE, true);
                 if (matched_commands_ids.count == 0) {
                     log_error_console(command_hist, "`%s` is not a valid command!", command_buff);
                     is_in_command = true;
                     clear_current_console_line(&command_hist);
-                    add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE, true);
                 } else if (matched_commands_ids.count == 1) {
 
                     if (strcmp(command, commands[matched_commands_ids.items[0]]) == 0) {
-                        add_line_to_console(&command_hist, command_buff, strlen(command_buff), WHITE, true);
                         // Run commands
                         is_in_command = false;
                         switch (matched_commands_ids.items[0]) {
@@ -1279,6 +1278,12 @@ exec_command:
         if (debug_draw) {
             Font f = GetFontDefault();
             DEBUG_TEXT(GOLD, f, font_size, 2, "%d", verbosity_level);
+
+			/// @DEBUG
+            DEBUG_TEXT(SKYBLUE, f, font_size, 2, "Lines:      %zu", command_hist.lines.count);
+            DEBUG_TEXT(SKYBLUE, f, font_size, 2, "Unprefixed: %zu", command_hist.unprefixed_lines.count);
+            DEBUG_TEXT(SKYBLUE, f, font_size, 2, "History:    %zu", command_hist.history.count);
+			///
 
             DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering: %p", hovering_entity);
 

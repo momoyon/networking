@@ -146,6 +146,7 @@ void add_line_to_console(Console *console, char *buff, size_t buff_size, Color c
 void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color, bool histt);
 void add_character_to_console_line(Console *console, char ch, size_t line);
 Console_line *get_console_line(Console *console, size_t line);
+Console_line *get_console_history(Console *console, size_t line);
 Console_line *get_or_create_console_line(Console *console, size_t line);
 void clear_console_line(Console_line *cl);
 void clear_current_console_line(Console *console);
@@ -514,7 +515,7 @@ void add_line_to_console_simple(Console *console, char *line, Color color, bool 
 	if (hist) {
 		darr_append(console->history, cl);
 	}
-    console->hist_lookup_idx = console->history.count;
+    console->hist_lookup_idx = console->history.count-1;
 }
 
 void add_line_to_console(Console *console, char *buff, size_t buff_size, Color color, bool hist) {
@@ -527,7 +528,7 @@ void add_line_to_console(Console *console, char *buff, size_t buff_size, Color c
 	if (hist) {
 		darr_append(console->history, cl);
 	}
-    console->hist_lookup_idx = console->history.count;
+    console->hist_lookup_idx = console->history.count-1;
 }
 
 void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff, Color color, bool hist) {
@@ -546,7 +547,7 @@ void add_line_to_console_prefixed(Console *console, Arena *tmp_arena, char *buff
 	if (hist) {
 		darr_append(console->history, cl);
 	}
-    console->hist_lookup_idx = console->history.count;
+    console->hist_lookup_idx = console->history.count-1;
 }
 
 void add_character_to_console_line(Console *console, char ch, size_t line) {
@@ -567,6 +568,15 @@ Console_line *get_console_line(Console *console, size_t line) {
     }
 
     return &console->lines.items[line];
+}
+
+Console_line *get_console_history(Console *console, size_t line) {
+    if (line >= console->history.count) {
+        log_error("Outofbounds: %zu is out of bounds of history.count (%zu)", line, console->history.count);
+        return NULL;
+    }
+
+    return &console->history.items[line];
 }
 
 Console_line *get_or_create_console_line(Console *console, size_t line) {
@@ -621,6 +631,24 @@ String_array get_current_console_args(Console *console) {
     }
 
     return res;
+}
+
+void readline_update(Console *console, Console_line *line) {
+	Console_line *last_line = get_console_history(console, console->hist_lookup_idx);
+	bool should_get_unprefixed_lines = GET_FLAG(console->flags, CONSOLE_FLAG_READLINE_USES_UNPREFIXED_LINES);
+	if (should_get_unprefixed_lines) {
+		if (console->hist_lookup_idx >= console->unprefixed_lines.count) {
+			log_error("Outofbounds: %d is out of bounds of unprefixed_lines.count (%zu)", console->hist_lookup_idx, console->unprefixed_lines.count);
+			return;
+		}
+		last_line = &console->unprefixed_lines.items[console->hist_lookup_idx];
+	}
+	if (last_line != NULL)  {
+		memcpy(line->buff, last_line->buff, last_line->count);
+		line->count = last_line->count;
+		line->buff[line->count] = '\0';
+		console->cursor = strlen(line->buff);
+	}
 }
 
 bool input_to_console(Console *console, char *ignore_characters, size_t ignore_characters_count) {
@@ -679,9 +707,9 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
                 return false;
             }
 
-			if (chars_inputted <= 0) {
-				darr_delete(console->lines, Console_line, console->line);
-			}
+			// if (chars_inputted <= 0) {
+			// 	darr_delete(console->lines, Console_line, console->line);
+			// }
 
             return true;
         }
@@ -691,67 +719,22 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
             // Prev_line
             if (IsKeyPressed(KEY_P)) {
                 if (console->lines.count > 0) {
-                    if (console->hist_lookup_idx > 1) console->hist_lookup_idx--;
-
-					log_info("%d", console->hist_lookup_idx);
-
-                    bool found = true;
-                    Console_line *last_line = get_console_line(console, console->hist_lookup_idx);
-					if (console->hist_lookup_idx <= 1) {
-						found = false;
-						break;
+                    if (console->hist_lookup_idx > 1) {
+						console->hist_lookup_idx--;
 					}
-					console->hist_lookup_idx--;
-					last_line = get_console_line(console, console->hist_lookup_idx);
-					bool should_get_unprefixed_lines = GET_FLAG(console->flags, CONSOLE_FLAG_READLINE_USES_UNPREFIXED_LINES);
-					if (should_get_unprefixed_lines) {
-						if (console->hist_lookup_idx >= console->unprefixed_lines.count) {
-							log_error("Outofbounds: %d is out of bounds of unprefixed_lines.count (%zu)", console->hist_lookup_idx, console->unprefixed_lines.count);
-							return NULL;
-						}
-						last_line = &console->unprefixed_lines.items[console->hist_lookup_idx];
-					}
-
-                    if (found && last_line != NULL)  {
-                        memcpy(line->buff, last_line->buff, last_line->count);
-                        line->count = last_line->count;
-                        line->buff[line->count] = '\0';
-                        console->cursor = strlen(line->buff);
-                    }
-
+					// log_info("%d", console->hist_lookup_idx);
+					readline_update(console, line);
                 }
             }
 
             if (IsKeyPressed(KEY_N)) {
                 if (console->lines.count > 0) {
-                    if (console->hist_lookup_idx+1 < console->lines.count-1) console->hist_lookup_idx++;
-
-					log_info("%d", console->hist_lookup_idx);
-
-                    // TODO: factor to func
-                    bool found = true;
-                    Console_line *last_line = get_console_line(console, console->hist_lookup_idx);
-					if (console->hist_lookup_idx > console->lines.count-1) {
-						found = false;
-						break;
-					}
-					console->hist_lookup_idx--;
-					last_line = get_console_line(console, console->hist_lookup_idx);
-					bool should_get_unprefixed_lines = GET_FLAG(console->flags, CONSOLE_FLAG_READLINE_USES_UNPREFIXED_LINES);
-					if (should_get_unprefixed_lines) {
-						if (console->hist_lookup_idx >= console->unprefixed_lines.count) {
-							log_error("Outofbounds: %d is out of bounds of unprefixed_lines.count (%zu)", console->hist_lookup_idx, console->unprefixed_lines.count);
-							return NULL;
-						}
-						last_line = &console->unprefixed_lines.items[console->hist_lookup_idx];
+                    if (console->hist_lookup_idx < (int)(console->history.count)-1) {
+						console->hist_lookup_idx++;
 					}
 
-                    if (found && last_line != NULL ) {
-                        memcpy(line->buff, last_line->buff, last_line->count);
-                        line->count = last_line->count;
-                        line->buff[line->count] = '\0';
-                        console->cursor = strlen(line->buff);
-                    }
+					// log_info("%d (%s)", console->hist_lookup_idx, console->hist_lookup_idx < console->history.count-2 ? "true" : "false");
+					readline_update(console, line);
                 }
             }
         }
@@ -777,9 +760,9 @@ bool input_to_console(Console *console, char *ignore_characters, size_t ignore_c
         
 	} while (ch > 0);
 
-	if (chars_inputted <= 0) {
-		darr_delete(console->lines, Console_line, console->line);
-	}
+	// if (chars_inputted <= 0) {
+	// 	darr_delete(console->lines, Console_line, console->line);
+	// }
 
     return false;
 }
