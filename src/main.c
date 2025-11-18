@@ -967,9 +967,16 @@ exec_command:
                 }
 
                 if (IsKeyPressed(KEY_SPACE) && comm_dst && comm_src) {
-                    if (!send_ethernet_frame(comm_dst, comm_src)) {
+					Path_map map = {0};
+                    if (!send_ethernet_frame(comm_dst, comm_src, &map)) {
                         log_error_to_console("Failed ARP!");
                     }
+
+					log_debug("Path: ");
+					for (int i = 0; i < map.count; ++i) {
+						log_debug(" - %d", map.items[i]);
+					}
+					darr_free(map);
 
                     UNSET_FLAG(comm_src->state, ESTATE_SELECTED);
                     comm_src = NULL;

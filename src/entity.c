@@ -1041,7 +1041,7 @@ uint8 *get_mac_address(Entity *e) {
 }
 
 // Data-transfer
-bool send_ethernet_frame(Entity *dst, Entity *src) {
+bool send_ethernet_frame(Entity *dst, Entity *src, Path_map *map) {
 	static int ethernet_frame_counter = 0;
     if (dst->kind == EK_SWITCH) {
         log_error_to_console("You cannot send packets to a switch!");
@@ -1073,7 +1073,7 @@ bool send_ethernet_frame(Entity *dst, Entity *src) {
 
 	int frame_id = ethernet_frame_counter++;
 
-    return receive(NULL, src, eframe, frame_id);
+    return receive(NULL, src, eframe, frame_id, map);
 }
 // static bool forward_frame_via_switch(Entity *se, Ethernet_frame frame) {
 //     ASSERT(se->kind == EK_SWITCH, "brother");
@@ -1092,12 +1092,12 @@ bool send_ethernet_frame(Entity *dst, Entity *src) {
 // }
 
 
-bool receive_ether_frame__pc(Entity *from, Entity *pc_e, Ethernet_frame frame, int frame_id) {
+bool receive_ether_frame__pc(Entity *from, Entity *pc_e, Ethernet_frame frame, int frame_id, Path_map *map) {
 	// Check if the frame is for this PC
-
 	if (memcmp(frame.dst, pc_e->pc->nic->mac_address, sizeof(uint8)*6) == 0) {
 		// TODO: Have to parse and respond to the frame
 		log_debug_to_console("Receive ethernet frame [%d] at PC %zu", frame_id, pc_e->id);
+		darr_append(*map, pc_e->id);
 		return true;
 	}
 
@@ -1111,10 +1111,11 @@ bool receive_ether_frame__pc(Entity *from, Entity *pc_e, Ethernet_frame frame, i
 		return false;
 	}
 
-	return receive(pc_e, connected_e, frame, frame_id);
+	darr_append(*map, pc_e->id);
+	return receive(pc_e, connected_e, frame, frame_id, map);
 }
 
-bool receive_ether_frame__switch(Entity *from, Entity *e, Ethernet_frame frame, int frame_id) {
+bool receive_ether_frame__switch(Entity *from, Entity *e, Ethernet_frame frame, int frame_id, Path_map *map) {
 	ASSERT(e->kind == EK_SWITCH, "BRO");
 	// Check if the frame is for one of the ports in this switch
 	for (int i = 0; i < e->switchh->module_count; ++i) {
@@ -1124,6 +1125,7 @@ bool receive_ether_frame__switch(Entity *from, Entity *e, Ethernet_frame frame, 
 
 			if (memcmp(port->nic->mac_address, frame.dst, sizeof(uint8) * 6) == 0) {
 				// TODO: Have to parse and respond to the frame
+				darr_append(*map, port_e->id);
 				log_debug_to_console("Receive ethernet frame [%d] at Switch [%zu] 's port %d/%d", frame_id, e->id, i, j);
 				return true;
 			}
@@ -1136,8 +1138,9 @@ bool receive_ether_frame__switch(Entity *from, Entity *e, Ethernet_frame frame, 
 			Entity *port_e = &e->switchh->fe[i][j];
 			Port *port = port_e->port;
 
-			if (port->nic->connected_entity && port->nic->connected_entity != from) {
-				if (receive(port_e, port->nic->connected_entity, frame, frame_id)) {
+			if (port->nic->connected_entity && port->nic->connected_entity != from && !is_entity_id_in_map(map, port->nic->connected_entity->id)) {
+				if (receive(port_e, port->nic->connected_entity, frame, frame_id, map)) {
+					darr_append(*map, port->nic->connected_entity->id);
 					return true;
 				}
 			}
@@ -1148,16 +1151,42 @@ bool receive_ether_frame__switch(Entity *from, Entity *e, Ethernet_frame frame, 
 	return false;
 }
 
-bool receive(Entity *from, Entity *to, Ethernet_frame frame, int frame_id) {
+bool receive_ether_frame__ap(Entity *from, Entity *e, Ethernet_frame frame, int frame_id, Path_map *map) {
+	ASSERT(e->kind == EK_ACCESS_POINT, "BRO");
+
+	// Check if the frame is for this AP
+	if (memcmp(frame.dst, e->ap->mac_address, sizeof(uint8)*6) == 0) {
+		// TODO: Have to parse and respond to the frame
+		log_debug_to_console("Receive ethernet frame [%d] at AP %zu", frame_id, e->id);
+		darr_append(*map, e->id);
+		return true;
+	}
+
+	Entity_ptrs connected_entities = get_connected_entities(e);
+	Entity *connected_e = connected_entities.count > 0 ? connected_entities.items[0] : NULL;
+	darr_free(connected_entities);
+
+	if (connected_e == NULL
+	|| connected_e == from) {
+		log_debug_to_console("Dropped ethernet frame [%d] at AP %zu", frame_id, e->id);
+		return false;
+	}
+
+	darr_append(*map, e->id);
+	return receive(e, connected_e, frame, frame_id, map);
+}
+
+bool receive(Entity *from, Entity *to, Ethernet_frame frame, int frame_id, Path_map *map) {
+	bool res = false;
 	switch (to->kind) {
         case EK_SWITCH: {
-			return receive_ether_frame__switch(from, to, frame, frame_id);
+			res = receive_ether_frame__switch(from, to, frame, frame_id, map);
 		} break;
         case EK_ACCESS_POINT: {
-			ASSERT(false, "AP receive ethernet frame is UNIMPLEMENTED!");
+			res = receive_ether_frame__ap(from, to, frame, frame_id, map);
 		} break;
         case EK_PC:  {
-			return receive_ether_frame__pc(from, to, frame, frame_id);
+			res = receive_ether_frame__pc(from, to, frame, frame_id, map);
 
 		} break;
         case EK_PORT:  {
@@ -1166,6 +1195,18 @@ bool receive(Entity *from, Entity *to, Ethernet_frame frame, int frame_id) {
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
 	}
+
+	return res;
+}
+
+bool is_entity_id_in_map(Path_map *map, int id) {
+	for (int i = 0; i < map->count; ++i) {
+		if (map->items[i] == id) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 Entity *get_entity_ptr_by_id(Entities *entities, int id) {

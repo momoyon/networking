@@ -28,6 +28,12 @@ typedef struct {
 
 extern char *entity_texture_path_map[EK_COUNT];
 
+typedef struct {
+	int *items;
+	size_t count;
+	size_t capacity;
+} Path_map;
+
 // NOTE: How we assign unique ids for entities:
 // 1. We first check if `free_entity_ids` is empty:
 //      - true If empty: go 2.
@@ -112,11 +118,13 @@ void free_ap(Entity *e);
 void free_pc(Entity *e);
 
 // Data-transfer
-bool send_ethernet_frame(Entity *dst, Entity *src);
-bool receive(Entity *from, Entity *to, Ethernet_frame frame, int frame_id);
-bool receive_ether_frame__pc(Entity *from, Entity *pc_e, Ethernet_frame frame, int frame_id);
-bool receive_ether_frame__switch(Entity *from, Entity *sw_e, Ethernet_frame frame, int frame_id);
+bool send_ethernet_frame(Entity *dst, Entity *src, Path_map *map);
+bool receive(Entity *from, Entity *to, Ethernet_frame frame, int frame_id, Path_map *map);
+bool receive_ether_frame__pc(Entity *from, Entity *pc_e, Ethernet_frame frame, int frame_id, Path_map *path);
+bool receive_ether_frame__switch(Entity *from, Entity *sw_e, Ethernet_frame frame, int frame_id, Path_map *path);
+bool receive_ether_frame__ap(Entity *from, Entity *sw_e, Ethernet_frame frame, int frame_id, Path_map *path);
 
+bool is_entity_id_in_map(Path_map *map, int id);
 Entity *get_entity_ptr_by_id(Entities *entities, int id);
 
 bool connect_to_next_free_port(Entity *nic_e, Entity *switch_e);
