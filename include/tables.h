@@ -22,7 +22,12 @@ typedef struct {
 } ARP_Table;
 
 typedef struct {
-	int key;
+	int module;
+	int port;
+} Port_ID;
+
+typedef struct {
+	Port_ID key;
 	MAC value;
 } Port_to_MAC_KV;
 

@@ -100,6 +100,28 @@ Switch_console_arg_type switch_console_arg_type_from_str(const char *t) {
     return res;
 }
 
+void update_switch_mac_table(Switch *switchh) {
+	for (int i = 0; i < switchh->module_count; ++i) {
+		for (int j = 0; j < switchh->port_count; ++j) {
+			Entity *port_e = &switchh->fe[i][j];
+
+	  		Port_ID this_id = { .module = i, .port = j };
+			Port_to_MAC_KV *kv = hmgetp(switchh->mac_table.mac_table, this_id);
+
+			if (port_e->port->nic->connected_entity) {
+				MAC mac = {0};
+	  			uint8 *connected_mac_addr = get_mac_address(port_e->port->nic->connected_entity);
+				memcpy(mac.mac, connected_mac_addr, sizeof(uint8) * 6);
+				hmput(switchh->mac_table.mac_table, this_id, mac);
+
+				if (!kv) {
+					log_debug("Added mac table entry for port %d/%d: "MAC_FMT, this_id.module, this_id.port, MAC_ARG(mac.mac));
+				}
+			}
+		}
+	}
+}
+
 // See https://fs.momoyon.org/share/SW_CMD_ARG_TABLE.md
 bool valid_switch_console_arg(const char *cmd, Switch_console_arg_type type) {
     switch (type) {
@@ -245,7 +267,11 @@ bool parse_switch_console_cmd(Switch *switchh, String_array cmd_args) {
 				const char *arg1 = cmd_args.items[1];
 
 				if (strcmp(arg1, "mac_table") == 0) {
-					log_info_a(switchh->console, "%s", "RAH!");
+					for (int i = 0; i < hmlen(switchh->mac_table.mac_table); ++i) {
+						Port_to_MAC_KV kv = switchh->mac_table.mac_table[i];
+
+						log_info_a(switchh->console, "Port %d/%d -> "MAC_FMT, kv.key.module, kv.key.port, MAC_ARG(kv.value.mac));
+					}
 				} else {
 					log_error_a(switchh->console, "%s", "Only `mac_table` is implemented yet!");
 				}

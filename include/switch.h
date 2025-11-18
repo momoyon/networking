@@ -170,6 +170,7 @@ Entity *get_switch_free_port(Entity *switch_e);
 
 bool get_next_switch_console_command_arg(String_array current_args, Switch_console_arg *next_arg_out);
 void get_switch_console_commands(Switch *switchh, Switch_console_cmd **commands_out, size_t *commands_count_out);
+void update_switch_mac_table(Switch *switchh);
 
 void switch_change_mode(Switch *switchh, Switch_console_mode new_mode);
 

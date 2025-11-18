@@ -1708,9 +1708,12 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
         }
     }
 
-    // Assign the nic pointers to the nic_entity using the parsed nic_id
+    // Update MAC Table of switches & Routers
     for (size_t i = 0; i < entities->count; ++i) {
-        // Entity *e = &entities->items[i];
+        Entity *e = &entities->items[i];
+		if (e->kind == EK_SWITCH) {
+			update_switch_mac_table(e->switchh);
+		}
         // if (e->kind == EK_NIC) {
         //     if (e->nic->nic_entity_id >= 0) {
         //         Entity *nic_entity = get_entity_ptr_by_id(entities, e->nic->nic_entity_id);
@@ -1722,6 +1725,7 @@ bool load_entities(Entities *entities, const char *filepath, Arena *arena, Arena
         //     }
         // }
     }
+
 
     free((void*)file);
     return true;
@@ -1834,6 +1838,7 @@ bool connect_to_next_free_port(Entity *e, Entity *switch_e) {
             if (port->nic->connected_entity == NULL) {
                 port->nic->connected_entity = e;
                 set_connected_entity(e, port_e);
+				update_switch_mac_table(switch_e->switchh);
                 return true;
             }
 

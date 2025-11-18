@@ -1277,12 +1277,12 @@ exec_command:
             TEXT_ALIGN_H_LEFT, GOLD);
         if (debug_draw) {
             Font f = GetFontDefault();
-            DEBUG_TEXT(GOLD, f, font_size, 2, "%d", verbosity_level);
+            // DEBUG_TEXT(GOLD, f, font_size, 2, "%d", verbosity_level);
 
 			/// @DEBUG
-            DEBUG_TEXT(SKYBLUE, f, font_size, 2, "Lines:      %zu", command_hist.lines.count);
-            DEBUG_TEXT(SKYBLUE, f, font_size, 2, "Unprefixed: %zu", command_hist.unprefixed_lines.count);
-            DEBUG_TEXT(SKYBLUE, f, font_size, 2, "History:    %zu", command_hist.history.count);
+            // DEBUG_TEXT(SKYBLUE, f, font_size, 2, "Lines:      %zu", command_hist.lines.count);
+            // DEBUG_TEXT(SKYBLUE, f, font_size, 2, "Unprefixed: %zu", command_hist.unprefixed_lines.count);
+            // DEBUG_TEXT(SKYBLUE, f, font_size, 2, "History:    %zu", command_hist.history.count);
 			///
 
             DEBUG_TEXT(WHITE, f, font_size, 2, "Hovering: %p", hovering_entity);
@@ -1318,16 +1318,19 @@ exec_command:
                             Port* port = port_e->port;
 
                             if (verbosity_level >= 2) {
-                            DEBUG_TEXT(GRAY, f, font_size, 16, "[%zu] (%p) fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT" | %f, %f", 
+								DEBUG_TEXT(GRAY, f, font_size, 16, "[%zu] (%p) fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT" | %f, %f [%s]", 
                                     port_e->id, port_e, i, j, MAC_ARG(port->nic->mac_address), IPV4_ARG(port->nic->ipv4_address), SUBNET_MASK_ARG(port->nic->subnet_mask),
-                                    port_e->pos.x, port_e->pos.y);
+                                    port_e->pos.x, port_e->pos.y,
+				   					port->nic->connected_entity ? "x" : " ");
                             } else if (verbosity_level >= 1) {
-                                DEBUG_TEXT(GRAY, f, font_size, 16, "fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT" | %f, %f", 
+                                DEBUG_TEXT(GRAY, f, font_size, 16, "fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT" | %f, %f [%s]", 
                                     i, j, MAC_ARG(port->nic->mac_address), IPV4_ARG(port->nic->ipv4_address), SUBNET_MASK_ARG(port->nic->subnet_mask),
-                                    port_e->pos.x, port_e->pos.y);
+                                    port_e->pos.x, port_e->pos.y,
+									port->nic->connected_entity ? "x" : " ");
                             } else {
-                                DEBUG_TEXT(GRAY, f, font_size, 16, "fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT, 
-                                    i, j, MAC_ARG(port->nic->mac_address), IPV4_ARG(port->nic->ipv4_address), SUBNET_MASK_ARG(port->nic->subnet_mask));
+                                DEBUG_TEXT(GRAY, f, font_size, 16, "fe%d/%d: "MAC_FMT" "IPV4_FMT" " SUBNET_MASK_FMT" [%s]", 
+                                    i, j, MAC_ARG(port->nic->mac_address), IPV4_ARG(port->nic->ipv4_address), SUBNET_MASK_ARG(port->nic->subnet_mask),
+								    port->nic->connected_entity ? "x" : " ");
                             }
                         }
                     }
