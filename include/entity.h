@@ -113,9 +113,9 @@ void free_pc(Entity *e);
 
 // Data-transfer
 bool send_ethernet_frame(Entity *dst, Entity *src);
-bool recieve_impl(Entity *dst, Entity *src, Ethernet_frame frame, bool forwarded, int src_sw_module, int src_sw_port);
-bool recieve(Entity *dst, Entity *src, Ethernet_frame frame, int src_sw_module, int src_sw_port);
-bool recieve_fwd(Entity *dst, Entity *src, Ethernet_frame frame, int src_sw_module, int src_sw_port);
+bool receive(Entity *from, Entity *to, Ethernet_frame frame, int frame_id);
+bool receive_ether_frame__pc(Entity *from, Entity *pc_e, Ethernet_frame frame, int frame_id);
+bool receive_ether_frame__switch(Entity *from, Entity *sw_e, Ethernet_frame frame, int frame_id);
 
 Entity *get_entity_ptr_by_id(Entities *entities, int id);
 

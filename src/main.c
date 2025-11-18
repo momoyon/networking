@@ -966,7 +966,7 @@ exec_command:
                     }
                 }
 
-                if (IsKeyPressed(KEY_SPACE)) {
+                if (IsKeyPressed(KEY_SPACE) && comm_dst && comm_src) {
                     if (!send_ethernet_frame(comm_dst, comm_src)) {
                         log_error_to_console("Failed ARP!");
                     }

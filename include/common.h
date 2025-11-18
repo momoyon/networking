@@ -17,6 +17,7 @@ typedef Switch_console_cmd Switch_console_cmd;
 
 #define log_error_to_console(fmt, ...) log_error_console(main_console, fmt, ##__VA_ARGS__); log_error(fmt, ##__VA_ARGS__); main_console_activity = MAIN_CONSOLE_ACTIVITY_VALUE; main_console_alpha = 1.f;
 #define log_info_to_console(fmt, ...) log_info_console(main_console, fmt, ##__VA_ARGS__); log_info(fmt, ##__VA_ARGS__); main_console_activity = MAIN_CONSOLE_ACTIVITY_VALUE; main_console_alpha = 1.f;
+#define log_debug_to_console(fmt, ...) log_debug_console(main_console, fmt, ##__VA_ARGS__); log_debug(fmt, ##__VA_ARGS__); main_console_activity = MAIN_CONSOLE_ACTIVITY_VALUE; main_console_alpha = 1.f;
 
 typedef struct {
     int *items;
