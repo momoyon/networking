@@ -1041,7 +1041,7 @@ uint8 *get_mac_address(Entity *e) {
 }
 
 // Data-transfer
-bool send_arp_ethernet_frame(Entity *dst, Entity *src) {
+bool send_ethernet_frame(Entity *dst, Entity *src) {
     if (dst->kind == EK_SWITCH) {
         log_error_to_console("You cannot send packets to a switch!");
         return false;

@@ -112,7 +112,7 @@ void free_ap(Entity *e);
 void free_pc(Entity *e);
 
 // Data-transfer
-bool send_arp_ethernet_frame(Entity *dst, Entity *src);
+bool send_ethernet_frame(Entity *dst, Entity *src);
 bool recieve_impl(Entity *dst, Entity *src, Ethernet_frame frame, bool forwarded, int src_sw_module, int src_sw_port);
 bool recieve(Entity *dst, Entity *src, Ethernet_frame frame, int src_sw_module, int src_sw_port);
 bool recieve_fwd(Entity *dst, Entity *src, Ethernet_frame frame, int src_sw_module, int src_sw_port);
