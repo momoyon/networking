@@ -703,14 +703,13 @@ void make_switch(Entity *e, Switch_model model, const char *version, Switch *swi
         for (int j = 0; j < s.port_count; ++j) {
             s.fe[i][j] = make_entity(e->entities, v2(0,0), ENTITY_DEFAULT_RADIUS, EK_PORT, arena, tmp_arena, str_arena);
             Entity *port_e = &s.fe[i][j];
-            port_e->port->switch_entity_id = e->id;
-
             init_entity(port_e, arena, tmp_arena, str_arena);
 
             Port *port = port_e->port;
 
             port->port = i;
             port->module = j;
+			port->switch_entity_id = e->id;
 
             port->nic = (Nic *)calloc(1, sizeof(Nic));
             do {
@@ -1105,8 +1104,12 @@ bool receive_ether_frame__pc(Entity *from, Entity *pc_e, Ethernet_frame frame, i
 	Entity *connected_e = connected_entities.count > 0 ? connected_entities.items[0] : NULL;
 	darr_free(connected_entities);
 
+	// NOTE: The connected entity is the parent switch, not the port, so have to compare `from` with the parent switch
+	Entity *sw_e = from && from->kind == EK_PORT ? get_entity_ptr_by_id(from->entities, from->port->switch_entity_id) : NULL;
+
 	if (connected_e == NULL
-	|| connected_e == from) {
+	|| connected_e == from
+	|| (sw_e && (sw_e == connected_e))) {
 		log_debug_to_console("Dropped ethernet frame [%d] at PC %zu", frame_id, pc_e->id);
 		return false;
 	}
@@ -1139,9 +1142,16 @@ bool receive_ether_frame__switch(Entity *from, Entity *e, Ethernet_frame frame, 
 			Port *port = port_e->port;
 
 			if (port->nic->connected_entity && port->nic->connected_entity != from && !is_entity_id_in_map(map, port->nic->connected_entity->id)) {
+				if (map->items[map->count-1] != e->id)
+					darr_append(*map, e->id);
+
+				size_t before_count = map->count;
+
 				if (receive(port_e, port->nic->connected_entity, frame, frame_id, map)) {
-					darr_append(*map, port->nic->connected_entity->id);
 					return true;
+				} else {
+					log_debug("Reverting map from: %zu count to %zu", map->count, before_count);
+					map->count = before_count;
 				}
 			}
 		}
@@ -1176,6 +1186,25 @@ bool receive_ether_frame__ap(Entity *from, Entity *e, Ethernet_frame frame, int 
 	return receive(e, connected_e, frame, frame_id, map);
 }
 
+bool receive_ether_frame__port(Entity *from, Entity *e, Ethernet_frame frame, int frame_id, Path_map *map) {
+	ASSERT(e->kind == EK_PORT, "BRO");
+
+	Entity *sw_e = get_entity_by_id(e->port->switch_entity_id); // Parent SW of the port
+	ASSERT(sw_e, "A port must be a child of a switch/router!");
+
+	// Check if the frame is for this PORT
+	if (memcmp(frame.dst, e->port->nic->mac_address, sizeof(uint8)*6) == 0) {
+		// TODO: Have to parse and respond to the frame
+		log_debug_to_console("Receive ethernet frame [%d] at Port %d/%d %zu of Switch %zu", frame_id, e->port->module, e->port->port, e->id, sw_e->id);
+		
+		darr_append(*map, sw_e->id);
+		return true;
+	}
+
+	darr_append(*map, sw_e->id);
+	return receive(from, sw_e, frame, frame_id, map);
+}
+
 bool receive(Entity *from, Entity *to, Ethernet_frame frame, int frame_id, Path_map *map) {
 	bool res = false;
 	switch (to->kind) {
@@ -1187,10 +1216,9 @@ bool receive(Entity *from, Entity *to, Ethernet_frame frame, int frame_id, Path_
 		} break;
         case EK_PC:  {
 			res = receive_ether_frame__pc(from, to, frame, frame_id, map);
-
 		} break;
         case EK_PORT:  {
-			ASSERT(false, "PORT receive ethernet frame is UNIMPLEMENTED!");
+			res = receive_ether_frame__port(from, to, frame, frame_id, map);
 		} break;
         case EK_COUNT:
         default: ASSERT(false, "UNREACHABLE!");

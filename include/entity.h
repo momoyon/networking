@@ -122,7 +122,8 @@ bool send_ethernet_frame(Entity *dst, Entity *src, Path_map *map);
 bool receive(Entity *from, Entity *to, Ethernet_frame frame, int frame_id, Path_map *map);
 bool receive_ether_frame__pc(Entity *from, Entity *pc_e, Ethernet_frame frame, int frame_id, Path_map *path);
 bool receive_ether_frame__switch(Entity *from, Entity *sw_e, Ethernet_frame frame, int frame_id, Path_map *path);
-bool receive_ether_frame__ap(Entity *from, Entity *sw_e, Ethernet_frame frame, int frame_id, Path_map *path);
+bool receive_ether_frame__ap(Entity *from, Entity *e, Ethernet_frame frame, int frame_id, Path_map *path);
+bool receive_ether_frame__port(Entity *from, Entity *e, Ethernet_frame frame, int frame_id, Path_map *path);
 
 bool is_entity_id_in_map(Path_map *map, int id);
 Entity *get_entity_ptr_by_id(Entities *entities, int id);

@@ -996,7 +996,7 @@ exec_command:
                 }
             } break;
             case MODE_CHANGE: {
-                if (!is_changing) {
+                if (!is_changing && hovering_entity) {
                     if (IsKeyPressed(KEY_ONE)) {
                         is_changing = true;
                         changing_type = CHANGE_IPV4;
